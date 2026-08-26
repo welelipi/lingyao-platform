@@ -1,4 +1,4 @@
-name: Deploy to Staging
+name: Build Staging JAR
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy-staging:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -24,68 +24,31 @@ jobs:
         working-directory: backend
         run: mvn clean package -DskipTests -q
 
-      - name: Setup SSH key
-        env:
-          CVM_SSH_KEY: ${{ secrets.CVM_SSH_KEY }}
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lingyao-platform-jar
+          path: backend/target/lingyao-platform.jar
+          retention-days: 7
+
+      - name: Notify owner (Step Summary)
         run: |
-          mkdir -p ~/.ssh
-          echo "$CVM_SSH_KEY" > ~/.ssh/lingyao-actions
-          chmod 600 ~/.ssh/lingyao-actions
-
-      - name: Deploy to CVM staging (9092)
-        env:
-          CVM_HOST: ${{ secrets.CVM_HOST }}
-          CVM_USER: ${{ secrets.CVM_USER }}
-        run: |
-          set -e
-
-          SSH_KEY=~/.ssh/lingyao-actions
-          SSH_OPT="-i $SSH_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-
-          echo "=== 1/5 上传新 jar 到 CVM /tmp (scp -C 压缩) ==="
-          scp -C $SSH_OPT \
-            backend/target/lingyao-platform.jar \
-            $CVM_USER@$CVM_HOST:/tmp/lingyao-platform.jar.new
-
-          echo "=== 2/5 SSH 远程：备份 + 替换 + 重启 staging ==="
-          ssh $SSH_OPT \
-            $CVM_USER@$CVM_HOST << 'REMOTE_EOF'
-            set -e
-
-            # 1. 备份当前 prod jar（staging 是软链，备份 prod 这份）
-            sudo cp /opt/lingyao/lingyao-platform.jar /opt/lingyao/lingyao-platform.jar.bak.$(date +%Y%m%d-%H%M%S)
-
-            # 2. 替换为新 jar
-            sudo mv /tmp/lingyao-platform.jar.new /opt/lingyao/lingyao-platform.jar
-
-            # 3. 重启 staging（不影响 prod 9091）
-            sudo systemctl restart lingyao-backend-staging
-
-            echo "=== 3/5 等待 Spring Boot 启动 30s ==="
-            sleep 30
-          REMOTE_EOF
-
-          echo "=== 4/5 健康检查 staging 9092 ==="
-          HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9092/api/health)
-          if [ "$HTTP" != "200" ]; then
-            echo "::error::Staging health check failed: HTTP $HTTP"
-            ssh $SSH_OPT \
-              $CVM_USER@$CVM_HOST "sudo journalctl -u lingyao-backend-staging -n 30 --no-pager"
-            exit 1
-          fi
-          echo "staging health OK (HTTP $HTTP)"
-
-          echo "=== 5/5 验证 4 子产品页 ==="
-          for h in geo hpd aidd por; do
-            HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9092/$h.html)
-            echo "9092 /$h.html: HTTP $HTTP"
-            if [ "$HTTP" != "200" ]; then
-              echo "::error::/$h.html not 200"
-              exit 1
-            fi
-          done
-
-          echo "=========================================="
-          echo "STAGING DEPLOY SUCCESS"
-          echo "URL: http://$CVM_HOST:9092/portal.html"
-          echo "=========================================="
+          echo "### ✅ JAR 构建成功" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: \`${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**JAR 大小**: $(du -h backend/target/lingyao-platform.jar | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 手动部署到 CVM staging 9092" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "在 Mac 端项目根目录跑一条命令即可完成部署（scp 8s + ssh restart 30s + 健康检查）：" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo './scripts/deploy.sh' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "部署完成后 staging 地址：http://118.195.197.15:9092/portal.html" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "默认账号：admin / Staging_Admin_2026_Pg!" >> $GITHUB_STEP_SUMMARY
