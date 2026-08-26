@@ -1,0 +1,88 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build with Maven
+        working-directory: backend
+        run: mvn clean package -DskipTests -q
+
+      - name: Setup SSH key
+        env:
+          CVM_SSH_KEY: ${{ secrets.CVM_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$CVM_SSH_KEY" > ~/.ssh/lingyao-actions
+          chmod 600 ~/.ssh/lingyao-actions
+
+      - name: Deploy to CVM staging (9092)
+        env:
+          CVM_HOST: ${{ secrets.CVM_HOST }}
+          CVM_USER: ${{ secrets.CVM_USER }}
+        run: |
+          set -e
+
+          echo "=== 1/5 上传新 jar 到 CVM /tmp ==="
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            backend/target/lingyao-platform.jar \
+            $CVM_USER@$CVM_HOST:/tmp/lingyao-platform.jar.new
+
+          echo "=== 2/5 SSH 远程：备份 + 替换 + 重启 staging ==="
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            $CVM_USER@$CVM_HOST << 'REMOTE_EOF'
+            set -e
+
+            # 1. 备份当前 prod jar（staging 是软链，备份 prod 这份）
+            sudo cp /opt/lingyao/lingyao-platform.jar /opt/lingyao/lingyao-platform.jar.bak.$(date +%Y%m%d-%H%M%S)
+
+            # 2. 替换为新 jar
+            sudo mv /tmp/lingyao-platform.jar.new /opt/lingyao/lingyao-platform.jar
+
+            # 3. 重启 staging（不影响 prod 9091）
+            sudo systemctl restart lingyao-backend-staging
+
+            echo "=== 3/5 等待 Spring Boot 启动 30s ==="
+            sleep 30
+          REMOTE_EOF
+
+          echo "=== 4/5 健康检查 staging 9092 ==="
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9092/api/health)
+          if [ "$HTTP" != "200" ]; then
+            echo "::error::Staging health check failed: HTTP $HTTP"
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              $CVM_USER@$CVM_HOST "sudo journalctl -u lingyao-backend-staging -n 30 --no-pager"
+            exit 1
+          fi
+          echo "staging health OK (HTTP $HTTP)"
+
+          echo "=== 5/5 验证 4 子产品页 ==="
+          for h in geo hpd aidd por; do
+            HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9092/$h.html)
+            echo "9092 /$h.html: HTTP $HTTP"
+            if [ "$HTTP" != "200" ]; then
+              echo "::error::/$h.html not 200"
+              exit 1
+            fi
+          done
+
+          echo "=========================================="
+          echo "STAGING DEPLOY SUCCESS"
+          echo "URL: http://$CVM_HOST:9092/portal.html"
+          echo "=========================================="
