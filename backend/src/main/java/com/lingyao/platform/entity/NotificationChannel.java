@@ -47,8 +47,13 @@ public class NotificationChannel {
     @Column(name = "app_id", length = 64)
     private String appId;
 
-    /** 接收者 OpenID 列表（JSON） */
-    @Lob
+    /**
+     * 接收者 OpenID 列表（JSON，如 ["user1","user2"]）
+     *
+     * ⚠️ 不要加 @Lob —— Hibernate 6 + PostgreSQL 上 @Lob String 默认映射成 OID 大对象，
+     *    即使 columnDefinition="TEXT" 覆盖了 DDL，JDBC bind 时仍走 OID 协议，
+     *    INSERT JSON 字符串时会报 "Bad value for type long"。
+     */
     @Column(name = "target_users", columnDefinition = "TEXT")
     private String targetUsers;
 

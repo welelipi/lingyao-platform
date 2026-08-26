@@ -1,0 +1,86 @@
+# ════════════════════════════════════════════════════════════
+# 凌瑶智数 · 预发布（staging）profile
+#
+# 与 application-private.yml 几乎完全相同，只改 3 处：
+# - 数据库名 lingyao → lingyao_staging
+# - 端口 9091 → 9092
+# - display-name 加「(staging)」标识（避免浏览器 tab 混淆）
+#
+# 启动方式：
+#   java -jar lingyao-platform.jar \
+#     --server.port=9092 \
+#     --spring.profiles.active=staging \
+#     --spring.config.location=/opt/lingyao/application-staging.yml
+#
+# 部署位置：CVM 上与 prod 同机不同端口
+# - prod:  9091 / lingyao        （私有化生产）
+# - staging: 9092 / lingyao_staging （发布前验证）
+# ════════════════════════════════════════════════════════════
+
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+  # PostgreSQL 数据库（staging，与 prod 数据库隔离）
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/lingyao_staging
+    username: lingyao_app
+    password: ${LINGYAO_DB_PASSWORD:Lingyao_Prod_2026_Pg!}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: lingyao-staging-pool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 600000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+
+  h2:
+    console:
+      enabled: false
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    defer-datasource-initialization: true
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Shanghai
+
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:data-private.sql
+      continue-on-error: true
+
+server:
+  port: 9092
+  address: 0.0.0.0
+  error:
+    include-message: always
+
+logging:
+  level:
+    root: INFO
+    com.lingyao.platform: INFO
+
+lingyao:
+  jwt:
+    secret: ${LINGYAO_JWT_SECRET:CHANGE_ME_ON_FIRST_RUN_THIS_IS_DEFAULT_FALLBACK_DO_NOT_USE_IN_PROD}
+    expiration-hours: 24
+    issuer: lingyao-platform
+  deployment:
+    # staging 在 prod 概念下属于"私有化变种"（同样是单租户 + 关闭注册）
+    # 形态用 PRIVATE 让现有代码路径复用，只在 display-name 区分 staging
+    mode: PRIVATE
+    tenant-mode: SINGLE
+    registration: CLOSED
+    # UI 标题加 (staging) 标识，浏览器 tab 一眼可辨
+    display-name: 凌瑶智数（私有化 staging）
+    bootstrap-admin-username: admin
+    bootstrap-admin-password: admin123
+    bootstrap-company-code: STAGING-CUSTOMER

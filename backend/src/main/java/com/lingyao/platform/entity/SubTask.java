@@ -61,8 +61,13 @@ public class SubTask {
     @Column(length = 32, nullable = false)
     private Status status = Status.REGISTERED;
 
-    /** 配置 JSON */
-    @Lob
+    /**
+     * 配置 JSON（如 {"apiKey":"xxx","pollInterval":300}）
+     *
+     * ⚠️ 不要加 @Lob —— Hibernate 6 + PostgreSQL 上 @Lob String 默认映射成 OID 大对象，
+     *    即使 columnDefinition="TEXT" 覆盖了 DDL，JDBC bind 时仍走 OID 协议，
+     *    INSERT JSON 字符串时会报 "Bad value for type long"。
+     */
     @Column(name = "config_json", columnDefinition = "TEXT")
     private String configJson;
 

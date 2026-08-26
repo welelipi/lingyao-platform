@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GEO 智策 · 凌瑶智数</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .product-page { max-width: 1080px; margin: 0 auto; padding: 24px; }
+    .product-header { display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      color: #fff; padding: 20px 28px; border-radius: 14px; margin-bottom: 24px;
+      box-shadow: 0 6px 24px rgba(79,70,229,0.18); }
+    .product-header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+    .product-header .icon { font-size: 32px; margin-right: 14px; }
+    .product-header .meta { display: flex; align-items: center; gap: 16px; font-size: 13px; opacity: 0.9; }
+    .header-actions { display: flex; gap: 10px; }
+    .header-actions a, .header-actions button { background: rgba(255,255,255,0.18); color: #fff;
+      border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; border-radius: 8px; cursor: pointer;
+      font-size: 13px; text-decoration: none; transition: background .15s; }
+    .header-actions a:hover, .header-actions button:hover { background: rgba(255,255,255,0.28); }
+    .status-banner { background: #FFF7E6; border-left: 4px solid #FAAD14; padding: 16px 20px;
+      border-radius: 8px; margin-bottom: 24px; font-size: 14px; color: #874D00; }
+    .status-banner.ok { background: #F6FFED; border-color: #52C41A; color: #237804; }
+    .demo-card { background: #fff; border-radius: 14px; padding: 24px; margin-bottom: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+    .demo-card h3 { margin: 0 0 14px; font-size: 16px; color: #1F1F1F; display: flex;
+      align-items: center; gap: 8px; }
+    .demo-card h3 .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px;
+      background: #F0F0F0; color: #666; font-weight: 500; }
+    .feature-list { list-style: none; padding: 0; margin: 0; }
+    .feature-list li { padding: 10px 0; border-bottom: 1px solid #F0F0F0; display: flex;
+      align-items: center; gap: 10px; font-size: 14px; color: #333; }
+    .feature-list li:last-child { border-bottom: 0; }
+    .feature-list .check { color: #52C41A; font-weight: bold; }
+    .feature-list .todo { color: #999; }
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px; margin-top: 12px; }
+    .metric { background: #FAFAFA; padding: 16px; border-radius: 10px; text-align: center; }
+    .metric .value { font-size: 28px; font-weight: 600; color: #4F46E5; }
+    .metric .label { font-size: 12px; color: #666; margin-top: 4px; }
+    .footer { text-align: center; color: #999; font-size: 12px; margin: 32px 0 12px; }
+  </style>
+</head>
+<body>
+  <div class="product-page">
+    <!-- 顶部 -->
+    <div class="product-header">
+      <div style="display:flex;align-items:center;">
+        <span class="icon">🅖</span>
+        <div>
+          <h1>GEO 智策 · 品牌 AI 可见性监测</h1>
+          <div class="meta">
+            <span id="userInfo">加载中...</span>
+            <span>·</span>
+            <span id="envTag">检测中</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="/portal.html">← 返回主控台</a>
+        <button id="logoutBtn">退出</button>
+      </div>
+    </div>
+
+    <!-- 状态 -->
+    <div id="statusBanner" class="status-banner">⏳ 正在检查子任务状态...</div>
+
+    <!-- 产品介绍 -->
+    <div class="demo-card">
+      <h3>🎯 产品定位 <span class="badge">GEO</span></h3>
+      <p style="color:#444;line-height:1.7;margin:0;">
+        监测 <b>8 大 AI 平台</b>（ChatGPT / Claude / 文心一言 / 通义千问 / Kimi / 豆包 / DeepSeek / 智谱）
+        对药企品牌的提及、推荐与情感倾向，发现 <b>内容缺口 + 竞品占位</b>，让品牌在 AI 时代被看见。
+      </p>
+      <div class="metric-grid" style="margin-top:18px;">
+        <div class="metric"><div class="value">8</div><div class="label">AI 平台覆盖</div></div>
+        <div class="metric"><div class="value">5,113</div><div class="label">监测医院池</div></div>
+        <div class="metric"><div class="value">50+</div><div class="label">品牌维度</div></div>
+        <div class="metric"><div class="value">日级</div><div class="label">更新频率</div></div>
+      </div>
+    </div>
+
+    <!-- 已交付 / 待交付 -->
+    <div class="demo-card">
+      <h3>📋 功能交付清单 <span class="badge">v0.1 占位</span></h3>
+      <ul class="feature-list">
+        <li><span class="check">✓</span> 路由层接入（<code>/api/sub/GEO/enter</code>）</li>
+        <li><span class="check">✓</span> JWT 透传 + Identity Assertion</li>
+        <li><span class="check">✓</span> 子任务健康检查端点</li>
+        <li><span class="todo">○</span> 8 平台并行抓取引擎（待 Python 后端部署）</li>
+        <li><span class="todo">○</span> 品牌情感分析（待 AI 模型接入）</li>
+        <li><span class="todo">○</span> 竞品占位报告（待 v0.2）</li>
+      </ul>
+    </div>
+
+    <div class="footer">
+      凌瑶智数 · GEO 子产品占位页 · 路由层 v1 · 构建 2026-08-26
+    </div>
+  </div>
+
+  <script>
+    // === 同源相对路径：prod(80→Nginx→9091) 与 staging(9092) 自动走对的后端 ===
+    const API_BASE = '';
+    const TOKEN_KEY = 'lingyao_token';
+    const USER_KEY = 'lingyao_user';
+    const PRODUCT_CODE = 'GEO';
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+    function getUser() { try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch (_) { return null; } }
+    function logout() { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); window.location.href = '/portal.html'; }
+
+    function detectEnv() {
+      const p = window.location.port;
+      if (p === '9092') return 'staging (9092)';
+      if (p === '9091' || p === '') return 'prod';
+      if (p === '8765' || p === '5173') return 'dev';
+      return `port=${p}`;
+    }
+
+    async function checkSubtask() {
+      const banner = document.getElementById('statusBanner');
+      const envTag = document.getElementById('envTag');
+      envTag.textContent = detectEnv();
+      const user = getUser();
+      if (!user) { window.location.href = '/portal.html'; return; }
+      document.getElementById('userInfo').textContent = `${user.displayName || user.username} · ${user.companyName || ''}`;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/sub/${PRODUCT_CODE}/info`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+        if (data.code === 0 && data.data) {
+          const d = data.data;
+          banner.classList.add('ok');
+          banner.innerHTML = `✓ 子任务路由层正常：<b>${d.taskName}</b>（${d.taskStatus}）`
+            + (d.baseUrl ? ` · 引擎地址：<code>${d.baseUrl}</code>` : ' · 引擎尚未部署（占位页模式）');
+        } else {
+          banner.innerHTML = `⚠ 子任务状态异常：${data.message || '未知错误'}`;
+        }
+      } catch (e) {
+        banner.innerHTML = `❌ 无法连接后端：${e.message}（请检查 token 是否有效，或重新登录）`;
+      }
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    checkSubtask();
+  </script>
+</body>
+</html>

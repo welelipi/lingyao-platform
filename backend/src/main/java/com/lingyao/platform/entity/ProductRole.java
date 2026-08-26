@@ -34,8 +34,14 @@ public class ProductRole {
     @Column(name = "role_name", nullable = false, length = 64)
     private String roleName;
 
-    /** 权限列表（JSON 字符串，如 ["*"] 或 ["read","write"]） */
-    @Lob
+    /**
+     * 权限列表（JSON 字符串，如 ["*"] 或 ["read","write"]）
+     *
+     * ⚠️ 不要加 @Lob —— Hibernate 6 + PostgreSQL 上 @Lob String 会默认映射成 OID 大对象类型，
+     *    即使 columnDefinition="TEXT" 覆盖了 DDL，JDBC bind 时仍走 OID 协议，导致 INSERT
+     *    "Bad value for type long : [\"*\"]" 错误。
+     *    PG 的 TEXT 本身就是 unlimited VARCHAR，直接用 columnDefinition="TEXT" 即可。
+     */
     @Column(columnDefinition = "TEXT")
     private String permissions;
 

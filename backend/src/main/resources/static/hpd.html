@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>医院潜力预测 · 凌瑶智数</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .product-page { max-width: 1080px; margin: 0 auto; padding: 24px; }
+    .product-header { display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(135deg, #0891B2 0%, #0D9488 100%);
+      color: #fff; padding: 20px 28px; border-radius: 14px; margin-bottom: 24px;
+      box-shadow: 0 6px 24px rgba(8,145,178,0.18); }
+    .product-header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+    .product-header .icon { font-size: 32px; margin-right: 14px; }
+    .product-header .meta { display: flex; align-items: center; gap: 16px; font-size: 13px; opacity: 0.9; }
+    .header-actions { display: flex; gap: 10px; }
+    .header-actions a, .header-actions button { background: rgba(255,255,255,0.18); color: #fff;
+      border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; border-radius: 8px; cursor: pointer;
+      font-size: 13px; text-decoration: none; transition: background .15s; }
+    .header-actions a:hover, .header-actions button:hover { background: rgba(255,255,255,0.28); }
+    .status-banner { background: #FFF7E6; border-left: 4px solid #FAAD14; padding: 16px 20px;
+      border-radius: 8px; margin-bottom: 24px; font-size: 14px; color: #874D00; }
+    .status-banner.ok { background: #F6FFED; border-color: #52C41A; color: #237804; }
+    .demo-card { background: #fff; border-radius: 14px; padding: 24px; margin-bottom: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+    .demo-card h3 { margin: 0 0 14px; font-size: 16px; color: #1F1F1F; display: flex;
+      align-items: center; gap: 8px; }
+    .demo-card h3 .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px;
+      background: #F0F0F0; color: #666; font-weight: 500; }
+    .feature-list { list-style: none; padding: 0; margin: 0; }
+    .feature-list li { padding: 10px 0; border-bottom: 1px solid #F0F0F0; display: flex;
+      align-items: center; gap: 10px; font-size: 14px; color: #333; }
+    .feature-list li:last-child { border-bottom: 0; }
+    .feature-list .check { color: #52C41A; font-weight: bold; }
+    .feature-list .todo { color: #999; }
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px; margin-top: 12px; }
+    .metric { background: #FAFAFA; padding: 16px; border-radius: 10px; text-align: center; }
+    .metric .value { font-size: 28px; font-weight: 600; color: #0891B2; }
+    .metric .label { font-size: 12px; color: #666; margin-top: 4px; }
+    .footer { text-align: center; color: #999; font-size: 12px; margin: 32px 0 12px; }
+  </style>
+</head>
+<body>
+  <div class="product-page">
+    <div class="product-header">
+      <div style="display:flex;align-items:center;">
+        <span class="icon">🅗</span>
+        <div>
+          <h1>医院潜力预测 · CACS 销量推算</h1>
+          <div class="meta">
+            <span id="userInfo">加载中...</span>
+            <span>·</span>
+            <span id="envTag">检测中</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="/portal.html">← 返回主控台</a>
+        <button id="logoutBtn">退出</button>
+      </div>
+    </div>
+
+    <div id="statusBanner" class="status-banner">⏳ 正在检查子任务状态...</div>
+
+    <div class="demo-card">
+      <h3>🎯 产品定位 <span class="badge">HPD</span></h3>
+      <p style="color:#444;line-height:1.7;margin:0;">
+        基于医院 <b>床位数</b> 与科室周转率，参数化推算 CACS 药品最大销量。
+        双模型系统：<b>Model A</b> 基于全院床位（WMAPE 8.4%），<b>Model B</b> 基于肿瘤专科床位（WMAPE 7.9%）。
+        链路：床位 → 科室比例 → 周转率 → 住院 → 总患者 → 癌种分布 → CACS 患者 → 药品销量。
+      </p>
+      <div class="metric-grid" style="margin-top:18px;">
+        <div class="metric"><div class="value">50</div><div class="label">样本医院校准</div></div>
+        <div class="metric"><div class="value">7.9%</div><div class="label">Model B WMAPE</div></div>
+        <div class="metric"><div class="value">5,113</div><div class="label">Transmedia 池</div></div>
+        <div class="metric"><div class="value">3</div><div class="label">癌种 CoBot 系数</div></div>
+      </div>
+    </div>
+
+    <div class="demo-card">
+      <h3>📋 功能交付清单 <span class="badge">v3.1 占位</span></h3>
+      <ul class="feature-list">
+        <li><span class="check">✓</span> 路由层接入（<code>/api/sub/HPD/enter</code>）</li>
+        <li><span class="check">✓</span> JWT 透传 + Identity Assertion</li>
+        <li><span class="check">✓</span> 双模型参数化推导（V3.1）</li>
+        <li><span class="todo">○</span> 手动订正床位数（待 v0.4 首页落地）</li>
+        <li><span class="todo">○</span> 竞品数据整合（5113 家医院池）</li>
+        <li><span class="todo">○</span> 卫健委年鉴交叉验证（待 v1.0）</li>
+      </ul>
+    </div>
+
+    <div class="footer">
+      凌瑶智数 · HPD 子产品占位页 · 路由层 v1 · 构建 2026-08-26
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '';
+    const TOKEN_KEY = 'lingyao_token';
+    const USER_KEY = 'lingyao_user';
+    const PRODUCT_CODE = 'HPD';
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+    function getUser() { try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch (_) { return null; } }
+    function logout() { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); window.location.href = '/portal.html'; }
+
+    function detectEnv() {
+      const p = window.location.port;
+      if (p === '9092') return 'staging (9092)';
+      if (p === '9091' || p === '') return 'prod';
+      if (p === '8765' || p === '5173') return 'dev';
+      return `port=${p}`;
+    }
+
+    async function checkSubtask() {
+      const banner = document.getElementById('statusBanner');
+      const envTag = document.getElementById('envTag');
+      envTag.textContent = detectEnv();
+      const user = getUser();
+      if (!user) { window.location.href = '/portal.html'; return; }
+      document.getElementById('userInfo').textContent = `${user.displayName || user.username} · ${user.companyName || ''}`;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/sub/${PRODUCT_CODE}/info`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+        if (data.code === 0 && data.data) {
+          const d = data.data;
+          banner.classList.add('ok');
+          banner.innerHTML = `✓ 子任务路由层正常：<b>${d.taskName}</b>（${d.taskStatus}）`
+            + (d.baseUrl ? ` · 引擎地址：<code>${d.baseUrl}</code>` : ' · 引擎尚未部署（占位页模式）');
+        } else {
+          banner.innerHTML = `⚠ 子任务状态异常：${data.message || '未知错误'}`;
+        }
+      } catch (e) {
+        banner.innerHTML = `❌ 无法连接后端：${e.message}（请检查 token 是否有效，或重新登录）`;
+      }
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    checkSubtask();
+  </script>
+</body>
+</html>

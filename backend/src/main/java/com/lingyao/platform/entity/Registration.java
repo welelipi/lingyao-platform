@@ -55,7 +55,13 @@ public class Registration {
     @Column(length = 64)
     private String source;
 
-    @Lob
+    /**
+     * 留言（自由文本）
+     *
+     * ⚠️ 不要加 @Lob —— Hibernate 6 + PostgreSQL 上 @Lob String 默认映射成 OID 大对象，
+     *    即使 columnDefinition="TEXT" 覆盖了 DDL，JDBC bind 时仍走 OID 协议，
+     *    INSERT 长文本时会报 "Bad value for type long"。
+     */
     @Column(columnDefinition = "TEXT")
     private String message;  // 留言
 

@@ -44,10 +44,10 @@ VALUES
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO company_product (id, company_id, product_id, license_start, license_end, max_users, status, created_at, updated_at)
 VALUES
-  (1, 1, 1, NOW(), DATEADD('YEAR', 10, NOW()), 100, 'ACTIVE', NOW(), NOW()),  -- GEO
-  (2, 1, 2, NOW(), DATEADD('YEAR', 10, NOW()), 100, 'ACTIVE', NOW(), NOW()),  -- HPD
-  (3, 1, 3, NOW(), DATEADD('YEAR', 10, NOW()), 100, 'ACTIVE', NOW(), NOW()),  -- AIDD
-  (4, 1, 4, NOW(), DATEADD('YEAR', 10, NOW()), 100, 'ACTIVE', NOW(), NOW());  -- POR
+  (1, 1, 1, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()),  -- GEO
+  (2, 1, 2, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()),  -- HPD
+  (3, 1, 3, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()),  -- AIDD
+  (4, 1, 4, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW());  -- POR
 
 -- ═══════════════════════════════════════════════════════════
 -- 超管获得全部产品的访问授权
@@ -109,21 +109,34 @@ VALUES
 -- 私有化客户后续创建任何数据，id 从 1000 开始
 -- 避免与 SAAS 平台的 id 段冲突
 --
+-- PostgreSQL 方言：Hibernate IDENTITY 列底层序列名 = <表名>_id_seq
+-- 用 pg_get_serial_sequence 动态获取，避免硬编码序列名跟实际不匹配
 -- 注意：company_audit_log 表**不重置自增**，因为：
 -- 1. 该表无显式 id INSERT
 -- 2. 重置到 1000 会与首次启动时登录产生的 audit_log(1000) 冲突
--- 3. H2 IDENTITY 模式天然持久化自增状态，重启后从 max(id)+1 继续
+-- 3. PostgreSQL IDENTITY 模式天然持久化序列状态，重启后从 max(id)+1 继续
 -- ═══════════════════════════════════════════════════════════
-ALTER TABLE sys_user ALTER COLUMN id RESTART WITH 1000;
-ALTER TABLE company ALTER COLUMN id RESTART WITH 1000;
-ALTER TABLE company_user ALTER COLUMN id RESTART WITH 1000;
-ALTER TABLE product ALTER COLUMN id RESTART WITH 1000;
-ALTER TABLE company_product ALTER COLUMN id RESTART WITH 1000;
-ALTER TABLE product_role ALTER COLUMN id RESTART WITH 1000;
-ALTER TABLE product_user_grant ALTER COLUMN id RESTART WITH 1000;
-ALTER TABLE product_user_role ALTER COLUMN id RESTART WITH 1000;
-ALTER TABLE registration ALTER COLUMN id RESTART WITH 1000;
-ALTER TABLE notification_channel ALTER COLUMN id RESTART WITH 1000;
-ALTER TABLE sub_task ALTER COLUMN id RESTART WITH 1000;
--- ALTER TABLE company_audit_log ALTER COLUMN id RESTART WITH 1000;  -- 故意不重置
-ALTER TABLE invitation ALTER COLUMN id RESTART WITH 1000;
+DO $$
+DECLARE
+  seq_name TEXT;
+BEGIN
+  FOR seq_name IN
+    SELECT pg_get_serial_sequence(c.relname, a.attname)
+    FROM pg_class c
+    JOIN pg_attribute a ON a.attrelid = c.oid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname IN ('sys_user','company','company_user','product',
+                        'company_product','product_role','product_user_grant',
+                        'product_user_role','registration','notification_channel',
+                        'sub_task','invitation')
+      AND a.attname = 'id'
+      AND a.attnum > 0
+      AND NOT a.attisdropped
+      AND c.relkind = 'r'
+      AND n.nspname = current_schema()
+  LOOP
+    IF seq_name IS NOT NULL THEN
+      EXECUTE format('ALTER SEQUENCE %I RESTART WITH 1000', seq_name);
+    END IF;
+  END LOOP;
+END $$;
