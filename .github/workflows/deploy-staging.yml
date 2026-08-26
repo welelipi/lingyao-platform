@@ -42,8 +42,8 @@ jobs:
           SSH_KEY=~/.ssh/lingyao-actions
           SSH_OPT="-i $SSH_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
-          echo "=== 1/5 上传新 jar 到 CVM /tmp ==="
-          scp $SSH_OPT \
+          echo "=== 1/5 上传新 jar 到 CVM /tmp (scp -C 压缩) ==="
+          scp -C -o IPQoS=lowdelay throughput $SSH_OPT \
             backend/target/lingyao-platform.jar \
             $CVM_USER@$CVM_HOST:/tmp/lingyao-platform.jar.new
 
