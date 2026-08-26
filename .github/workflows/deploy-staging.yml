@@ -39,13 +39,16 @@ jobs:
         run: |
           set -e
 
+          SSH_KEY=~/.ssh/lingyao-actions
+          SSH_OPT="-i $SSH_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
           echo "=== 1/5 上传新 jar 到 CVM /tmp ==="
-          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          scp $SSH_OPT \
             backend/target/lingyao-platform.jar \
             $CVM_USER@$CVM_HOST:/tmp/lingyao-platform.jar.new
 
           echo "=== 2/5 SSH 远程：备份 + 替换 + 重启 staging ==="
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          ssh $SSH_OPT \
             $CVM_USER@$CVM_HOST << 'REMOTE_EOF'
             set -e
 
@@ -66,7 +69,7 @@ jobs:
           HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9092/api/health)
           if [ "$HTTP" != "200" ]; then
             echo "::error::Staging health check failed: HTTP $HTTP"
-            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            ssh $SSH_OPT \
               $CVM_USER@$CVM_HOST "sudo journalctl -u lingyao-backend-staging -n 30 --no-pager"
             exit 1
           fi
