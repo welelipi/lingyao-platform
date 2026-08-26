@@ -1,0 +1,86 @@
+# ============================================
+# 凌瑶智数 · 主框架配置
+# ============================================
+
+server:
+  port: 9091
+  servlet:
+    context-path: /
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: lingyao-platform
+
+  profiles:
+    active: dev
+
+  # ---------- 默认（生产）配置 ----------
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lingyao
+    username: lingyao
+    password: ${LINGYAO_DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+
+  h2:
+    console:
+      enabled: false
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+    properties:
+      hibernate.session_factory.statement_inspector: com.lingyao.platform.security.TenantStatementInspector
+
+# ---------- Dev 配置（H2 + H2 Console + DDL）----------
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:h2:mem:lingyao;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
+    show-sql: false
+    properties:
+      hibernate.session_factory.statement_inspector: com.lingyao.platform.security.TenantStatementInspector
+
+  sql:
+    init:
+      mode: always
+
+logging:
+  level:
+    root: INFO
+    com.lingyao.platform: INFO
+
+# ---------- 业务配置 ----------
+app:
+  jwt:
+    secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
+    expiration-seconds: 86400
+
+lingyao:
+  jwt:
+    secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
+    expiration-hours: 24
+    issuer: lingyao-platform

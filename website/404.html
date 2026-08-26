@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 · 找不到页面 · 凌瑶智数</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--primary-deep);
+    }
+    .error-container {
+      max-width: 560px;
+      text-align: center;
+      padding: 60px 40px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(24px);
+    }
+    .error-code {
+      font-size: 120px;
+      font-weight: 900;
+      line-height: 1;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+    .error-emoji {
+      font-size: 64px;
+      margin-bottom: 24px;
+    }
+    .error-container h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-bright);
+      margin-bottom: 12px;
+    }
+    .error-container > p {
+      color: var(--text-dim);
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    .error-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+    }
+    .error-actions a {
+      padding: 12px 28px;
+      border-radius: var(--radius);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: var(--transition);
+    }
+    .error-actions .btn-primary {
+      background: var(--gradient-primary);
+      color: var(--primary-deep);
+    }
+    .error-actions .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-glow);
+    }
+    .error-actions .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .error-actions .btn-outline:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .error-hint {
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    .error-hint p {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin: 0;
+    }
+    .error-hint a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .error-hint a:hover { text-decoration: underline; }
+    .error-quote {
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="error-container">
+    <div class="error-code">404</div>
+    <div class="error-emoji">🔍</div>
+    <h1>找不到这个页面</h1>
+    <p>您访问的页面可能已经被删除、改名，或者暂时不可用</p>
+
+    <div class="error-actions">
+      <a href="/" class="btn-primary">返回首页</a>
+      <a href="/portal.html" class="btn-outline">前往登录</a>
+    </div>
+
+    <div class="error-hint">
+      <p>如果这是您应该访问的页面，请联系：<a href="mailto:support@lingyao.com">support@lingyao.com</a></p>
+      <p class="error-quote">"数据不会说谎，但路径会跑丢" — 凌瑶智数</p>
+    </div>
+  </div>
+
+  <script>
+    // 自动报告 404 路径（异步非阻塞，1.5 秒后清理）
+    setTimeout(() => {
+      try {
+        const _ = navigator.sendBeacon?.('/api/feedback', JSON.stringify({
+          type: 'bug',
+          title: '404 路径',
+          body: `用户访问了不存在的路径：${location.pathname}`,
+          contact: '',
+          timestamp: new Date().toISOString()
+        }));
+      } catch (_) {}
+    }, 100);
+  </script>
+</body>
+</html>

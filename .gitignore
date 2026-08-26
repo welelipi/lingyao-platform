@@ -1,0 +1,103 @@
+# ===== IDE =====
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.project
+.classpath
+.settings/
+nbproject/
+nbbuild/
+nbdist/
+
+# ===== Maven / Java build =====
+backend/target/
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+*.class
+*.jar
+!backend/src/main/resources/**/*.jar
+hs_err_pid*
+replay_pid*
+
+# ===== Logs =====
+logs/
+*.log
+*.out
+backend/logs/
+backend/backend.log
+backend/backend.out
+
+# ===== H2 database files =====
+# 本地 dev H2 数据（有 .mv.db 和 .trace.db）
+data/
+backend/data/
+*.mv.db
+*.trace.db
+*.db
+
+# ===== Secrets & 部署密钥 =====
+# 私有化 profile yml（含 JWT secret + 数据库连接信息）
+backend/src/main/resources/application-private.yml
+backend/src/main/resources/application-local.yml
+.env
+.env.private
+.env.local
+deploy/*.key
+deploy/*.pem
+deploy/secrets/
+
+# ===== Workbuddy 个人记忆与技能（不进 git）=====
+.workbuddy/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ===== 临时文件 =====
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+*.orig
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+
+# ===== Node =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== 备份文件 =====
+*.bak.*
+*.backup
+backup/
+
+# ===== 外部仓库（独立 git 仓库，不进凌瑶 git）=====
+_external/
+
+# ===== OEG 子项目（独立 GEO 智策，不进凌瑶 git）=====
+# 只保留 OEG/handoff/ 的文档/交接记录，备份和源码都不进
+OEG/_backup/
+OEG/geo-platform/
+OEG/geo.db
+OEG/geo.db-*
+
+# ===== Python 后端实验性项目（待清理）=====
+portal-backend-py/

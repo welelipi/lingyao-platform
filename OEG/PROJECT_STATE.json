@@ -1,0 +1,187 @@
+{
+  "handoff_version": "1.0",
+  "generated_at": "2026-08-11T14:04:38+08:00",
+  "workspace": {
+    "current_workspace": "/Users/hua/Documents/myself/凌瑶",
+    "target_workspace": "/Users/hua/Documents/myself/凌瑶",
+    "task_dir": "/Users/hua/Documents/myself/凌瑶/OEG",
+    "handoff_subdir": "/Users/hua/Documents/myself/凌瑶/OEG/handoff",
+    "external_oeg_legacy_path": "/Users/hua/Documents/myself/OEG",
+    "geo_physical_path_after_relocate": "/Users/hua/Documents/myself/凌瑶/_external/OEG/geo-platform"
+  },
+  "owner": "花卷 (WorkBuddy AI)",
+  "user": "主人",
+  "project_name": "OEG - 金赛药业 GEO 品牌智能体 SaaS 平台",
+  "products": [
+    {
+      "id": "geo",
+      "name": "GEO 智策",
+      "type": "SaaS 多租户品牌智能体",
+      "code_root": "/Users/hua/Documents/myself/凌瑶/products/geo-platform",
+      "physical_path_after_relocate": "/Users/hua/Documents/myself/凌瑶/_external/OEG/geo-platform",
+      "link_in_workspace": "/Users/hua/Documents/myself/凌瑶/products/geo-platform"
+    },
+    {
+      "id": "aidd",
+      "name": "AIDD 系统",
+      "type": "AI 研发反馈",
+      "code_root": "/Users/hua/Documents/myself/AIDD/ai-project-copilot",
+      "link_in_workspace": "/Users/hua/Documents/myself/凌瑶/products/aidd",
+      "sso_status": "frontend_only"
+    },
+    {
+      "id": "cacs",
+      "name": "医院潜力预测",
+      "type": "CACS 销量推算",
+      "status": "planned"
+    },
+    {
+      "id": "collab",
+      "name": "协作智能体",
+      "type": "项目管理",
+      "status": "planned"
+    }
+  ],
+  "services": {
+    "lingyao_portal_backend": {
+      "name": "凌瑶 portal 后端",
+      "framework": "FastAPI",
+      "port": 8765,
+      "pid_expected": 37891,
+      "entry": "/Users/hua/Documents/myself/凌瑶/portal-backend-py/main.py",
+      "depends_on": ["geo_backend_db"],
+      "healthcheck": "curl --noproxy '*' -s -o /dev/null -w '%{http_code}\\n' http://127.0.0.1:8765/api/health"
+    },
+    "geo_backend": {
+      "name": "GEO 后端",
+      "framework": "FastAPI",
+      "port": 9090,
+      "pid_expected": [31375, 31378, 31379],
+      "entry": "/Users/hua/Documents/myself/凌瑶/products/geo-platform/geo-backend-py/main.py",
+      "healthcheck": "curl --noproxy '*' -s -o /dev/null -w '%{http_code}\\n' http://127.0.0.1:9090/docs"
+    },
+    "geo_frontend": {
+      "name": "GEO 前端",
+      "framework": "Vite + Vue 3 + Ant Design 5",
+      "port": 9180,
+      "pid_expected": 34049,
+      "entry": "/Users/hua/Documents/myself/凌瑶/products/geo-platform/geo-frontend",
+      "command": "npm run dev (managed node 22.22.2)",
+      "healthcheck": "curl --noproxy '*' -s -o /dev/null -w '%{http_code}\\n' http://localhost:9180/"
+    },
+    "aidd_frontend": {
+      "name": "AIDD 前端（静态）",
+      "framework": "python -m http.server",
+      "port": 9191,
+      "pid_expected": 37811,
+      "root": "/Users/hua/Documents/myself/AIDD/ai-project-copilot/frontend",
+      "healthcheck": "curl --noproxy '*' -s -o /dev/null -w '%{http_code}\\n' http://127.0.0.1:9191/login.html"
+    }
+  },
+  "database": {
+    "engine": "sqlite",
+    "path": "/Users/hua/Documents/myself/凌瑶/products/geo-platform/geo-backend-py/data/geo.db",
+    "tables": 47,
+    "row_counts": {
+      "sys_user": 23,
+      "company": 2,
+      "company_user": 25,
+      "company_invitation": 1,
+      "user_audit_log": 159,
+      "company_audit_log": 4
+    },
+    "pre_saas_backup": "/Users/hua/Documents/myself/凌瑶/products/geo-platform/geo-backend-py/data/backups/oeg_pre_saas_phase1_20260811_095208.db",
+    "pre_relocate_backup_dir": "/Users/hua/Documents/myself/凌瑶/OEG/_backup/2026-08-11_pre_relocate",
+    "backup_integrity": "ok",
+    "shared_by": ["geo_backend", "lingyao_portal_backend"]
+  },
+  "secrets": {
+    "jwt_secret_file": "/Users/hua/Documents/myself/凌瑶/products/geo-platform/geo-backend-py/data/.jwt-secret",
+    "shared_by": ["geo_backend", "lingyao_portal_backend"],
+    "production_replacement_env": "GEO_JWT_SECRET"
+  },
+  "credentials": {
+    "lingyao_portal_login": {
+      "username": "GEOadmin",
+      "password": "lingyao@2026",
+      "note": "已为方便验证重置，生产前必改强密码"
+    },
+    "geo_dev_token_T1": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJHRU9hZG1pbiIsInVpZCI6MSwicm9sZSI6InN1cGVyX2FkbWluIiwiY2F0cyI6W10sImNpZCI6MSwiaWF0IjoxNzg2NDI1OTQyLCJleHAiOjE3ODcwMzA3NDJ9.g6UmbFpprvOAqu_Ak5ESsBsUOWpvfaG6J0WFsVBQ2mc",
+    "geo_dev_token_T99": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0Xzk5IiwidWlkIjo5OSwicm9sZSI6InNlbmlvcl9vcGVyYXRvciIsImNhdHMiOltdLCJjaWQiOjk5LCJpYXQiOjE3ODY0MjU4OTUsImV4cCI6MTc4NzAzMDY5NX0.ItxJEFQfUwK23e3Xvq5q1mhHWDGM5NlVIdjt26l7J6A"
+  },
+  "design_tokens": {
+    "source": "http://127.0.0.1:8765 (凌瑶智数官网)",
+    "background": "#050F22",
+    "primary": "#00D4FF",
+    "secondary": "#7B61FF",
+    "fonts": ["Inter", "Noto Sans SC"],
+    "radius": "14px",
+    "glass": "rgba(10, 31, 61, 0.55) + blur(24px)"
+  },
+  "phases": {
+    "phase_1_db_init": "completed",
+    "phase_2_data_isolation": "completed",
+    "phase_3_user_api": "completed",
+    "phase_4_frontend_ui": "completed",
+    "phase_5_platform_hub": "completed",
+    "phase_6_privatization": "completed",
+    "phase_10_visual_reshaping": "completed",
+    "phase_11_lingyao_portal": "completed",
+    "phase_12_next": "pending_owner_decision"
+  },
+  "p0_backlog": [
+    "GEOadmin 密码改强密码",
+    "AIDD 后端 JwtAuthInterceptor (Java)",
+    "HTTPS / TLS 自动签发",
+    "数据库自动备份 cron + 保留策略",
+    "升级 / 迁移机制 upgrade.sh + schema migration"
+  ],
+  "p1_backlog": [
+    "审计日志前端 UI",
+    "Platform-Hub dashboard 前端",
+    "同一用户多公司身份切换",
+    "CACS / 协作智能体模块占位骨架"
+  ],
+  "p2_backlog": [
+    "license 表 + 订阅管控",
+    "max_users 强制执行",
+    "跨租户 API 限流",
+    "Webhook / 事件总线",
+    "白标 / 自定义品牌",
+    "GDPR 合规删除",
+    "Kubernetes manifests / Helm chart"
+  ],
+  "git_status_at_handoff": {
+    "repo": "/Users/hua/Documents/myself/凌瑶/products/geo-platform",
+    "branch": "master",
+    "modified_files": 50,
+    "untracked_top_dirs": ["docs/", "geo-backend/", "geo-embedding/"],
+    "key_new_files": [
+      "geo-backend-py/app/db_patch.py",
+      "geo-backend-py/app/tracked_db.py",
+      "geo-backend-py/app/routers/companies.py",
+      "geo-backend-py/app/routers/platform_hub.py",
+      "geo-backend-py/install-saas.sh",
+      "docker-compose-saas.yml",
+      "SAAS-DEPLOY.md",
+      "geo-frontend/src/styles/tokens.scss",
+      "geo-frontend/src/styles/theme.scss",
+      "geo-frontend/src/styles/layout.scss",
+      "geo-frontend/src/components/WelcomeBanner.vue",
+      "geo-frontend/src/utils/sso.js",
+      "geo-frontend/src/pages/Placeholder.vue",
+      "geo-frontend/src/pages/CompanyMgmt.vue",
+      "geo-frontend/src/pages/InvitationAccept.vue"
+    ]
+  },
+  "files_in_handoff_dir": [
+    "OEG/START_HERE.md",
+    "OEG/HANDOFF.md",
+    "OEG/PROJECT_STATE.json",
+    "OEG/handoff/CONTEXT_BRIEF.md",
+    "OEG/handoff/CONTEXT_DUMP.md",
+    "OEG/handoff/RUN_COMMANDS.md",
+    "OEG/handoff/CHANGELOG_HANDOFF.md",
+    "OEG/next_steps.md"
+  ]
+}

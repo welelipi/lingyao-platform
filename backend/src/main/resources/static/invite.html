@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>凌瑶智数 · 受邀注册</title>
+<style>
+  /* ════════════════════════════════════════════════════════════
+     凌瑶智数 · 邀请注册页（公开访问，被邀请人通过 token 注册）
+     设计：与主站一致的暗色玻璃态风格
+     ════════════════════════════════════════════════════════════ */
+  :root {
+    --primary-deep: #0a1f3d;
+    --primary-mid:  #102a52;
+    --glass:        rgba(16, 42, 82, 0.55);
+    --glass-light:  rgba(255, 255, 255, 0.05);
+    --border:       rgba(0, 212, 255, 0.18);
+    --text-bright:  #E6F1FF;
+    --text:         #B8C5D6;
+    --text-dim:     #6B7C93;
+    --accent:       #00D4FF;
+    --accent-2:     #7B61FF;
+    --success:      #4ADE80;
+    --danger:       #FF6B6B;
+    --warning:      #FF8C42;
+    --gradient-primary: linear-gradient(135deg, #00D4FF 0%, #7B61FF 100%);
+    --shadow-glow: 0 0 24px rgba(0, 212, 255, 0.35);
+    --radius:       10px;
+    --transition:   all 0.25s ease;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100vh; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+                 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: radial-gradient(ellipse at top left, #102a52 0%, #0a1f3d 40%, #050d1a 100%);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle at 30% 30%, rgba(0,212,255,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 70% 70%, rgba(123,97,255,0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .invite-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 480px;
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 36px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  }
+  .logo {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .logo-mark {
+    display: inline-block;
+    width: 56px; height: 56px;
+    background: var(--gradient-primary);
+    border-radius: 14px;
+    line-height: 56px;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary-deep);
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-glow);
+  }
+  .logo-title {
+    font-size: 22px;
+    color: var(--text-bright);
+    font-weight: 700;
+    margin: 0;
+  }
+  .logo-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin: 6px 0 0;
+  }
+  .invite-banner {
+    background: linear-gradient(135deg, rgba(0,212,255,0.1) 0%, rgba(123,97,255,0.1) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 24px;
+  }
+  .invite-banner-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px;
+    color: var(--text);
+    margin: 4px 0;
+  }
+  .invite-banner-row strong {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .form-field label {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  .form-field input {
+    background: var(--glass-light);
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: inherit;
+    transition: var(--transition);
+  }
+  .form-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+  }
+  .form-field .help {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .btn-submit {
+    width: 100%;
+    background: var(--gradient-primary);
+    color: var(--primary-deep);
+    border: none;
+    padding: 14px;
+    border-radius: var(--radius);
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: var(--transition);
+  }
+  .btn-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-glow);
+  }
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .status-error, .status-success, .status-loading {
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .status-error .icon, .status-success .icon, .status-loading .icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+  }
+  .status-error { color: var(--danger); }
+  .status-success { color: var(--success); }
+  .status-error h3, .status-success h3 {
+    color: var(--text-bright);
+    margin: 0 0 8px;
+    font-size: 18px;
+  }
+  .status-error p, .status-success p {
+    color: var(--text);
+    font-size: 13px;
+    margin: 6px 0;
+  }
+  .status-success .btn-home {
+    display: inline-block;
+    margin-top: 16px;
+    padding: 10px 22px;
+    background: var(--gradient-primary);
+    color: var(--primary-deep);
+    text-decoration: none;
+    border-radius: var(--radius);
+    font-weight: 600;
+  }
+  .footer-tip {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 18px;
+  }
+  .footer-tip a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+<div class="invite-card">
+  <div class="logo">
+    <div class="logo-mark">凌</div>
+    <h1 class="logo-title">凌瑶智数</h1>
+    <p class="logo-sub">受邀注册 · 自助开通账号</p>
+  </div>
+
+  <!-- 状态：校验中 -->
+  <div id="stateLoading" class="status-loading">
+    <div class="icon">⏳</div>
+    <p style="color:var(--text-dim);">正在校验邀请链接…</p>
+  </div>
+
+  <!-- 状态：邀请无效 -->
+  <div id="stateInvalid" class="status-error" style="display:none;">
+    <div class="icon">⚠️</div>
+    <h3>邀请链接无效</h3>
+    <p id="invalidReason">-</p>
+    <p style="margin-top:18px;font-size:12px;">如需注册请联系邀请人，或联系平台管理员。</p>
+  </div>
+
+  <!-- 邀请信息 + 表单 -->
+  <div id="stateValid" style="display:none;">
+    <div class="invite-banner">
+      <div class="invite-banner-row">📨 您被邀请加入 <strong id="bannerCompany">-</strong></div>
+      <div class="invite-banner-row">🚀 产品：<strong id="bannerProduct">-</strong></div>
+      <div class="invite-banner-row">👤 角色：<strong id="bannerRole">-</strong></div>
+      <div class="invite-banner-row">⏰ 到期：<strong id="bannerExpiry">-</strong></div>
+    </div>
+
+    <form id="redeemForm">
+      <input type="hidden" id="tokenField">
+      <div class="form-field">
+        <label>用户名 *</label>
+        <input id="username" required minlength="3" maxlength="32" pattern="^[a-zA-Z0-9_-]+$"
+               placeholder="3-32 位字母/数字/下划线">
+        <span class="help">登录时使用，不可修改</span>
+      </div>
+      <div class="form-field">
+        <label>姓名 *</label>
+        <input id="displayName" required maxlength="64" placeholder="您的真实姓名">
+      </div>
+      <div class="form-field">
+        <label>邮箱 *</label>
+        <input id="email" type="email" required placeholder="name@company.com">
+      </div>
+      <div class="form-field">
+        <label>密码 *</label>
+        <input id="password" type="password" required minlength="8" placeholder="至少 8 位">
+        <span class="help">≥ 8 位，建议包含字母+数字</span>
+      </div>
+      <div class="form-field">
+        <label>确认密码 *</label>
+        <input id="password2" type="password" required minlength="8">
+      </div>
+      <button type="submit" class="btn-submit">完成注册并开通账号</button>
+    </form>
+  </div>
+
+  <!-- 状态：注册成功 -->
+  <div id="stateSuccess" class="status-success" style="display:none;">
+    <div class="icon">✅</div>
+    <h3>账号已开通！</h3>
+    <p>用户名：<strong id="successUsername" style="color:var(--accent);"></strong></p>
+    <p>请使用刚设置的密码前往登录</p>
+    <a href="/portal.html" class="btn-home">立即登录</a>
+  </div>
+
+  <p class="footer-tip">凌瑶智数 · 由简到繁，一点点长出来</p>
+</div>
+
+<script>
+  const API_BASE = window.location.origin;
+  const params = new URLSearchParams(window.location.search);
+  const TOKEN = params.get('token');
+
+  if (!TOKEN) {
+    showInvalid('链接缺失 token 参数');
+  } else {
+    document.getElementById('tokenField').value = TOKEN;
+    inspectToken(TOKEN);
+  }
+
+  async function inspectToken(token) {
+    try {
+      const r = await fetch(API_BASE + '/api/invitations/token/' + encodeURIComponent(token));
+      const j = await r.json();
+      if (!j.success) throw new Error(j.message || '邀请校验失败');
+      const data = j.data;
+      if (!data.usable) {
+        showInvalid(`邀请已${data.status}，无法使用`);
+        return;
+      }
+      // 填充 banner
+      document.getElementById('bannerCompany').textContent = data.contextHint || ('公司 #' + data.companyId);
+      document.getElementById('bannerProduct').textContent = data.productCode;
+      document.getElementById('bannerRole').textContent = data.roleCode;
+      const exp = new Date(data.expiresAt);
+      document.getElementById('bannerExpiry').textContent = exp.toLocaleString('zh-CN');
+      // 如果邀请带邮箱，预填（只读）
+      if (data.invitedEmail) {
+        const emailEl = document.getElementById('email');
+        emailEl.value = data.invitedEmail;
+        emailEl.readOnly = true;
+      }
+      // 显示表单
+      document.getElementById('stateLoading').style.display = 'none';
+      document.getElementById('stateValid').style.display = 'block';
+    } catch (e) {
+      showInvalid(e.message);
+    }
+  }
+
+  function showInvalid(reason) {
+    document.getElementById('stateLoading').style.display = 'none';
+    document.getElementById('stateValid').style.display = 'none';
+    document.getElementById('invalidReason').textContent = reason;
+    document.getElementById('stateInvalid').style.display = 'block';
+  }
+
+  document.getElementById('redeemForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    const displayName = document.getElementById('displayName').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const password2 = document.getElementById('password2').value;
+    const token = document.getElementById('tokenField').value;
+
+    if (password !== password2) {
+      alert('两次输入的密码不一致');
+      return;
+    }
+    if (password.length < 8) {
+      alert('密码长度需 ≥ 8 位');
+      return;
+    }
+
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true;
+    btn.textContent = '注册中…';
+
+    try {
+      const r = await fetch(API_BASE + '/api/invitations/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, username, displayName, email, password })
+      });
+      const j = await r.json();
+      if (!j.success) throw new Error(j.message || '注册失败');
+
+      document.getElementById('stateValid').style.display = 'none';
+      document.getElementById('successUsername').textContent = j.data.username;
+      document.getElementById('stateSuccess').style.display = 'block';
+    } catch (err) {
+      alert('注册失败：' + err.message);
+      btn.disabled = false;
+      btn.textContent = '完成注册并开通账号';
+    }
+  });
+</script>
+</body>
+</html>

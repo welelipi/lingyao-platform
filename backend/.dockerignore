@@ -1,0 +1,13 @@
+target/
+data/
+logs/
+backup/
+.idea/
+.vscode/
+*.iml
+.git/
+.gitignore
+README.md
+*.md
+docker-compose.yml
+Dockerfile

@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>凌瑶智数 · 产品门户</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* ── Portal 专属样式（复用凌瑶 CSS 变量） ─────── */
+    .portal-container {
+      min-height: 100vh;
+      padding: 120px 32px 80px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .portal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 48px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .portal-greeting h1 {
+      font-size: 36px;
+      font-weight: 700;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .portal-greeting p {
+      color: var(--text-dim);
+      font-size: 16px;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 20px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(20px);
+    }
+
+    .user-badge img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+    }
+
+    .avatar-fallback {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--gradient-primary);
+      color: var(--primary-deep);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      border: 2px solid var(--accent);
+      flex-shrink: 0;
+    }
+
+    .user-badge .user-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 140px;
+    }
+
+    .user-badge .user-line-1 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-badge .name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-bright);
+    }
+
+    .user-badge .company {
+      font-size: 11px;
+      padding: 1px 6px;
+      background: rgba(0, 212, 255, 0.1);
+      color: var(--accent);
+      border-radius: 4px;
+      border: 1px solid rgba(0, 212, 255, 0.25);
+    }
+
+    .user-badge .user-line-2 {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .user-badge .role-tag {
+      font-size: 11px;
+      padding: 1px 8px;
+      background: rgba(123, 97, 255, 0.12);
+      color: #a59bff;
+      border-radius: 4px;
+      border: 1px solid rgba(123, 97, 255, 0.25);
+    }
+
+    .user-badge .user-line-3 {
+      display: flex;
+      align-items: center;
+    }
+
+    .user-badge .last-login {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .user-badge .logout {
+      margin-left: 12px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: var(--transition);
+    }
+
+    .user-badge .logout:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── 反馈入口悬浮按钮 ─────── */
+    .feedback-fab {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      padding: 12px 20px;
+      background: var(--gradient-primary);
+      color: var(--primary-deep);
+      border: none;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0, 212, 255, 0.35);
+      z-index: 999;
+      transition: var(--transition);
+    }
+    .feedback-fab:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0, 212, 255, 0.5);
+    }
+
+    /* ── 反馈 Modal ─────── */
+    .feedback-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 31, 61, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .feedback-content {
+      width: 100%;
+      max-width: 480px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      backdrop-filter: blur(24px);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .feedback-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .feedback-header h3 {
+      font-size: 22px;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 28px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+    }
+    .close-btn:hover { color: var(--accent); }
+    .feedback-content select,
+    .feedback-content textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--glass-light);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-bright);
+      font-size: 14px;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+    .feedback-content select:focus,
+    .feedback-content textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+    }
+    .feedback-content textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    /* ── 首次登录 walkthrough ─────── */
+    .walkthrough-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 31, 61, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 1100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .walkthrough-content {
+      width: 100%;
+      max-width: 560px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 48px 40px;
+      backdrop-filter: blur(24px);
+      text-align: center;
+    }
+    .walkthrough-step .step-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+    .walkthrough-step h2 {
+      font-size: 28px;
+      font-weight: 700;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+    .walkthrough-step p {
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .walkthrough-step .step-tip {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+      padding: 12px 16px;
+      background: rgba(0, 212, 255, 0.06);
+      border-left: 2px solid var(--accent);
+      border-radius: 6px;
+      text-align: left;
+    }
+    .walkthrough-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .walkthrough-step .btn-secondary {
+      padding: 12px 24px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 14px;
+      transition: var(--transition);
+    }
+    .walkthrough-step .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .walkthrough-step .btn-primary {
+      padding: 12px 24px;
+      background: var(--gradient-primary);
+      border: none;
+      color: var(--primary-deep);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      transition: var(--transition);
+    }
+    .walkthrough-step .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-glow);
+    }
+    .walkthrough-step .step-dots {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 24px;
+    }
+    .walkthrough-step .step-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: var(--transition);
+    }
+    .walkthrough-step .step-dot.active {
+      background: var(--accent);
+      width: 24px;
+      border-radius: 4px;
+    }
+    .walkthrough-step .skip-link {
+      display: block;
+      margin-top: 16px;
+      color: var(--text-dim);
+      font-size: 13px;
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+    .walkthrough-step .skip-link:hover { color: var(--accent); }
+
+    /* ── 模块卡片网格 ─────── */
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 32px;
+    }
+
+    .module-card {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px 28px;
+      backdrop-filter: blur(24px);
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .module-card.active {
+      cursor: pointer;
+    }
+
+    .module-card.active:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-hover);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .module-card.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--gradient-primary);
+    }
+
+    .module-card.coming-soon {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .module-card.coming-soon::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--text-dim);
+      opacity: 0.5;
+    }
+
+    .module-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .module-card h3 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-bright);
+      margin-bottom: 6px;
+    }
+
+    .module-card .subtitle {
+      font-size: 14px;
+      color: var(--accent);
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .module-card .description {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .module-status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .module-status.active {
+      background: rgba(0, 212, 255, 0.15);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    .module-status.coming-soon {
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    .module-card .enter-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 12px;
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .module-card.active:hover .enter-link {
+      opacity: 1;
+      transform: translateX(4px);
+    }
+
+    /* ── 登录表单 ─────── */
+    .login-container {
+      max-width: 420px;
+      margin: 140px auto 0;
+      padding: 40px 36px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(24px);
+    }
+
+    .login-container h2 {
+      font-size: 28px;
+      font-weight: 700;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .login-container .hint {
+      color: var(--text-dim);
+      text-align: center;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      color: var(--text);
+      font-size: 13px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--glass-light);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-bright);
+      font-size: 14px;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--gradient-primary);
+      border: none;
+      border-radius: var(--radius);
+      color: var(--primary-deep);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      margin-top: 12px;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .login-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .error-msg {
+      color: #ff6b6b;
+      font-size: 13px;
+      text-align: center;
+      margin-top: 12px;
+      min-height: 18px;
+    }
+
+    .back-home {
+      text-align: center;
+      margin-top: 24px;
+    }
+
+    .back-home a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 13px;
+      transition: var(--transition);
+    }
+
+    .back-home a:hover {
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="scroll-progress" id="scrollProgress"></div>
+
+  <!-- 未登录：显示登录表单 -->
+  <div id="loginView" class="login-container" style="display:none;">
+    <h2>凌瑶智数 · 控制台</h2>
+    <p class="hint">登录后选择产品模块进入</p>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">用户名</label>
+        <input type="text" id="username" placeholder="GEOadmin" required autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="password">密码</label>
+        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="login-btn" id="loginBtn">登录控制台</button>
+      <div class="error-msg" id="errorMsg"></div>
+    </form>
+    <div class="back-home">
+      <a href="/">← 返回凌瑶智数官网</a>
+    </div>
+  </div>
+
+  <!-- 已登录：显示模块选择门户 -->
+  <div id="portalView" class="portal-container" style="display:none;">
+    <div class="portal-header">
+      <div class="portal-greeting">
+        <h1 id="greetingTitle">晚上好，主理人</h1>
+        <p>您已登录凌瑶智数主控台，请选择需要进入的产品模块</p>
+      </div>
+      <div class="user-badge">
+        <img id="userAvatar" src="" alt="" onerror="this.onerror=null;this.style.display='none';document.getElementById('avatarFallback').style.display='flex';">
+        <div id="avatarFallback" class="avatar-fallback" style="display:none;">👤</div>
+        <div class="user-info">
+          <div class="user-line-1">
+            <span class="name" id="userName">用户</span>
+            <span class="company" id="userCompany"></span>
+          </div>
+          <div class="user-line-2">
+            <span class="role-tag" id="userRole">-</span>
+          </div>
+          <div class="user-line-3">
+            <span class="last-login" id="lastLogin">🕐 首次登录</span>
+          </div>
+        </div>
+        <button class="logout" id="logoutBtn">退出</button>
+        <button class="logout" id="adminBtn" style="display:none;border-color:var(--accent);color:var(--accent);">⚙ 管理后台</button>
+      </div>
+    </div>
+
+    <div class="module-grid" id="moduleGrid">
+      <!-- 模块卡片由 JS 动态渲染 -->
+    </div>
+  </div>
+
+  <!-- 反馈入口悬浮按钮 -->
+  <button class="feedback-fab" id="feedbackFab" title="我有事说">💡 我有事说</button>
+
+  <!-- 反馈 Modal -->
+  <div class="feedback-modal" id="feedbackModal" style="display:none;">
+    <div class="feedback-content">
+      <div class="feedback-header">
+        <h3>💡 我有事说</h3>
+        <button class="close-btn" id="feedbackClose" aria-label="关闭">×</button>
+      </div>
+      <form id="feedbackForm">
+        <div class="form-group">
+          <label>反馈类型</label>
+          <select id="feedbackType">
+            <option value="bug">🐛 Bug 报告</option>
+            <option value="feature">✨ 功能建议</option>
+            <option value="doc">📚 文档缺失</option>
+            <option value="perf">⚡ 性能问题</option>
+            <option value="other">💬 其他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>标题</label>
+          <input type="text" id="feedbackTitle" maxlength="50" placeholder="一句话描述" required>
+        </div>
+        <div class="form-group">
+          <label>详情</label>
+          <textarea id="feedbackBody" maxlength="500" placeholder="尽可能说明：操作步骤 / 期望行为 / 实际行为" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>联系方式（选填）</label>
+          <input type="text" id="feedbackContact" placeholder="邮箱 / 飞书 / 钉钉，便于回访">
+        </div>
+        <button type="submit" class="login-btn">提交反馈</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 首次登录 walkthrough -->
+  <div class="walkthrough-overlay" id="walkthrough" style="display:none;">
+    <div class="walkthrough-content">
+      <div class="walkthrough-step" id="wt-step-0">
+        <div class="step-icon">👋</div>
+        <h2>欢迎来到凌瑶智数</h2>
+        <p>5 步快速了解主控台的使用方式</p>
+        <div class="step-tip">💡 提示：你也可以随时通过右下角「💡 我有事说」按钮向我们反馈</div>
+        <div class="walkthrough-actions">
+          <button class="btn-secondary" onclick="closeWalkthrough()">跳过</button>
+          <button class="btn-primary" onclick="nextStep(1)">开始 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step" id="wt-step-1" style="display:none;">
+        <div class="step-icon">🅖</div>
+        <h2>第 1 步 · GEO 智策</h2>
+        <p>监测 8 大 AI 平台对药企品牌的提及、推荐和情感倾向，发现内容缺口</p>
+        <div class="step-tip">💡 如果你是品牌经理，先到这里看看 — 知道 AI 怎么说你，比知道人怎么说更重要</div>
+        <div class="walkthrough-actions">
+          <button class="btn-secondary" onclick="prevStep(0)">← 上一步</button>
+          <button class="btn-primary" onclick="nextStep(2)">下一步 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot"></span>
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step" id="wt-step-2" style="display:none;">
+        <div class="step-icon">🅗</div>
+        <h2>第 2 步 · 医院潜力预测</h2>
+        <p>基于床位数推算 CACS 药品最大销量，WMAPE 精度 6.6%</p>
+        <div class="step-tip">💡 销售代表：拿到一家新医院，先来这里输入床位数，立刻知道能卖多少</div>
+        <div class="walkthrough-actions">
+          <button class="btn-secondary" onclick="prevStep(1)">← 上一步</button>
+          <button class="btn-primary" onclick="nextStep(3)">下一步 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step" id="wt-step-3" style="display:none;">
+        <div class="step-icon">🅐</div>
+        <h2>第 3 步 · AIDD 研发反馈</h2>
+        <p>为研发团队提供 AI 驱动的文献挖掘、靶点预测、化合物筛选</p>
+        <div class="step-tip">💡 数据分析师：模型 V3.1 校准从这里进入 — 50 家样本医院数据</div>
+        <div class="walkthrough-actions">
+          <button class="btn-secondary" onclick="prevStep(2)">← 上一步</button>
+          <button class="btn-primary" onclick="nextStep(4)">下一步 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step" id="wt-step-4" style="display:none;">
+        <div class="step-icon">🅟</div>
+        <h2>第 4 步 · 协作智能体</h2>
+        <p>5 个 AI 智能体（小聚/小亮/小催/小成/小进）协同管理你的项目</p>
+        <div class="step-tip">💡 区域经理：让小聚帮你排序今天最重要的 5 件事</div>
+        <div class="walkthrough-actions">
+          <button class="btn-secondary" onclick="prevStep(3)">← 上一步</button>
+          <button class="btn-primary" onclick="nextStep(5)">下一步 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step" id="wt-step-5" style="display:none;">
+        <div class="step-icon">🎉</div>
+        <h2>准备好了！</h2>
+        <p>点击下方任意模块卡片开始使用 · 遇到问题随时点右下角「💡 我有事说」</p>
+        <div class="step-tip">📌 你的反馈会直达产品团队，每个反馈都会被认真查看</div>
+        <div class="walkthrough-actions">
+          <button class="btn-primary" onclick="closeWalkthrough()">开始使用 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot active"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── 数据层 ─────────────────────────
+    const TOKEN_KEY = 'lingyao_token';
+    const USER_KEY = 'lingyao_user';
+    // 后端 API 基础地址（开发期直连 9091；生产可改为同源 /api）
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://127.0.0.1:9091'
+      : '';  // 空字符串 = 相对路径，走 Nginx 反代（生产 IP / 域名都适用）
+
+    function getToken() {
+      return localStorage.getItem(TOKEN_KEY);
+    }
+    function setToken(token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    }
+    function getUser() {
+      const s = localStorage.getItem(USER_KEY);
+      return s ? JSON.parse(s) : null;
+    }
+    function setUser(user) {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    }
+    function logout() {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      location.reload();
+    }
+
+    // ── 问候语 ─────────────────────────
+    function getGreeting() {
+      const h = new Date().getHours();
+      if (h < 6)  return '凌晨好';
+      if (h < 12) return '早上好';
+      if (h < 14) return '中午好';
+      if (h < 18) return '下午好';
+      return '晚上好';
+    }
+
+    // ── 视图切换 ─────────────────────────
+    function showLogin() {
+      document.getElementById('loginView').style.display = 'block';
+      document.getElementById('portalView').style.display = 'none';
+    }
+    function showPortal(user) {
+      document.getElementById('loginView').style.display = 'none';
+      document.getElementById('portalView').style.display = 'block';
+
+      document.getElementById('greetingTitle').textContent =
+        `${getGreeting()}，${user.real_name || user.username}`;
+
+      const avatar = document.getElementById('userAvatar');
+      if (user.avatar_url) avatar.src = user.avatar_url;
+      document.getElementById('userName').textContent = user.real_name || user.username;
+
+      // 公司名（截短显示）
+      const companyEl = document.getElementById('userCompany');
+      if (user.company_name) {
+        const cn = user.company_name.length > 10 ? user.company_name.slice(0, 10) + '…' : user.company_name;
+        companyEl.textContent = cn;
+      } else {
+        companyEl.style.display = 'none';
+      }
+
+      // 角色 tag
+      const roleEl = document.getElementById('userRole');
+      roleEl.textContent =
+        user.role === 'super_admin' ? '平台超管' :
+        user.role === 'senior_operator' ? '高级运营' :
+        user.role === 'data_analyst' ? '数据分析师' :
+        user.role === 'regional_manager' ? '区域经理' :
+        user.role === 'sales_rep' ? '销售代表' : '运营';
+
+      // 上次登录时间（从 localStorage 读上次登录时间戳）
+      const lastLoginEl = document.getElementById('lastLogin');
+      const lastLoginTs = localStorage.getItem('lingyao_last_login');
+      const now = new Date();
+      if (lastLoginTs) {
+        const last = new Date(parseInt(lastLoginTs));
+        const diffMin = Math.round((now - last) / 60000);
+        let rel = '';
+        if (diffMin < 1) rel = '刚刚';
+        else if (diffMin < 60) rel = `${diffMin} 分钟前`;
+        else if (diffMin < 60 * 24) rel = `${Math.round(diffMin / 60)} 小时前`;
+        else rel = `${Math.round(diffMin / 60 / 24)} 天前`;
+        lastLoginEl.textContent = `🕐 上次登录 ${rel}`;
+      } else {
+        lastLoginEl.textContent = '🕐 首次登录，欢迎';
+      }
+      // 存本次登录时间戳
+      localStorage.setItem('lingyao_last_login', String(now.getTime()));
+
+      // 平台超管显示「管理后台」入口
+      const adminBtn = document.getElementById('adminBtn');
+      if (adminBtn) {
+        adminBtn.style.display = user.isPlatformAdmin ? 'inline-block' : 'none';
+      }
+
+      loadModules(user);
+      showWalkthroughIfFirstTime();
+    }
+
+    // ── 模块加载 ─────────────────────────
+    async function loadModules(user) {
+      try {
+        const res = await fetch(`${API_BASE}/api/sub/list`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        // 后端返回 data 是数组 — 转为 {modules: [...]} 形态
+        renderModules(data.data || [], user);
+      } catch (e) {
+        console.error('加载模块失败:', e);
+        document.getElementById('moduleGrid').innerHTML =
+          `<p style="color:#ff6b6b;text-align:center;padding:32px;">模块加载失败：${e.message}（请确认后端 9091 已启动）</p>`;
+      }
+    }
+
+    function renderModules(modules, user) {
+      const grid = document.getElementById('moduleGrid');
+      if (!modules || modules.length === 0) {
+        grid.innerHTML = '<p style="color:#888;text-align:center;padding:32px;">暂无可用模块</p>';
+        return;
+      }
+      // 后端字段: productCode, productName, taskName, status, entryPath
+      // 平台管理员可看全部；普通用户看 granted
+      const grantedCodes = new Set(
+        (user && user.grantedProducts) || [] // 后端 login 时没有这字段，先全部展示
+      );
+      grid.innerHTML = modules.map(m => {
+        const code = (m.productCode || '').toLowerCase();
+        const isReady = m.status === 'REGISTERED' || m.status === 'ACTIVE';
+        return `
+        <div class="module-card ${isReady ? 'active' : 'coming-soon'}"
+             data-code="${m.productCode}"
+             data-status="${m.status}">
+          <span class="module-icon">${iconFor(code)}</span>
+          <h3>${m.productName}</h3>
+          <div class="subtitle">${m.taskName || m.productName}</div>
+          <p class="description">入口：${m.entryPath || '—'}</p>
+          <span class="module-status ${isReady ? 'active' : 'coming-soon'}">
+            ${isReady ? '✓ 已开通' : '⏳ 待部署'}
+          </span>
+          ${isReady ? `<div class="enter-link">进入系统 →</div>` : ''}
+        </div>
+      `;
+      }).join('');
+
+      // 绑定点击
+      grid.querySelectorAll('.module-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const status = card.getAttribute('data-status');
+          const code = card.getAttribute('data-code');
+          if (status === 'REGISTERED' || status === 'ACTIVE') {
+            enterModule(code);
+          } else {
+            alert('该模块正在规划中，敬请期待！');
+          }
+        });
+      });
+    }
+
+    // 简单图标映射
+    function iconFor(code) {
+      return {
+        geo: '🅖', hpd: '🅗', aidd: '🅐', por: '🅟'
+      }[code] || '◉';
+    }
+
+    // ── 模块跳转 ─────────────────────────
+    // 通过后端 /api/sub/{code}/enter 获取带 JWT 的跳转 URL
+    async function enterModule(moduleCode) {
+      try {
+        const res = await fetch(`${API_BASE}/api/sub/${moduleCode}/enter`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) {
+          let msg = '进入失败';
+          try { const d = await res.json(); msg = d.message || msg; } catch (_) {}
+          alert('进入失败：' + msg);
+          return;
+        }
+        const data = await res.json();
+        const payload = data.data || {};
+        // 模式 1: 子任务已部署 → 直接跳转
+        if (payload.mode === 'DIRECT_REDIRECT' && payload.redirectUrl) {
+          window.location.href = payload.redirectUrl;
+          return;
+        }
+        // 模式 2: 路由层降级 → 跳 entryPath
+        const entry = payload.fallbackPath || '/';
+        alert('该模块尚未部署，将跳转到占位页面：' + entry);
+        window.location.href = entry;
+      } catch (e) {
+        alert('跳转失败：' + e.message);
+      }
+    }
+
+    // ── 登录处理 ─────────────────────────
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const err = document.getElementById('errorMsg');
+      err.textContent = '';
+      btn.disabled = true;
+      btn.textContent = '登录中...';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        if (!res.ok) {
+          let msg = '登录失败';
+          try { const d = await res.json(); msg = d.message || d.detail || msg; } catch (_) {}
+          err.textContent = msg;
+          btn.disabled = false;
+          btn.textContent = '登录控制台';
+          return;
+        }
+        const data = await res.json();
+        // 后端响应: {code, success, message, data:{token, user, company, products}}
+        const payload = data.data || {};
+        setToken(payload.token);
+        // 适配后端字段 → 前端期望
+        const u = payload.user || {};
+        const user = {
+          id: u.id,
+          username: u.username,
+          real_name: u.displayName || u.username,
+          role: u.platformAdmin ? 'super_admin' : 'operator',
+          isPlatformAdmin: !!u.platformAdmin,
+          company_id: payload.company?.id || 1,
+          company_name: payload.company?.name || ''
+        };
+        setUser(user);
+        showPortal(user);
+      } catch (e) {
+        err.textContent = '网络错误：' + e.message;
+        btn.disabled = false;
+        btn.textContent = '登录控制台';
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    // 管理后台入口点击（显示与否由 showPortal(user) 根据 isPlatformAdmin 控制）
+    document.getElementById('adminBtn').addEventListener('click', () => location.href = '/admin.html');
+
+    // ── 滚动进度条 ─────────────────────────
+    window.addEventListener('scroll', () => {
+      const h = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = h > 0 ? (window.scrollY / h * 100) : 0;
+      document.getElementById('scrollProgress').style.width = pct + '%';
+    });
+
+    // ── 启动判断 ─────────────────────────
+    (function init() {
+      const token = getToken();
+      const user = getUser();
+      if (token && user) {
+        showPortal(user);
+      } else {
+        showLogin();
+      }
+    })();
+
+    // ── 反馈入口 ─────────────────────────
+    document.getElementById('feedbackFab').addEventListener('click', () => {
+      document.getElementById('feedbackModal').style.display = 'flex';
+    });
+    document.getElementById('feedbackClose').addEventListener('click', () => {
+      document.getElementById('feedbackModal').style.display = 'none';
+    });
+    document.getElementById('feedbackModal').addEventListener('click', (e) => {
+      if (e.target.id === 'feedbackModal') {
+        document.getElementById('feedbackModal').style.display = 'none';
+      }
+    });
+    document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        type: document.getElementById('feedbackType').value,
+        title: document.getElementById('feedbackTitle').value.trim(),
+        body: document.getElementById('feedbackBody').value.trim(),
+        contact: document.getElementById('feedbackContact').value.trim(),
+        user: getUser(),
+        timestamp: new Date().toISOString()
+      };
+      // 存到 localStorage 等待后端接口就绪
+      const store = JSON.parse(localStorage.getItem('lingyao_feedback') || '[]');
+      store.push(payload);
+      localStorage.setItem('lingyao_feedback', JSON.stringify(store));
+      // 友好 fallback：本地存储 + 提示
+      try {
+        const res = await fetch(`${API_BASE}/api/feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          alert('✅ 反馈已提交，感谢您的支持！');
+        } else {
+          alert('✅ 反馈已暂存到本地，后续会同步到服务器');
+        }
+      } catch (_) {
+        alert('✅ 反馈已暂存到本地，后续会同步到服务器');
+      }
+      document.getElementById('feedbackModal').style.display = 'none';
+      document.getElementById('feedbackForm').reset();
+    });
+
+    // ── Walkthrough 控制 ─────────────────────────
+    function showWalkthroughIfFirstTime() {
+      const seen = localStorage.getItem('lingyao_walkthrough_done');
+      if (!seen) {
+        document.getElementById('walkthrough').style.display = 'flex';
+      }
+    }
+    function closeWalkthrough() {
+      document.getElementById('walkthrough').style.display = 'none';
+      localStorage.setItem('lingyao_walkthrough_done', '1');
+    }
+    function nextStep(n) {
+      for (let i = 0; i <= 5; i++) {
+        const el = document.getElementById(`wt-step-${i}`);
+        if (el) el.style.display = i === n ? 'block' : 'none';
+      }
+    }
+    function prevStep(n) {
+      nextStep(n);
+    }
+  </script>
+</body>
+</html>

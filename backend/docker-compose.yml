@@ -1,0 +1,51 @@
+# ════════════════════════════════════════════════════════════
+# 凌瑶智数 · Docker Compose 一键启动
+# ────────────────────────────────────────────────────────────
+# 启动：   docker-compose up -d
+# 停机：   docker-compose down
+# 查看日志：docker-compose logs -f
+# 备份：   docker exec lingyao-platform /app/backup.sh
+#
+# 首次启动会在 ./data/ 下创建持久化的：
+#   - lingyao.mv.db          ← H2 主库
+#   - .jwt_secret            ← JWT 密钥（删除可强制全部用户重新登录）
+#   - logs/                  ← Spring Boot 日志
+#   - backup/                ← 自动备份产物
+# ════════════════════════════════════════════════════════════
+
+version: "3.9"
+
+services:
+  lingyao-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lingyao/platform:1.0.0
+    container_name: lingyao-platform
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    environment:
+      # 首次启动不设置 → entrypoint 自动生成并持久化
+      # 后续可在外部 .env 文件覆盖，强制密钥轮换
+      LINGYAO_JWT_SECRET: ${LINGYAO_JWT_SECRET:-}
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
+      SPRING_PROFILES_ACTIVE: private
+      TZ: Asia/Shanghai
+    volumes:
+      # 数据持久化（删除容器后数据仍在）
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backup:/app/backup
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9091/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    networks:
+      - lingyao-net
+
+networks:
+  lingyao-net:
+    driver: bridge

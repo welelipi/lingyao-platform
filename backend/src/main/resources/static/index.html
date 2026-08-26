@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>凌瑶智数 LingYao · 医药垂直化软件服务专家</title>
+<meta name="description" content="凌瑶智数 — 面向医药企业的垂直化软件服务商，提供GEO品牌优化、AIDD研发反馈、医院潜力预测、药企项目管理四大产品线。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- 顶部进度条 -->
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<!-- 导航栏 -->
+<nav class="navbar" id="navbar">
+  <div class="nav-container">
+    <a href="#hero" class="nav-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 40 40" fill="none">
+          <defs>
+            <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#00D4FF"/>
+              <stop offset="100%" stop-color="#7B61FF"/>
+            </linearGradient>
+          </defs>
+          <path d="M20 4 L36 12 L36 28 L20 36 L4 28 L4 12 Z" stroke="url(#logoGrad)" stroke-width="2" fill="none"/>
+          <circle cx="20" cy="20" r="6" fill="url(#logoGrad)" opacity="0.9"/>
+          <circle cx="20" cy="20" r="3" fill="#0A1F3D"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <span class="logo-name">凌瑶智数</span>
+        <span class="logo-en">LingYao Digital</span>
+      </div>
+    </a>
+
+    <div class="nav-menu" id="navMenu">
+      <a href="#about" class="nav-link">关于我们</a>
+      <a href="#products" class="nav-link">产品矩阵</a>
+      <a href="#solutions" class="nav-link">解决方案</a>
+      <a href="#advantages" class="nav-link">技术优势</a>
+      <a href="#cases" class="nav-link">客户案例</a>
+      <a href="#contact" class="nav-link">联系我们</a>
+    </div>
+
+    <div class="nav-actions">
+      <a href="/portal.html" class="btn-ghost" style="text-decoration:none;display:inline-flex;align-items:center;">登录</a>
+      <button class="btn-primary" onclick="openModal('trial')">免费试用</button>
+      <button class="nav-toggle" id="navToggle" aria-label="菜单">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero 区 -->
+<section class="hero" id="hero">
+  <div class="hero-bg">
+    <canvas id="particleCanvas"></canvas>
+    <div class="hero-gradient"></div>
+  </div>
+
+  <div class="hero-content">
+    <div class="hero-badge">
+      <span class="badge-dot"></span>
+      <span>2026 新一代医药垂直软件服务平台</span>
+    </div>
+
+    <h1 class="hero-title">
+      <span class="title-line">让医药企业</span>
+      <span class="title-line gradient-text">从经验判断</span>
+      <span class="title-line">走向<span class="title-accent">数据智能</span></span>
+    </h1>
+
+    <p class="hero-subtitle">
+      凌瑶智数 — 专注于医药垂直领域的软件服务商<br>
+      为药企提供品牌优化、研发协同、市场预测、项目管理的全栈式解决方案
+    </p>
+
+    <div class="hero-cta">
+      <button class="btn-large btn-primary" onclick="openModal('trial')">
+        <span>申请免费试用</span>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg>
+      </button>
+      <a href="#products" class="btn-large btn-outline">
+        <span>查看产品矩阵</span>
+      </a>
+    </div>
+
+    <!-- 数据栏 -->
+    <div class="hero-stats">
+      <div class="stat-item">
+        <div class="stat-num" data-target="9000"><span>0</span><span class="stat-suffix">+</span></div>
+        <div class="stat-label">覆盖医院数量</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" data-target="6.6" data-decimal="true"><span>0</span><span class="stat-suffix">%</span></div>
+        <div class="stat-label">预测模型WMAPE</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" data-target="47"><span>0</span><span class="stat-suffix">×</span></div>
+        <div class="stat-label">平均投入产出比</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" data-target="8"><span>0</span><span class="stat-suffix">大</span></div>
+        <div class="stat-label">AI平台对接能力</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-scroll">
+    <div class="scroll-line"></div>
+    <span>SCROLL</span>
+  </div>
+</section>
+
+<!-- 关于我们 -->
+<section class="section section-about" id="about">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">ABOUT US</div>
+      <h2 class="section-title">
+        <span class="title-line">深耕医药行业的</span>
+        <span class="gradient-text">垂直软件服务商</span>
+      </h2>
+      <p class="section-subtitle">
+        我们理解医药行业的每一个环节 — 从研发管线到品牌推广、从医院终端到销售管理
+      </p>
+    </div>
+
+    <div class="about-grid">
+      <div class="about-main reveal">
+        <div class="about-card">
+          <div class="about-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <h3>使命</h3>
+          <p>用数据智能，让每一家药企都能从经验判断升级为精准决策，让医药行业的每一个决策都有数据支撑。</p>
+        </div>
+
+        <div class="about-card">
+          <div class="about-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
+          <h3>愿景</h3>
+          <p>成为医药行业最值得信赖的垂直软件服务商，让数据智能成为药企的核心生产力。</p>
+        </div>
+
+        <div class="about-card">
+          <div class="about-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3h18v18H3z"/>
+              <path d="M3 9h18M9 21V9"/>
+            </svg>
+          </div>
+          <h3>价值观</h3>
+          <p>专业严谨 · 价值为先 · 持续创新 · 与客户共赢 — 每一行代码都服务于真实的业务场景。</p>
+        </div>
+      </div>
+
+      <div class="about-side reveal">
+        <div class="about-numbers">
+          <div class="number-card">
+            <div class="number-value">2026</div>
+            <div class="number-desc">成立年份<br>聚焦医药垂直领域</div>
+          </div>
+          <div class="number-card">
+            <div class="number-value">4<span>大</span></div>
+            <div class="number-desc">核心产品矩阵<br>覆盖医药全链路</div>
+          </div>
+          <div class="number-card">
+            <div class="number-value">3<span>步</span></div>
+            <div class="number-desc">极速部署上线<br>专属服务支持</div>
+          </div>
+          <div class="number-card">
+            <div class="number-value">99.9<span>%</span></div>
+            <div class="number-desc">系统可用性<br>7×24小时保障</div>
+          </div>
+        </div>
+
+        <div class="about-quote">
+          <svg class="quote-mark" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/>
+          </svg>
+          <p>在医药行业，数据智能不是选择题，而是必答题。<br>我们让这道题变得更简单。</p>
+          <div class="quote-author">— 凌瑶智数团队</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 产品矩阵 -->
+<section class="section section-products" id="products">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">PRODUCTS</div>
+      <h2 class="section-title">
+        <span class="title-line">四大产品矩阵</span>
+        <span class="gradient-text">构建医药数据智能闭环</span>
+      </h2>
+      <p class="section-subtitle">
+        从品牌到研发、从市场到管理 — 一个平台，全栈赋能
+      </p>
+    </div>
+
+    <!-- 产品选项卡 -->
+    <div class="product-tabs reveal">
+      <button class="tab-btn active" data-tab="geo">
+        <span class="tab-num">01</span>
+        <span class="tab-name">GEO 智策</span>
+        <span class="tab-desc">品牌优化</span>
+      </button>
+      <button class="tab-btn" data-tab="cacs">
+        <span class="tab-num">02</span>
+        <span class="tab-name">医院潜力预测</span>
+        <span class="tab-desc">潜力预测</span>
+      </button>
+      <button class="tab-btn" data-tab="aidd">
+        <span class="tab-num">03</span>
+        <span class="tab-name">AIDD 系统</span>
+        <span class="tab-desc">研发反馈</span>
+      </button>
+      <button class="tab-btn" data-tab="por">
+        <span class="tab-num">04</span>
+        <span class="tab-name">协作智能体</span>
+        <span class="tab-desc">项目管理</span>
+      </button>
+    </div>
+
+    <!-- GEO 产品详情 -->
+    <div class="product-detail active" id="product-geo">
+      <div class="product-grid">
+        <div class="product-info">
+          <div class="product-header">
+            <div class="product-icon" style="--c1:#00D4FF;--c2:#0099CC;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+            </div>
+            <div class="product-titles">
+              <div class="product-en">Generative Engine Optimization</div>
+              <h3>GEO 智策平台</h3>
+            </div>
+          </div>
+
+          <p class="product-desc">
+            监测 DeepSeek、千问、Kimi、ChatGPT 等 8 大 AI 平台对药企品牌及产品的提及、推荐和情感倾向，
+            发现内容缺口，自动生成可执行的优化行动建议。
+          </p>
+
+          <div class="product-features">
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>多平台并行采集</strong>
+                <p>同时监测 8 大 AI 平台，覆盖 ChatGPT/DeepSeek/千问/Kimi/Perplexity 等</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>5 维诊断评分</strong>
+                <p>推荐排名 · 推荐方向 · 情感分析 · 品牌提及 · 来源覆盖</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>竞品雷达</strong>
+                <p>实时对比竞品品牌在 AI 平台的表现差异，规则引擎自动生成行动项</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>知识树分层架构</strong>
+                <p>采集引擎→配置中心→监测中心→诊断中心→竞品雷达→行动中心</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="product-actions">
+            <button class="btn-primary" onclick="openModal('trial')">申请试用</button>
+            <a href="#" class="btn-link">查看技术文档 →</a>
+          </div>
+        </div>
+
+        <div class="product-visual">
+          <div class="dashboard-mockup">
+            <div class="mockup-header">
+              <div class="mockup-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="mockup-title">GEO 智策 · 诊断中心</div>
+            </div>
+            <div class="mockup-content">
+              <div class="mockup-kpi-grid">
+                <div class="kpi-box">
+                  <div class="kpi-label">品牌健康度</div>
+                  <div class="kpi-value" style="color:#00D4FF;">82.5</div>
+                  <div class="kpi-trend">↑ 3.2</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">推荐排名</div>
+                  <div class="kpi-value" style="color:#7B61FF;">68.3</div>
+                  <div class="kpi-trend">↑ 5.1</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">情感得分</div>
+                  <div class="kpi-value" style="color:#4ADE80;">+0.65</div>
+                  <div class="kpi-trend">↑ 0.08</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">来源覆盖</div>
+                  <div class="kpi-value" style="color:#FF8C42;">87%</div>
+                  <div class="kpi-trend">↑ 12%</div>
+                </div>
+              </div>
+              <div class="mockup-chart">
+                <canvas id="geoChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 医院潜力预测 产品详情 -->
+    <div class="product-detail" id="product-cacs">
+      <div class="product-grid">
+        <div class="product-info">
+          <div class="product-header">
+            <div class="product-icon" style="--c1:#7B61FF;--c2:#FF8C42;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3v18h18"/>
+                <path d="m7 14 4-4 4 4 6-6"/>
+              </svg>
+            </div>
+            <div class="product-titles">
+              <div class="product-en">Cancer-Aware Capacity Scoring</div>
+              <h3>医院销售潜力模型预测</h3>
+            </div>
+          </div>
+
+          <p class="product-desc">
+            基于医院床位、肿瘤能力、区域发病率等多维度数据，构建双模型精准预测医院销售潜力，
+            WMAPE 6.6%，覆盖 9000+ 家医院，为药企市场决策提供数据支撑。
+          </p>
+
+          <div class="product-features">
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>双模型交叉验证</strong>
+                <p>Model A (全院床位→瓶数测算) + Model B (肿瘤床位→瓶数测算) ，WMAPE 仅 6.6%</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>四级医院分级</strong>
+                <p>S/A/B/C 级核心医院加权 WMAPE 6.4%，C 级综合旗舰医院仅 2.3%</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>28+ 适应症建模</strong>
+                <p>覆盖儿科生长激素、肿瘤支持治疗、风湿免疫、呼吸等核心治疗领域</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>动态校准迭代</strong>
+                <p>每季度自动校准，常做常新，模型精度持续逼近天花板</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="product-actions">
+            <button class="btn-primary" onclick="openModal('trial')">申请试用</button>
+            <a href="#" class="btn-link">查看完整案例 →</a>
+          </div>
+        </div>
+
+        <div class="product-visual">
+          <div class="dashboard-mockup">
+            <div class="mockup-header">
+              <div class="mockup-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="mockup-title">医院销售潜力模型预测</div>
+            </div>
+            <div class="mockup-content">
+              <div class="mockup-kpi-grid">
+                <div class="kpi-box">
+                  <div class="kpi-label">WMAPE</div>
+                  <div class="kpi-value" style="color:#7B61FF;">6.6%</div>
+                  <div class="kpi-trend">↓ 1.5pp</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">R²</div>
+                  <div class="kpi-value" style="color:#00D4FF;">0.991</div>
+                  <div class="kpi-trend">↑ 0.02</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">覆盖医院</div>
+                  <div class="kpi-value" style="color:#FF8C42;">9,156</div>
+                  <div class="kpi-trend">↑ 12%</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">投入产出</div>
+                  <div class="kpi-value" style="color:#4ADE80;">47×</div>
+                  <div class="kpi-trend">↑ 8×</div>
+                </div>
+              </div>
+              <div class="mockup-chart">
+                <canvas id="cacsChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AIDD 产品详情 -->
+    <div class="product-detail" id="product-aidd">
+      <div class="product-grid">
+        <div class="product-info">
+          <div class="product-header">
+            <div class="product-icon" style="--c1:#4ADE80;--c2:#00D4FF;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/>
+                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/>
+              </svg>
+            </div>
+            <div class="product-titles">
+              <div class="product-en">AI-Driven Drug Discovery</div>
+              <h3>AIDD 研发信息反馈系统</h3>
+            </div>
+          </div>
+
+          <p class="product-desc">
+            为 AI 辅助药物研发团队提供实时信息反馈闭环，从靶点发现、分子设计、临床试验到上市后监测，
+            全链路数据整合与智能洞察，加速新药研发周期。
+          </p>
+
+          <div class="product-features">
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>靶点发现与验证</strong>
+                <p>整合 PubMed、ClinicalTrials、专利文献，AI 自动识别潜在靶点与适应症关联</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>分子设计反馈</strong>
+                <p>对接主流 AIDD 平台，实时反馈候选分子活性、毒性、可合成性评估结果</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>临床试验监测</strong>
+                <p>全球临床试验数据实时同步，竞品管线进展追踪，安全性信号预警</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>知识图谱</strong>
+                <p>构建化合物-靶点-疾病-PMC 全文关联的知识图谱，支撑循证研发决策</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="product-actions">
+            <button class="btn-primary" onclick="openModal('trial')">申请试用</button>
+            <a href="#" class="btn-link">查看技术白皮书 →</a>
+          </div>
+        </div>
+
+        <div class="product-visual">
+          <div class="dashboard-mockup">
+            <div class="mockup-header">
+              <div class="mockup-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="mockup-title">AIDD · 研发反馈中心</div>
+            </div>
+            <div class="mockup-content">
+              <div class="mockup-kpi-grid">
+                <div class="kpi-box">
+                  <div class="kpi-label">在研管线</div>
+                  <div class="kpi-value" style="color:#4ADE80;">128</div>
+                  <div class="kpi-trend">↑ 23</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">候选分子</div>
+                  <div class="kpi-value" style="color:#00D4FF;">2,847</div>
+                  <div class="kpi-trend">↑ 412</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">试验追踪</div>
+                  <div class="kpi-value" style="color:#7B61FF;">456</div>
+                  <div class="kpi-trend">↑ 28</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">反馈周期</div>
+                  <div class="kpi-value" style="color:#FF8C42;">2.3d</div>
+                  <div class="kpi-trend">↓ 1.2d</div>
+                </div>
+              </div>
+              <div class="mockup-chart">
+                <canvas id="aiddChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 药企协作辅助智能体 产品详情 -->
+    <div class="product-detail" id="product-por">
+      <div class="product-grid">
+        <div class="product-info">
+          <div class="product-header">
+            <div class="product-icon" style="--c1:#FF8C42;--c2:#FF5E94;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+              </svg>
+            </div>
+            <div class="product-titles">
+              <div class="product-en">Project Operations & Resource</div>
+              <h3>药企协作辅助智能体</h3>
+              <div class="product-tagline">让药企内部效率提升 300%</div>
+            </div>
+          </div>
+
+          <p class="product-desc">
+            为药企打造的内部项目协作中枢 — 5 大智能体协同 (小聚·小亮·小催·小成·小进)，
+            从找重点、凸显风险、催办落地到价值反馈，让项目管理从经验走向智能化。
+          </p>
+
+          <div class="product-features">
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>5 大智能体协同</strong>
+                <p>小聚 (工作秘书) · 小亮 (风险雷达) · 小催 (项目管家) · 小成 (价值反馈) · 小进 (教练)</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>6 角色差异化首页</strong>
+                <p>执行人 / PMO / 部门负责人 / 中层 / 副总裁 / 老板 — 同一份数据不同的视觉重心</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>正向循环 6 步骤</strong>
+                <p>找到→凸显→催办→落地→价值反馈→改进 — 让项目飞轮自动运转</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-check">✓</div>
+              <div>
+                <strong>价值度量模型</strong>
+                <p>时间价值+业务价值+战略价值+协作价值 — 量化每一个项目的真实贡献</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="product-actions">
+            <button class="btn-primary" onclick="openModal('trial')">申请试用</button>
+            <a href="#" class="btn-link">查看完整功能 →</a>
+          </div>
+        </div>
+
+        <div class="product-visual">
+          <div class="dashboard-mockup">
+            <div class="mockup-header">
+              <div class="mockup-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="mockup-title">药企协作辅助智能体 · 让药企内部效率提升 300%</div>
+            </div>
+            <div class="mockup-content">
+              <div class="mockup-kpi-grid">
+                <div class="kpi-box">
+                  <div class="kpi-label">在办项目</div>
+                  <div class="kpi-value" style="color:#FF8C42;">87</div>
+                  <div class="kpi-trend">↑ 12</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">风险预警</div>
+                  <div class="kpi-value" style="color:#FF5E94;">23</div>
+                  <div class="kpi-trend">↓ 8</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">催办闭环</div>
+                  <div class="kpi-value" style="color:#4ADE80;">94%</div>
+                  <div class="kpi-trend">↑ 6%</div>
+                </div>
+                <div class="kpi-box">
+                  <div class="kpi-label">人均节省</div>
+                  <div class="kpi-value" style="color:#00D4FF;">2.5h</div>
+                  <div class="kpi-trend">↑ 0.8h</div>
+                </div>
+              </div>
+              <div class="mockup-chart">
+                <canvas id="porChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 解决方案 -->
+<section class="section section-solutions" id="solutions">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">SOLUTIONS</div>
+      <h2 class="section-title">
+        <span class="title-line">按角色定制</span>
+        <span class="gradient-text">专属解决方案</span>
+      </h2>
+      <p class="section-subtitle">
+        同一个平台，不同的人看到不同的世界 — 为每个岗位定制数据视角
+      </p>
+    </div>
+
+    <div class="solutions-grid">
+      <div class="solution-card reveal">
+        <div class="solution-num">01</div>
+        <div class="solution-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            <path d="M21 21v-2a4 4 0 0 0-3-3.87"/>
+          </svg>
+        </div>
+        <h3>市场部</h3>
+        <p>GEO 监测品牌声量，医院潜力预测模型锁定潜力医院，让市场预算有的放矢。</p>
+        <ul class="solution-list">
+          <li>品牌 AI 提及实时监测</li>
+          <li>竞品策略雷达追踪</li>
+          <li>高潜力医院分级清单</li>
+          <li>学术投放效果量化</li>
+        </ul>
+        <div class="solution-tag">典型用户：市场总监 / 品牌经理</div>
+      </div>
+
+      <div class="solution-card reveal">
+        <div class="solution-num">02</div>
+        <div class="solution-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-4"/>
+            <path d="M12 2v15"/>
+            <path d="m7 7 5-5 5 5"/>
+          </svg>
+        </div>
+        <h3>销售部</h3>
+        <p>医院潜力预测精准到院，目标拆解科学高效，资源投放有的放矢。</p>
+        <ul class="solution-list">
+          <li>目标医院分级管理</li>
+          <li>代表辖区精准划分</li>
+          <li>进院决策辅助</li>
+          <li>销售预测实时校准</li>
+        </ul>
+        <div class="solution-tag">典型用户：销售总监 / SFE 经理</div>
+      </div>
+
+      <div class="solution-card reveal">
+        <div class="solution-num">03</div>
+        <div class="solution-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+        </div>
+        <h3>研发部</h3>
+        <p>AIDD 研发反馈系统，加速从靶点到上市的全链路信息闭环。</p>
+        <ul class="solution-list">
+          <li>靶点发现与验证</li>
+          <li>分子设计与筛选反馈</li>
+          <li>竞品管线追踪</li>
+          <li>知识图谱循证</li>
+        </ul>
+        <div class="solution-tag">典型用户：研发总监 / 临床医学经理</div>
+      </div>
+
+      <div class="solution-card reveal">
+        <div class="solution-num">04</div>
+        <div class="solution-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
+          </svg>
+        </div>
+        <h3>管理层</h3>
+        <p>药企协作辅助智能体让全公司项目协同可视化，让药企内部效率提升 300%。</p>
+        <ul class="solution-list">
+          <li>战略项目全景视图</li>
+          <li>风险瓶颈实时凸显</li>
+          <li>价值反馈闭环</li>
+          <li>跨部门协同催办</li>
+        </ul>
+        <div class="solution-tag">典型用户：CEO / VP / PMO</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 技术优势 -->
+<section class="section section-advantages" id="advantages">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">ADVANTAGES</div>
+      <h2 class="section-title">
+        <span class="title-line">技术架构</span>
+        <span class="gradient-text">六大核心优势</span>
+      </h2>
+      <p class="section-subtitle">
+        专为医药行业设计的全栈技术体系，让每一个功能都经得起业务考验
+      </p>
+    </div>
+
+    <div class="advantages-grid">
+      <div class="advantage-item reveal">
+        <div class="advantage-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h4>数据安全</h4>
+        <p>等保三级 · 国密算法 · 私有化部署，全链路数据加密与审计追踪</p>
+      </div>
+
+      <div class="advantage-item reveal">
+        <div class="advantage-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+        </div>
+        <h4>多模型调度</h4>
+        <p>支持 DeepSeek/千问/Kimi/ChatGPT/Claude 等 8 大 AI 模型灵活切换</p>
+      </div>
+
+      <div class="advantage-item reveal">
+        <div class="advantage-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3h18v18H3z"/>
+            <path d="M9 9h6v6H9z"/>
+          </svg>
+        </div>
+        <h4>高性能架构</h4>
+        <p>异步并行 · 分布式计算，9000+ 医院数据毫秒级响应</p>
+      </div>
+
+      <div class="advantage-item reveal">
+        <div class="advantage-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+          </svg>
+        </div>
+        <h4>医药知识图谱</h4>
+        <p>10 万+ 化合物、3 万+ 靶点、5000+ 适应症关联的领域知识库</p>
+      </div>
+
+      <div class="advantage-item reveal">
+        <div class="advantage-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <h4>7×24 运维</h4>
+        <p>专属客户成功团队，5 分钟响应 · 2 小时方案 · 24 小时闭环</p>
+      </div>
+
+      <div class="advantage-item reveal">
+        <div class="advantage-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
+          </svg>
+        </div>
+        <h4>AI 原生</h4>
+        <p>5 大智能体协同 (小聚·小亮·小催·小成·小进)，让系统主动服务人</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 客户案例 -->
+<section class="section section-cases" id="cases">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">CASES</div>
+      <h2 class="section-title">
+        <span class="title-line">真实客户</span>
+        <span class="gradient-text">真实价值</span>
+      </h2>
+      <p class="section-subtitle">
+        我们已为多家头部药企提供软件服务，累计创造年化价值过亿
+      </p>
+    </div>
+
+    <div class="cases-showcase reveal">
+      <div class="case-banner">
+        <div class="case-brand">
+          <div class="brand-logo">金赛药业</div>
+          <div class="brand-tag">Gensci Pharma</div>
+        </div>
+        <div class="case-quote">
+          "凌瑶智数的 GEO 平台和医院销售潜力模型预测，让我们的市场决策从经验走向数据驱动的精准决策。
+          模型 WMAPE 6.6% 的精度，让我们对每一家医院的销售潜力都心中有数。"
+        </div>
+        <div class="case-author">
+          <div class="author-avatar">金</div>
+          <div>
+            <div class="author-name">金赛药业 · 数据团队</div>
+            <div class="author-title">使用 GEO + 医院潜力预测 + 协作智能体 全产品矩阵</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="case-metrics">
+        <div class="metric">
+          <div class="metric-value">¥<span>3,193</span>万</div>
+          <div class="metric-label">两品牌年化价值</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">¥<span>9,908</span>万</div>
+          <div class="metric-label">四品牌叠加年化价值</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value"><span>47</span>×</div>
+          <div class="metric-label">平均投入产出比</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value"><span>6.6</span>%</div>
+          <div class="metric-label">模型 WMAPE 精度</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 真实场景案例 -->
+    <div class="case-scenarios reveal">
+      <h3 class="scenario-title">📋 真实场景，看看凌瑶如何落地</h3>
+      <div class="scenario-grid">
+        <div class="scenario-card">
+          <div class="scenario-icon">🏥</div>
+          <h4>销售代表的早 9 点</h4>
+          <p>打开 <strong>医院潜力预测</strong>，输入「四川省肿瘤医院，床位数 1500」</p>
+          <p class="scenario-result">→ 2 秒后得到：CACS 药品潜力 <strong>1,240 支/月</strong>，信心度 92%</p>
+          <p class="scenario-tip">💡 当月拜访目标锁定 — 不再凭经验判断</p>
+        </div>
+
+        <div class="scenario-card">
+          <div class="scenario-icon">📊</div>
+          <h4>区域经理的月报</h4>
+          <p>打开 <strong>协作智能体</strong>，让「小聚」汇总西南大区本月数据</p>
+          <p class="scenario-result">→ 得到：销量 5,820 支 / 环比 +12% / 客户 TOP 10 排行</p>
+          <p class="scenario-tip">💡 30 分钟人工活变 30 秒</p>
+        </div>
+
+        <div class="scenario-card">
+          <div class="scenario-icon">🔬</div>
+          <h4>数据分析师的模型校准</h4>
+          <p>打开 <strong>医院潜力预测 · V3.1</strong>，上传 50 家样本医院参数</p>
+          <p class="scenario-result">→ 模型 WMAPE 从 8.2% 降至 6.6%，新增 12 家可入组医院</p>
+          <p class="scenario-tip">💡 1 条校准 = 每年节省 80 小时人工</p>
+        </div>
+
+        <div class="scenario-card">
+          <div class="scenario-icon">🎯</div>
+          <h4>品牌经理的 GEO 优化</h4>
+          <p>打开 <strong>GEO 智策</strong>，发现 DeepSeek 对「生长激素」的一句话推荐没有提到自家品牌</p>
+          <p class="scenario-result">→ 自动生成 3 条优化行动项，2 周后推荐率从 12% 升至 47%</p>
+          <p class="scenario-tip">💡 不再"我以为 AI 知道"</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 注册试用 -->
+<section class="section section-trial" id="trial">
+  <div class="container">
+    <div class="trial-card reveal">
+      <div class="trial-bg"></div>
+      <div class="trial-content">
+        <div class="trial-left">
+          <div class="section-tag light">GET STARTED</div>
+          <h2 class="trial-title">
+            <span>立即开启</span>
+            <span class="gradient-text-light">您的医药数据智能之旅</span>
+          </h2>
+          <p class="trial-desc">
+            填写下方表单，专属顾问将在 24 小时内与您联系<br>
+            为您提供定制化方案和免费试用账号
+          </p>
+
+          <div class="trial-perks">
+            <div class="perk">
+              <div class="perk-icon">⚡</div>
+              <div>
+                <strong>极速开通</strong>
+                <p>24 小时内账号到位</p>
+              </div>
+            </div>
+            <div class="perk">
+              <div class="perk-icon">🎯</div>
+              <div>
+                <strong>定制方案</strong>
+                <p>专属顾问 1V1 沟通</p>
+              </div>
+            </div>
+            <div class="perk">
+              <div class="perk-icon">🛡️</div>
+              <div>
+                <strong>数据安全</strong>
+                <p>私有化部署可选项</p>
+              </div>
+            </div>
+            <div class="perk">
+              <div class="perk-icon">📞</div>
+              <div>
+                <strong>专属支持</strong>
+                <p>7×24 小时响应</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="trial-right">
+          <form class="trial-form" id="trialForm">
+            <h3>申请免费试用</h3>
+
+            <div class="form-row">
+              <div class="form-field">
+                <label>姓名 <span>*</span></label>
+                <input type="text" placeholder="请输入您的姓名" required>
+              </div>
+              <div class="form-field">
+                <label>职位 <span>*</span></label>
+                <input type="text" placeholder="如：市场总监" required>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label>公司名称 <span>*</span></label>
+              <input type="text" placeholder="请输入公司全称" required>
+            </div>
+
+            <div class="form-row">
+              <div class="form-field">
+                <label>手机 <span>*</span></label>
+                <input type="tel" placeholder="请输入手机号" required>
+              </div>
+              <div class="form-field">
+                <label>企业邮箱 <span>*</span></label>
+                <input type="email" placeholder="name@company.com" required>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label>感兴趣的产品</label>
+              <div class="checkbox-group">
+                <label class="checkbox-item"><input type="checkbox" checked><span>GEO 智策平台</span></label>
+                <label class="checkbox-item"><input type="checkbox" checked><span>医院潜力预测</span></label>
+                <label class="checkbox-item"><input type="checkbox"><span>AIDD 系统</span></label>
+                <label class="checkbox-item"><input type="checkbox"><span>药企协作辅助智能体</span></label>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label>补充说明</label>
+              <textarea placeholder="可填写您的具体需求或问题（选填）" rows="3"></textarea>
+            </div>
+
+            <div class="form-check">
+              <input type="checkbox" id="agree" required>
+              <label for="agree">我已阅读并同意 <a href="#">《隐私政策》</a> 和 <a href="#">《服务条款》</a></label>
+            </div>
+
+            <button type="submit" class="btn-primary btn-block">
+              立即提交申请
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg>
+            </button>
+
+            <p class="form-hint">
+              提交后，专属顾问将在 <strong>24 小时内</strong>与您取得联系
+            </p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 联系我们 -->
+<section class="section section-contact" id="contact">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">CONTACT</div>
+      <h2 class="section-title">
+        <span class="title-line">联系我们</span>
+        <span class="gradient-text">开启合作</span>
+      </h2>
+      <p class="section-subtitle">
+        多种联系方式 — 总有一种适合您
+      </p>
+    </div>
+
+    <div class="contact-grid">
+      <div class="contact-card reveal">
+        <div class="contact-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+        </div>
+        <h4>销售热线</h4>
+        <p class="contact-value">400-888-凌瑶</p>
+        <p class="contact-desc">工作日 9:00-21:00 · 7×24 紧急响应</p>
+      </div>
+
+      <div class="contact-card reveal">
+        <div class="contact-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <path d="m22 6-10 7L2 6"/>
+          </svg>
+        </div>
+        <h4>商务邮箱</h4>
+        <p class="contact-value">contact@lingyao-digital.com</p>
+        <p class="contact-desc">一般咨询 · 24 小时内回复</p>
+      </div>
+
+      <div class="contact-card reveal">
+        <div class="contact-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        <h4>公司地址</h4>
+        <p class="contact-value">上海市浦东新区张江高科</p>
+        <p class="contact-desc">欢迎预约到访考察</p>
+      </div>
+
+      <div class="contact-card reveal">
+        <div class="contact-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+          </svg>
+        </div>
+        <h4>微信咨询</h4>
+        <p class="contact-value">LingYaoDigital</p>
+        <p class="contact-desc">扫码添加专属顾问</p>
+        <div class="qr-placeholder">
+          <div class="qr-pattern">
+            <div class="qr-corner tl"></div>
+            <div class="qr-corner tr"></div>
+            <div class="qr-corner bl"></div>
+            <div class="qr-dots"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 页脚 -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="nav-logo">
+          <div class="logo-mark">
+            <svg viewBox="0 0 40 40" fill="none">
+              <defs>
+                <linearGradient id="logoGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#00D4FF"/>
+                  <stop offset="100%" stop-color="#7B61FF"/>
+                </linearGradient>
+              </defs>
+              <path d="M20 4 L36 12 L36 28 L20 36 L4 28 L4 12 Z" stroke="url(#logoGrad2)" stroke-width="2" fill="none"/>
+              <circle cx="20" cy="20" r="6" fill="url(#logoGrad2)" opacity="0.9"/>
+              <circle cx="20" cy="20" r="3" fill="#0A1F3D"/>
+            </svg>
+          </div>
+          <div class="logo-text">
+            <span class="logo-name">凌瑶智数</span>
+            <span class="logo-en">LingYao Digital</span>
+          </div>
+        </div>
+        <p class="footer-desc">
+          专注于医药垂直领域的软件服务商<br>
+          让数据智能成为药企的核心生产力
+        </p>
+        <div class="footer-social">
+          <a href="#" class="social-link" aria-label="微信"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.69 11.52c-.5 0-.91.4-.91.9s.41.91.91.91.9-.41.9-.91-.4-.9-.9-.9zm6.62 0c-.5 0-.91.4-.91.9s.41.91.91.91.9-.41.9-.91-.4-.9-.9-.9zM8.69 6.46c-3.85 0-7 2.95-7 6.59 0 2.06 1.1 3.89 2.83 5.08L4 20.5l3.13-1.62c.5.13 1.02.2 1.56.2.18 0 .35-.01.52-.02-.16-.5-.25-1.02-.25-1.55 0-3.59 3.07-6.51 6.85-6.51.16 0 .32.01.48.02-.62-2.71-3.21-4.56-6.6-4.56zm8.93 5.18c-.27 0-.53.02-.79.05.46.91.73 1.92.73 2.99 0 .06-.01.12-.01.18.21-.03.43-.05.65-.05 1.16 0 2.23.39 3.07 1.04L21.69 16l-.32-1.36c.97-.65 1.59-1.61 1.59-2.71 0-2.02-1.81-3.29-4.34-3.29z"/></svg></a>
+          <a href="#" class="social-link" aria-label="知乎"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.721 14.469V9.652h1.832v4.817H5.721zm0 3.756v-1.832h1.832v1.832H5.721zm6.4-3.756h2.526l-2.526-2.526h2.526l1.972 1.972-1.972 1.972h-2.526l2.526-2.526-2.526 1.108zm0-3.756V7.937h6.4v2.776h-6.4z"/></svg></a>
+          <a href="#" class="social-link" aria-label="LinkedIn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg></a>
+        </div>
+      </div>
+
+      <div class="footer-links">
+        <div class="footer-col">
+          <h5>产品矩阵</h5>
+          <a href="#products">GEO 智策平台</a>
+          <a href="#products">医院潜力预测</a>
+          <a href="#products">AIDD 系统</a>
+          <a href="#products">药企协作辅助智能体</a>
+        </div>
+        <div class="footer-col">
+          <h5>解决方案</h5>
+          <a href="#solutions">市场部方案</a>
+          <a href="#solutions">销售部方案</a>
+          <a href="#solutions">研发部方案</a>
+          <a href="#solutions">管理层方案</a>
+        </div>
+        <div class="footer-col">
+          <h5>关于我们</h5>
+          <a href="#about">公司简介</a>
+          <a href="#cases">客户案例</a>
+          <a href="#contact">联系我们</a>
+          <a href="#">加入我们</a>
+        </div>
+        <div class="footer-col">
+          <h5>资源中心</h5>
+          <a href="#">技术文档</a>
+          <a href="#">产品白皮书</a>
+          <a href="#">行业报告</a>
+          <a href="#">API 文档</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-copyright">
+        © 2026 LingYao Digital Intelligence · 凌瑶智数 · 版权所有
+      </div>
+      <div class="footer-legal">
+        <a href="#">隐私政策</a>
+        <a href="#">服务条款</a>
+        <a href="#">沪ICP备 2026000001 号</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- 弹窗：登录 -->
+<div class="modal" id="loginModal">
+  <div class="modal-backdrop" onclick="closeModal('login')"></div>
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeModal('login')">&times;</button>
+    <div class="modal-header">
+      <h3>欢迎回来</h3>
+      <p>登录您的凌瑶智数账号</p>
+    </div>
+    <form class="modal-form" id="loginForm">
+      <div class="form-field">
+        <label>企业邮箱</label>
+        <input type="email" placeholder="name@company.com" required>
+      </div>
+      <div class="form-field">
+        <label>密码</label>
+        <input type="password" placeholder="请输入密码" required>
+      </div>
+      <div class="form-options">
+        <label><input type="checkbox"> 记住我</label>
+        <a href="#" class="forgot-link">忘记密码？</a>
+      </div>
+      <button type="submit" class="btn-primary btn-block">登 录</button>
+      <div class="form-divider"><span>其他登录方式</span></div>
+      <div class="social-login">
+        <button type="button" class="social-btn">📱 飞书</button>
+        <button type="button" class="social-btn">📱 钉钉</button>
+        <button type="button" class="social-btn">📱 企业微信</button>
+      </div>
+      <p class="modal-foot">还没有账号？<a href="#" onclick="closeModal('login');openModal('trial');return false;">立即注册</a></p>
+    </form>
+  </div>
+</div>
+
+<!-- 弹窗：试用 -->
+<div class="modal" id="trialModal">
+  <div class="modal-backdrop" onclick="closeModal('trial')"></div>
+  <div class="modal-content modal-large">
+    <button class="modal-close" onclick="closeModal('trial')">&times;</button>
+    <div class="modal-header">
+      <h3>申请免费试用</h3>
+      <p>填写信息，24 小时内专属顾问与您联系</p>
+    </div>
+    <form class="modal-form" id="modalTrialForm">
+      <div class="form-row">
+        <div class="form-field">
+          <label>姓名 <span>*</span></label>
+          <input type="text" placeholder="请输入您的姓名" required>
+        </div>
+        <div class="form-field">
+          <label>公司 <span>*</span></label>
+          <input type="text" placeholder="公司名称" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>手机 <span>*</span></label>
+          <input type="tel" placeholder="手机号" required>
+        </div>
+        <div class="form-field">
+          <label>邮箱 <span>*</span></label>
+          <input type="email" placeholder="企业邮箱" required>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>感兴趣的产品</label>
+        <select>
+          <option>GEO 智策平台（品牌优化）</option>
+          <option>医院销售潜力模型预测</option>
+          <option>AIDD 系统（研发反馈）</option>
+          <option>药企协作辅助智能体（项目管理）</option>
+          <option>全产品矩阵</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>需求说明</label>
+        <textarea placeholder="请简要描述您的需求（选填）" rows="3"></textarea>
+      </div>
+      <div class="form-check">
+        <input type="checkbox" id="modalAgree" required>
+        <label for="modalAgree">我同意 <a href="#">《隐私政策》</a> 和 <a href="#">《服务条款》</a></label>
+      </div>
+      <button type="submit" class="btn-primary btn-block">提交申请</button>
+    </form>
+  </div>
+</div>
+
+<!-- 成功提示 -->
+<div class="toast" id="toast">
+  <div class="toast-icon">✓</div>
+  <div class="toast-msg">提交成功！专属顾问将在 24 小时内与您联系</div>
+</div>
+
+<script src="js/script.js"></script>
+</body>
+</html>
