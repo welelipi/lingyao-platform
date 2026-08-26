@@ -1,0 +1,11 @@
+/opt/lingyao/logs/*.out {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    dateext
+    dateformat -%Y%m%d
+}

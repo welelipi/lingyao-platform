@@ -1,0 +1,17 @@
+[Unit]
+Description=Lingyao Intelligence Platform Backend (Spring Boot)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/lingyao
+ExecStart=/usr/bin/java -Xms512m -Xmx1536m -jar /opt/lingyao/lingyao-platform.jar --server.port=9091 --spring.profiles.active=private --spring.config.location=/opt/lingyao/application-private.yml
+Restart=always
+RestartSec=5
+SuccessExitStatus=143
+StandardOutput=append:/opt/lingyao/logs/backend.out
+StandardError=append:/opt/lingyao/logs/backend.out
+
+[Install]
+WantedBy=multi-user.target
