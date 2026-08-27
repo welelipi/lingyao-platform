@@ -46,7 +46,31 @@
 - SSO 协议版本字段已嵌入，凌瑶 V2.0.0 + GEOm/MPDm V2.0.0 三产品对齐时直接读 `sso.protocol-version`
 - 部署脚本可注入 `APP_GIT_COMMIT=<hash>` 写入 `git_commit` 字段，运维对账零成本
 
-### 遗留（待办）
+## 2026-08-27 · V2.0.2 (前端硬编码 9091 修复)
+
+### 触发
+主人 2026-08-27 13:15 跑发布流程验证，卡在 staging 9092 浏览器报 HTTP 401（"请确认后端 9091 已启动"）。诊断：portal.html:796 + admin.html:688 硬编码 `const API_BASE = 'http://127.0.0.1:9091';`，staging 跨端口 9092 → 9091 命中 prod 后端，prod JWT secret 与 staging 不同，401 拒绝。
+
+### 改动
+- `website/portal.html:796` 硬编码 → 智能判断（同 `geo.html` 同源写法）：
+  ```javascript
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:9091' : '';
+  ```
+- `website/admin.html:688` 同改
+- `application.yml`：`app.version: 2.0.1 → 2.0.2`（铁律 2）
+
+### 验证（部署后）
+- staging 9092 浏览器登录：admin/admin123 → 4 子产品页正常加载
+- prod 9091（经 Nginx 80 反代）：登录页底部版本号 V2.0.2
+- `curl /api/version` 返回 `version: "2.0.2", git_commit: <new>`
+
+### 遗留（V2.0.3+ 候选）
+- `deploy-staging.sh` 脚本 `REMOTE_DIR=/opt/lingyao` 路径错（mv 到 prod 路径，staging 跟着软链接跑 prod jar）
+- `application-staging.yml` / `application-private.yml` 走 `--spring.config.location` 完全替换 classpath，jar 内 application.yml 没加载（version 读默认值）
+- prod 9091 公网不可达（腾讯云安全组只放行 80 + 9092），更新文档：prod 入口走 Nginx 80
+
+---
 
 | 项 | 描述 | 来源 |
 |---|---|---|

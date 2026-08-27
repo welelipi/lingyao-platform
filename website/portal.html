@@ -792,8 +792,9 @@
     // ── 数据层 ─────────────────────────
     const TOKEN_KEY = 'lingyao_token';
     const USER_KEY = 'lingyao_user';
-    // 后端 API 基础地址（开发期直连 9091；生产可改为同源 /api）
-    const API_BASE = 'http://127.0.0.1:9091';
+    // 后端 API 基础地址（开发期 localhost 直连 9091；其他环境同源走 /api）
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://127.0.0.1:9091' : '';
 
     function getToken() {
       return localStorage.getItem(TOKEN_KEY);
