@@ -83,6 +83,38 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
+    /* ── V2.0.5 R-7：发布管理卡 ───────────── */
+    .release-env-card {
+      background: var(--glass-light);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: var(--transition);
+    }
+    .release-env-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .release-env-card[data-env="prod"] {
+      border-color: rgba(255, 165, 0, 0.3);
+    }
+    .release-env-card[data-env="prod"]:hover {
+      border-color: #ff6b6b;
+    }
+    .btn-warn-sm {
+      background: linear-gradient(135deg, #ff9800, #f57c00);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: var(--transition);
+    }
+    .btn-warn-sm:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3); }
+    .btn-warn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+
     /* ── 工具条 ───────────── */
     .toolbar {
       display: flex;
@@ -307,6 +339,7 @@
         <button class="tab-btn" data-tab="users">用户管理</button>
         <button class="tab-btn" data-tab="grants">产品授权</button>
         <button class="tab-btn" data-tab="invitations">邀请管理</button>
+        <button class="tab-btn" data-tab="release">🚀 发布管理 <span style="background:var(--gradient-primary);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:4px;">NEW</span></button>
       </div>
 
       <!-- Tab 1：公司 -->
@@ -407,6 +440,77 @@
           </thead>
           <tbody id="invitationTableBody"></tbody>
         </table>
+      </div>
+
+      <!-- Tab 5：发布管理 — V2.0.5 R-7 -->
+      <div class="tab-content" data-pane="release">
+        <div style="margin-bottom:16px;padding:12px 16px;background:rgba(0,212,255,0.06);border-left:3px solid var(--accent);border-radius:6px;font-size:13px;color:var(--text-dim);">
+          💡 <strong>端到端发布流程</strong>：研发改完代码 → Mac 本地 build jar →
+          点下方「发布 staging」推到预发布（9092）→ 验证通过后点「晋升生产」推到生产（9091）。
+          部署完成后会自动推送到飞书群（如已配置 Webhook）。
+        </div>
+
+        <!-- 版本对比卡 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+          <div class="release-env-card" data-env="staging">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <h3 style="font-size:18px;font-weight:600;color:var(--text-bright);">🧪 Staging (9092)</h3>
+              <span style="font-size:11px;color:var(--text-dim);background:var(--glass-light);padding:3px 8px;border-radius:10px;">预发布</span>
+            </div>
+            <div class="release-version-info" id="stagingVersionInfo">
+              <div style="color:var(--text-dim);font-size:13px;">加载中...</div>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:8px;">
+              <button class="btn-primary-sm" data-action="deploy-staging">📦 发布 staging</button>
+            </div>
+          </div>
+
+          <div class="release-env-card" data-env="prod">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <h3 style="font-size:18px;font-weight:600;color:var(--text-bright);">🚀 Prod (9091)</h3>
+              <span style="font-size:11px;color:var(--text-dim);background:var(--glass-light);padding:3px 8px;border-radius:10px;">生产</span>
+            </div>
+            <div class="release-version-info" id="prodVersionInfo">
+              <div style="color:var(--text-dim);font-size:13px;">加载中...</div>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:8px;">
+              <button class="btn-warn-sm" data-action="deploy-prod">⬆ 晋升生产</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div>
+          <div class="toolbar">
+            <div class="left">
+              部署历史
+              <select id="releaseHistoryEnvFilter" style="margin-left:12px;padding:4px 8px;background:var(--glass-light);border:1px solid var(--border);border-radius:6px;color:var(--text-bright);font-size:13px;">
+                <option value="">全部环境</option>
+                <option value="STAGING">仅 Staging</option>
+                <option value="PROD">仅 Prod</option>
+              </select>
+            </div>
+            <div class="right">
+              <button class="btn-ghost-sm" data-action="refresh-release-history">🔄 刷新</button>
+            </div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>环境</th>
+                <th>版本</th>
+                <th>部署人</th>
+                <th>状态</th>
+                <th>开始</th>
+                <th>耗时</th>
+                <th>Webhook</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="releaseHistoryTableBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -675,6 +779,79 @@
     </div>
   </div>
 
+  <!-- 模态：发布 staging — V2.0.5 R-7 -->
+  <div class="modal" id="deployStagingModal">
+    <div class="modal-backdrop" onclick="closeModal('deployStaging')"></div>
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('deployStaging')">&times;</button>
+      <div class="modal-header">
+        <h3>📦 发布到 Staging</h3>
+        <p>把 jar 部署到预发布环境（118.195.197.15:9092）</p>
+      </div>
+      <form class="modal-form" id="deployStagingForm">
+        <div class="form-field">
+          <label>jar 绝对路径 *</label>
+          <input name="jarPath" required placeholder="如 /Users/hua/Documents/myself/凌瑶/backend/target/lingyao-platform.jar">
+          <span class="help">本机已构建好的 jar 文件绝对路径，部署脚本会 scp 到 CVM staging 目录</span>
+        </div>
+        <div style="padding:12px;background:rgba(0,212,255,0.06);border-left:3px solid var(--accent);border-radius:6px;font-size:13px;color:var(--text-dim);margin-bottom:12px;">
+          ⚠️ 请确认已经 <code style="color:var(--accent);">mvn clean package -DskipTests</code> 构建出新版本 jar
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-ghost-sm" onclick="closeModal('deployStaging')">取消</button>
+          <button type="submit" class="btn-primary-sm">确认发布</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模态：晋升生产（二次确认 — 必须输入 "prod"） — V2.0.5 R-7 -->
+  <div class="modal" id="deployProdModal">
+    <div class="modal-backdrop" onclick="closeModal('deployProd')"></div>
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('deployProd')">&times;</button>
+      <div class="modal-header">
+        <h3 style="color:#ff6b6b;">⚠️ 晋升生产</h3>
+        <p>此操作将直接影响生产服务（118.195.197.15:9091）！</p>
+      </div>
+      <div style="padding:14px;background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.3);border-radius:8px;margin-bottom:16px;">
+        <p style="margin-bottom:8px;color:#ff6b6b;font-weight:600;">🚨 请仔细确认：</p>
+        <ul style="font-size:13px;color:var(--text-dim);padding-left:20px;line-height:1.8;">
+          <li>Staging 已经过完整测试和验证</li>
+          <li>当前 prod 用户不会感知到服务中断（health check 30s 启动）</li>
+          <li>本操作不可回滚（需手动从备份恢复 jar）</li>
+        </ul>
+      </div>
+      <form class="modal-form" id="deployProdForm">
+        <div class="form-field">
+          <label>请输入 <code style="color:#ff6b6b;background:rgba(255,107,107,0.15);padding:2px 8px;border-radius:4px;">prod</code> 确认晋升</label>
+          <input name="confirmText" required pattern="^prod$" placeholder="输入 prod（小写）">
+          <span class="help" style="color:#ff6b6b;">必须输入 prod 才能点确认按钮，防止误操作</span>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-ghost-sm" onclick="closeModal('deployProd')">取消</button>
+          <button type="submit" class="btn-warn-sm" style="background:linear-gradient(135deg,#ff6b6b,#ee5a52);">⬆ 确认晋升生产</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模态：查看部署日志 — V2.0.5 R-7 -->
+  <div class="modal" id="releaseLogModal">
+    <div class="modal-backdrop" onclick="closeModal('releaseLog')"></div>
+    <div class="modal-content modal-large">
+      <button class="modal-close" onclick="closeModal('releaseLog')">&times;</button>
+      <div class="modal-header">
+        <h3 id="releaseLogTitle">部署日志</h3>
+        <p id="releaseLogMeta">-</p>
+      </div>
+      <pre id="releaseLogContent" style="background:#0d0d14;color:#00d4ff;padding:16px;border-radius:8px;font-family:monospace;font-size:12px;line-height:1.6;max-height:500px;overflow:auto;white-space:pre-wrap;word-break:break-all;">加载中...</pre>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost-sm" onclick="closeModal('releaseLog')">关闭</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 通知 toast -->
   <div class="toast" id="toast">
     <span class="toast-icon">ℹ️</span>
@@ -816,6 +993,130 @@
       // PENDING 邀请数
       const pendingCount = invitationsCache.filter(i => i.status === 'PENDING').length;
       document.getElementById('kpiInvitations').textContent = pendingCount;
+    }
+
+    // ── 发布管理（V2.0.5 R-7）─────────────────────
+    let releaseHistoryCache = [];
+
+    async function loadReleaseStatus() {
+      try {
+        const data = await api('GET', '/api/admin/release/status');
+        renderReleaseStatus(data);
+      } catch (e) {
+        document.getElementById('stagingVersionInfo').innerHTML = '<div style="color:#ff6b6b;font-size:13px;">加载失败：' + escapeHtml(e.message) + '</div>';
+        document.getElementById('prodVersionInfo').innerHTML = '<div style="color:#ff6b6b;font-size:13px;">加载失败：' + escapeHtml(e.message) + '</div>';
+      }
+    }
+
+    function renderReleaseStatus(data) {
+      const fmt = t => t ? new Date(t).toLocaleString('zh-CN') : '-';
+      const renderEnv = (env) => {
+        const v = data[env];
+        if (!v) return '<div style="color:var(--text-dim);font-size:13px;">尚无部署记录</div>';
+        return `
+          <div style="font-size:13px;color:var(--text-dim);line-height:1.8;">
+            <div><strong style="color:var(--text-bright);font-size:22px;">V${escapeHtml(v.version)}</strong></div>
+            <div>👤 ${escapeHtml(v.deployed_by)}</div>
+            <div>🕒 ${fmt(v.finished_at)}</div>
+          </div>
+        `;
+      };
+      document.getElementById('stagingVersionInfo').innerHTML = renderEnv('staging');
+      document.getElementById('prodVersionInfo').innerHTML = renderEnv('prod');
+
+      // 部署中按钮禁用 + 文案切换
+      const isRunning = !!data.running;
+      const stagingBtn = document.querySelector('[data-action="deploy-staging"]');
+      const prodBtn = document.querySelector('[data-action="deploy-prod"]');
+      if (stagingBtn) {
+        stagingBtn.disabled = isRunning;
+        stagingBtn.textContent = isRunning ? '⏳ 部署中...' : '📦 发布 staging';
+      }
+      if (prodBtn) {
+        prodBtn.disabled = isRunning;
+        prodBtn.textContent = isRunning ? '⏳ 部署中...' : '⬆ 晋升生产';
+      }
+    }
+
+    async function loadReleaseHistory() {
+      const env = document.getElementById('releaseHistoryEnvFilter').value;
+      try {
+        const q = env ? `?env=${env}` : '';
+        const page = await api('GET', '/api/admin/release/history' + q);
+        releaseHistoryCache = page.content || [];
+        renderReleaseHistory();
+      } catch (e) {
+        console.error('加载部署历史失败:', e);
+      }
+    }
+
+    function renderReleaseHistory() {
+      const body = document.getElementById('releaseHistoryTableBody');
+      if (releaseHistoryCache.length === 0) {
+        body.innerHTML = '<tr><td colspan="9" class="table-empty">暂无部署记录</td></tr>';
+        return;
+      }
+      const fmt = t => t ? new Date(t).toLocaleString('zh-CN') : '-';
+      const statusBadge = s => {
+        const map = {
+          RUNNING: ['⏳ 运行中', 'var(--accent)'],
+          SUCCESS: ['✅ 成功', '#10b981'],
+          FAILED: ['❌ 失败', '#ff6b6b'],
+          CANCELLED: ['⚪ 取消', 'var(--text-dim)']
+        };
+        const pair = map[s] || [s, 'var(--text-dim)'];
+        return '<span style="color:' + pair[1] + ';font-weight:600;">' + pair[0] + '</span>';
+      };
+      body.innerHTML = releaseHistoryCache.map(r => `
+        <tr>
+          <td>${r.id}</td>
+          <td>${r.env === 'STAGING' ? '🧪 Staging' : '🚀 Prod'}</td>
+          <td><strong>V${escapeHtml(r.version)}</strong></td>
+          <td>${escapeHtml(r.deployedBy)}</td>
+          <td>${statusBadge(r.status)}</td>
+          <td>${fmt(r.startedAt)}</td>
+          <td>${r.durationSec || '-'} 秒</td>
+          <td style="font-size:11px;color:var(--text-dim);">${escapeHtml(r.webhookStatus || '-')}</td>
+          <td>
+            <button class="btn-ghost-sm" data-action="view-release-log" data-hid="${r.id}">📜 日志</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function viewReleaseLog(hid) {
+      try {
+        const hist = await api('GET', '/api/admin/release/' + hid);
+        document.getElementById('releaseLogTitle').textContent =
+          '#' + hist.id + ' · ' + (hist.env === 'STAGING' ? '🧪 Staging' : '🚀 Prod') +
+          ' · V' + hist.version + ' · ' + hist.status;
+        document.getElementById('releaseLogMeta').textContent =
+          '部署人：' + hist.deployedBy +
+          ' · 开始：' + fmtTs(hist.startedAt) +
+          ' · 耗时：' + (hist.durationSec || '-') + ' 秒';
+        document.getElementById('releaseLogContent').textContent = hist.log || '(无日志输出)';
+        openModal('releaseLog');
+      } catch (e) {
+        showToast('加载日志失败：' + e.message, 'error');
+      }
+    }
+
+    function openDeployStagingModal() {
+      openModal('deployStaging');
+    }
+
+    function openDeployProdModal() {
+      // 二次确认前先检查 staging 状态
+      const stagingOk = !!document.querySelector('#stagingVersionInfo strong');
+      if (!stagingOk) {
+        showToast('尚无 staging 成功部署，无法晋升生产', 'error');
+        return;
+      }
+      openModal('deployProd');
+    }
+
+    function fmtTs(t) {
+      return t ? new Date(t).toLocaleString('zh-CN') : '-';
     }
 
     // ── 邀请管理 ─────────────────────────
@@ -1063,6 +1364,11 @@
         if (btn.dataset.tab === 'invitations') {
           loadInvitations();
         }
+        // V2.0.5 R-7：进入发布管理 Tab 时加载
+        if (btn.dataset.tab === 'release') {
+          loadReleaseStatus();
+          loadReleaseHistory();
+        }
       });
     });
 
@@ -1204,8 +1510,64 @@
         } catch (err) {
           showToast('撤销失败：' + err.message, 'error');
         }
+      } else if (action === 'deploy-staging') {  // V2.0.5 R-7
+        openDeployStagingModal();
+      } else if (action === 'deploy-prod') {  // V2.0.5 R-7
+        openDeployProdModal();
+      } else if (action === 'refresh-release-history') {  // V2.0.5 R-7
+        loadReleaseStatus();
+        loadReleaseHistory();
+      } else if (action === 'view-release-log') {  // V2.0.5 R-7
+        viewReleaseLog(parseInt(btn.dataset.hid));
       }
     });
+
+    // ── V2.0.5 R-7：发布管理表单提交 ──────────────────────
+    document.getElementById('deployStagingForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const jarPath = fd.get('jarPath').trim();
+      try {
+        const result = await api('POST', '/api/admin/release/deploy-staging', { jarPath });
+        showToast('staging 部署已触发，请观察历史记录', 'success');
+        closeModal('deployStaging');
+        e.target.reset();
+        // 立即刷新一次
+        loadReleaseStatus();
+        loadReleaseHistory();
+        // 5 秒后再刷新一次看进度
+        setTimeout(() => { loadReleaseStatus(); loadReleaseHistory(); }, 5000);
+        // 35 秒后再刷新一次（Spring Boot 启动 + 健康检查）
+        setTimeout(() => { loadReleaseStatus(); loadReleaseHistory(); }, 35000);
+      } catch (err) {
+        showToast('触发失败：' + err.message, 'error');
+      }
+    });
+
+    document.getElementById('deployProdForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const confirmText = (fd.get('confirmText') || '').trim();
+      if (confirmText !== 'prod') {
+        showToast('请输入 prod（小写）才能确认晋升', 'error');
+        return;
+      }
+      try {
+        const result = await api('POST', '/api/admin/release/deploy-prod', {});
+        showToast('prod 晋升已触发', 'success');
+        closeModal('deployProd');
+        e.target.reset();
+        loadReleaseStatus();
+        loadReleaseHistory();
+        setTimeout(() => { loadReleaseStatus(); loadReleaseHistory(); }, 5000);
+        setTimeout(() => { loadReleaseStatus(); loadReleaseHistory(); }, 35000);
+      } catch (err) {
+        showToast('触发失败：' + err.message, 'error');
+      }
+    });
+
+    // V2.0.5 R-7：环境过滤器变化时刷新
+    document.getElementById('releaseHistoryEnvFilter').addEventListener('change', loadReleaseHistory);
 
     // ── 表单：创建公司 ─────────────────────────
     document.getElementById('newCompanyBtn').addEventListener('click', () => openModal('company'));

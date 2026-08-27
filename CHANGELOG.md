@@ -155,3 +155,74 @@ d56de1e 🎉 初始化凌瑶智数 Git 仓库
 ---
 
 *文档维护说明：本 CHANGELOG 由质量环产物沉淀而来；后续每次发版请同步更新本文件。*
+
+---
+
+## 2026-08-27 · V2.0.5 (端到端发布流程打通 R-7)
+
+**触发**：主人 2026-08-27 15:54 「来进行预发布到生产流程的打通，这件事很重要，要不然我就没办法去干其他的事了」
+
+**核心目标**：让主人能"点按钮"就把 jar 从研发端推到生产端，不用每次 SSH 记路径。
+
+**改动**：
+
+### 后端（V2.0.5 R-7 新增模块）
+- **新实体** `entity/ReleaseHistory.java`（13 字段，含 env/version/status/log/duration 等）
+- **新 Repository** `repository/ReleaseHistoryRepository.java`（最新版本查询 + 防并发）
+- **新 Service** `service/ReleaseService.java`：
+  - `@Async deployStaging(jarPath, userId)` → SSH 到 staging 机器调 deploy-staging.sh
+  - `@Async deployProd(userId)` → 本地调 deploy-prod.sh
+  - `hasRunningDeployment()` 防并发
+  - `getCurrentVersion(env)` 当前版本查询
+- **新 Service** `service/WebhookService.java`：飞书群机器人 card 消息推送
+- **新 Controller** `controller/ReleaseController.java`（6 个端点，仅 platformAdmin）：
+  - `GET /api/admin/release/status` staging/prod 当前版本 + 是否运行中
+  - `POST /api/admin/release/deploy-staging` 触发 staging（需 jarPath）
+  - `POST /api/admin/release/deploy-prod` 触发 prod（铁律：必须先有 staging SUCCESS）
+  - `GET /api/admin/release/history` 历史（分页 + 过滤）
+  - `GET /api/admin/release/{id}` 单条详情（含 log）
+- **新 DTO** `dto/admin/DeployStagingRequest.java`（@NotBlank jarPath）
+- **新配置** `application.yml` `lingyao.release.*`（SSH key path + Webhook URL + 脚本路径）
+
+### 前端（admin.html + 发布管理 Tab）
+- **新增 Tab**「🚀 发布管理」（5 号 Tab，位置在邀请管理后）
+- **新增 3 个 modal**：部署 staging / 晋升生产（二次确认输 prod）/ 查看日志
+- **新增 JS**：`loadReleaseStatus()` / `loadReleaseHistory()` / `viewReleaseLog()` / `openDeployStagingModal()` / `openDeployProdModal()`
+- **新增 CSS**：`.release-env-card` + `.btn-warn-sm`（橙色警告按钮）
+- **二次确认铁律**：晋升生产必须输入 `prod` 才能确认
+
+### 本地脚本（封装层）
+- `scripts/release-to-staging.sh`（封装 deploy-staging.sh）
+- `scripts/promote-to-prod.sh`（封装 deploy-prod.sh + 二次确认提示）
+
+### 文档
+- `docs/release-process.md`（完整发布流程手册：控制台按钮 / 本地脚本 / 手动 SSH 三种方式）
+
+### 一次性 CVM 配置（主人需在 CVM 上跑一次）
+```bash
+# 1. 生成 release 专用 SSH key
+sudo -u ubuntu ssh-keygen -t ed25519 -f /home/ubuntu/.ssh/release_staging_key -N ""
+sudo -u ubuntu bash -c "cat /home/ubuntu/.ssh/release_staging_key.pub >> /home/ubuntu/.ssh/authorized_keys"
+
+# 2. 测试 SSH 链路
+sudo -u ubuntu ssh -i /home/ubuntu/.ssh/release_staging_key ubuntu@127.0.0.1 echo OK
+
+# 3. （可选）配置飞书 Webhook
+echo "LINGYAO_RELEASE_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx" >> /opt/lingyao/.env.private
+echo "LINGYAO_RELEASE_WEBHOOK_ENABLED=true" >> /opt/lingyao/.env.private
+```
+
+**验证步骤**：
+1. Mac build：`cd backend && mvn clean package -DskipTests`
+2. 浏览器登录 admin.html → 进入「🚀 发布管理」Tab
+4. 点「📦 发布 staging」→ 输入 jar 路径 → 确认
+5. 看历史记录从 `RUNNING` → `SUCCESS`（约 60-90 秒）
+6. 验证 staging：`curl http://118.195.197.15:9092/api/_diag/version` 返 V2.0.5
+7. 点「⬆ 晋升生产」→ 输 prod → 确认
+8. 看历史记录 prod 从 `RUNNING` → `SUCCESS`
+9. 验证 prod：`curl http://118.195.197.15/api/_diag/version` 返 V2.0.5
+10. 飞书群收到卡片消息（如果 Webhook 已配）
+
+**附属收益**：
+- 多租户 + 大超管 + 演示租户的需求已经在 AdminController 落了大半（R-4/R-8 部分实现）
+- 前端不需要改版本号（Vite 模式从 `/api/version` 自动拉），保持单一真理源

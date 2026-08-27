@@ -37,7 +37,7 @@ spring:
 
 # ---------- 业务配置（所有 profile 共享）----------
 app:
-  version: 2.0.4
+  version: 2.0.5
   release: ${APP_RELEASE:stable}
   build-time: ${APP_BUILD_TIME:}
   git-commit: ${APP_GIT_COMMIT:dev}
@@ -50,6 +50,22 @@ lingyao:
     secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
     expiration-hours: 24
     issuer: lingyao-platform
+
+  # V2.0.5 R-7: 发布管理配置
+  release:
+    # Staging 机器 SSH 连接（同机自调用：ubuntu@127.0.0.1）
+    staging:
+      ssh-host: ${LINGYAO_STAGING_SSH_HOST:127.0.0.1}
+      ssh-port: ${LINGYAO_STAGING_SSH_PORT:22}
+      ssh-user: ${LINGYAO_STAGING_SSH_USER:ubuntu}
+      ssh-key-path: ${LINGYAO_STAGING_SSH_KEY:/home/ubuntu/.ssh/release_staging_key}
+      deploy-script: /opt/lingyao/staging/deploy-staging.sh
+    # Prod 部署脚本（本地调用，无需 SSH）
+    prod:
+      deploy-script: /opt/lingyao/deploy-prod.sh
+    # 飞书/钉钉 Webhook 推送（可选，启用后在部署完成后推消息）
+    webhook-url: ${LINGYAO_RELEASE_WEBHOOK_URL:}
+    webhook-enabled: ${LINGYAO_RELEASE_WEBHOOK_ENABLED:false}
 
 sso:
   protocol-version: "1.0"
