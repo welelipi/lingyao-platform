@@ -37,7 +37,10 @@ spring:
 
 # ---------- 业务配置（所有 profile 共享）----------
 app:
-  version: 2.0.0
+  version: 2.0.1
+  release: ${APP_RELEASE:stable}
+  build-time: ${APP_BUILD_TIME:}
+  git-commit: ${APP_GIT_COMMIT:dev}
   jwt:
     secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
     expiration-seconds: 86400
@@ -47,6 +50,12 @@ lingyao:
     secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
     expiration-hours: 24
     issuer: lingyao-platform
+
+sso:
+  protocol-version: "1.0"
+  jwt:
+    secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
+    token-ttl-seconds: 7200
 
 # ---------- Dev 配置（H2 + H2 Console + DDL）----------
 ---

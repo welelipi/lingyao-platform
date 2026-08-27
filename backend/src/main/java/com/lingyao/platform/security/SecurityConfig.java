@@ -33,6 +33,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     // ── 公开 API（不需登录） ─────
                     "/api/health",
+                    "/api/version",
                     "/api/public/**",
                     "/api/auth/login",
                     "/api/auth/register",
