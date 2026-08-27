@@ -35,6 +35,19 @@ spring:
     properties:
       hibernate.session_factory.statement_inspector: com.lingyao.platform.security.TenantStatementInspector
 
+# ---------- 业务配置（所有 profile 共享）----------
+app:
+  version: 2.0.0
+  jwt:
+    secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
+    expiration-seconds: 86400
+
+lingyao:
+  jwt:
+    secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
+    expiration-hours: 24
+    issuer: lingyao-platform
+
 # ---------- Dev 配置（H2 + H2 Console + DDL）----------
 ---
 spring:
@@ -73,14 +86,3 @@ logging:
     root: INFO
     com.lingyao.platform: INFO
 
-# ---------- 业务配置 ----------
-app:
-  jwt:
-    secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
-    expiration-seconds: 86400
-
-lingyao:
-  jwt:
-    secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
-    expiration-hours: 24
-    issuer: lingyao-platform
