@@ -106,6 +106,29 @@ V2.0.2 部署验证暴露 7 个待修 bug（部署路径冲突、SecurityConfig 
 
 ---
 
+## 2026-08-27 · V2.0.4 (V2.0.3 半成品 + deploy-staging hotfix)
+
+### 触发
+V2.0.3 部署后暴露两个未完成项：
+1. `SecurityConfig.java` 把 `/api/_diag/**` 加进 permitAll，但 `VersionController` 没建这个 endpoint → 返"接口不存在"
+2. `deploy-staging.sh` 写完就发现两个 bug：heredoc 内 `$EXPECTED_JAR` 被本 shell 提前展开、curl 走 Mac 本地 9092（应该 ssh 到 CVM curl）
+
+### 改动
+- `VersionController.java`：新增 `@GetMapping("/api/_diag/version")` endpoint，扩展字段：pid / started_at / uptime_sec / heap_used_mb / heap_max_mb（开发者诊断用）
+- `scripts/deploy-staging.sh`：
+  - heredoc 内变量转义：`\$EXPECTED_JAR` / `\$ACTUAL`（让远程 bash 展开而非本 shell）
+  - health check + 子产品页 + diag 都改 `ssh CVM curl`（之前 `curl 127.0.0.1:9092` 是 Mac 本地端口）
+  - 自动校验 systemd service ExecStart jar 路径必须 = `$REMOTE_DIR/lingyao-platform.jar`，不一致自动 sed 修正
+- `application.yml`：`app.version: 2.0.3 → 2.0.4`
+- CVM 上 `/opt/lingyao/application-staging.yml`：删除末尾 `app: version: ...` 块（additional-location 模式下外部 yml 覆盖 jar 内 version，必须删掉）
+
+### 验证（部署后）
+- `curl /api/_diag/version` 返 200 + JSON 含 `pid` / `heap_used_mb` 等扩展字段（无需 JWT）
+- `deploy-staging.sh` 端到端跑通：scp → 自动迁移 systemd → restart → ssh curl health/subpages/diag 全部 ✅
+- staging 启动日志无 P0-2 噪声 + P2-7 WARN 友好提示
+
+---
+
 | 项 | 描述 | 来源 |
 |---|---|---|
 | P1-1 | GEOm `local_health.py:300` 完美状态过滤 | 质量环扫描（明早 P1.1 部署时修）|
