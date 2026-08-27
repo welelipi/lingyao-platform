@@ -100,7 +100,8 @@ public class ReleaseController {
         }
 
         CurrentUser cu = JwtAuthFilter.getCurrentUser();
-        Long historyId = releaseService.deployStaging(req.getJarPath(), cu.getUserId());
+        Long historyId = releaseService.initStagingDeploy(req.getJarPath(), cu.getUserId());
+        releaseService.executeStagingDeploy(historyId, req.getJarPath());  // 异步，不阻塞
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("historyId", historyId);
@@ -128,7 +129,8 @@ public class ReleaseController {
         }
 
         CurrentUser cu = JwtAuthFilter.getCurrentUser();
-        Long historyId = releaseService.deployProd(cu.getUserId());
+        Long historyId = releaseService.initProdPromote(cu.getUserId());
+        releaseService.executeProdPromote(historyId);  // 异步，不阻塞
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("historyId", historyId);

@@ -38,4 +38,5 @@ echo "⏱️  预计耗时: 60-90 秒（Spring Boot 启动 30s + 健康检查 + 
 echo ""
 
 # ── Step 1: 调用统一部署脚本 ─────────────
-bash "$SCRIPT_DIR/deploy-staging.sh"
+# V2.0.6 R-7: 把 jarPath 透传给 deploy-staging.sh
+bash "$SCRIPT_DIR/deploy-staging.sh" "$LOCAL_JAR"

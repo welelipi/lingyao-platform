@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -76,13 +77,9 @@ public class ReleaseService {
     private String prodDeployScript;
 
     /**
-     * 异步发布 staging
-     *
-     * @param jarPath 上传的 jar 路径（先用 Mac 本地 build 出来的 jar，通过前端上传或 ssh scp 到 staging 机器）
-     * @param userId  触发人 userId
+     * 初始化 staging 部署记录（同步）— 立即返回 historyId，Controller 不阻塞
      */
-    @Async
-    public Long deployStaging(String jarPath, Long userId) {
+    public Long initStagingDeploy(String jarPath, Long userId) {
         SysUser user = userRepo.findById(userId).orElse(null);
         String username = user != null ? user.getUsername() : "unknown";
 
@@ -96,7 +93,22 @@ public class ReleaseService {
         hist.setStartedAt(LocalDateTime.now());
         hist = historyRepo.save(hist);
 
-        log.info("[R-7] STAGING deploy started by {}, historyId={}", username, hist.getId());
+        log.info("[R-7] STAGING deploy init by {}, historyId={}", username, hist.getId());
+        return hist.getId();
+    }
+
+    /**
+     * 异步执行 staging 部署（@Async — Controller 调用后立即返回，部署在后台线程跑）
+     *
+     * @param histId  initStagingDeploy 创建的 historyId
+     * @param jarPath jar 路径（已经是 CVM 上路径，不需要 scp）
+     */
+    @Async
+    public CompletableFuture<Void> executeStagingDeploy(Long histId, String jarPath) {
+        ReleaseHistory hist = historyRepo.findById(histId).orElseThrow(
+                () -> new IllegalArgumentException("release_history 不存在: " + histId));
+
+        log.info("[R-7] STAGING deploy exec started, historyId={}", histId);
 
         try {
             String sshCmd = String.format(
@@ -105,11 +117,7 @@ public class ReleaseService {
 
             DeployResult result = exec(sshCmd, DEPLOY_TIMEOUT_SEC);
             finalizeHistory(hist, result);
-
-            // 推送 Webhook
             pushWebhook(hist);
-
-            return hist.getId();
         } catch (Exception e) {
             log.error("[R-7] STAGING deploy failed", e);
             hist.setStatus(ReleaseHistory.ReleaseStatus.FAILED);
@@ -119,15 +127,14 @@ public class ReleaseService {
             hist.setLog(truncateLog((hist.getLog() == null ? "" : hist.getLog()) + "\n\n[ERROR] " + e.getMessage()));
             historyRepo.save(hist);
             pushWebhook(hist);
-            return hist.getId();
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
-     * 异步晋升生产
+     * 初始化 prod 晋升记录（同步）
      */
-    @Async
-    public Long deployProd(Long userId) {
+    public Long initProdPromote(Long userId) {
         SysUser user = userRepo.findById(userId).orElse(null);
         String username = user != null ? user.getUsername() : "unknown";
 
@@ -141,16 +148,31 @@ public class ReleaseService {
         hist.setStartedAt(LocalDateTime.now());
         hist = historyRepo.save(hist);
 
-        log.info("[R-7] PROD promote started by {}, historyId={}", username, hist.getId());
+        log.info("[R-7] PROD promote init by {}, historyId={}", username, hist.getId());
+        return hist.getId();
+    }
+
+    /**
+     * 异步执行 prod 晋升（@Async — 直接本地跑 deploy-prod.sh）
+     */
+    @Async
+    public CompletableFuture<Void> executeProdPromote(Long histId) {
+        ReleaseHistory hist = historyRepo.findById(histId).orElseThrow(
+                () -> new IllegalArgumentException("release_history 不存在: " + histId));
+
+        log.info("[R-7] PROD promote exec started, historyId={}", histId);
 
         try {
-            // prod 部署直接在本地跑（jar 与 prod 进程同一台机器）
-            DeployResult result = exec("sudo -n bash " + prodDeployScript, DEPLOY_TIMEOUT_SEC);
+            // V2.0.6 R-7 修复：prod 晋升必须走 SSH（脱离 prod jar 进程组），
+            // 否则 systemctl restart 会把 deploy-prod.sh 一起 SIGTERM 杀掉（exit 143）
+            String sshCmd = String.format(
+                    "ssh -i %s -p %d -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o UserKnownHostsFile=/dev/null %s@%s sudo -n bash %s /opt/lingyao/lingyao-platform.jar",
+                    stagingSshKeyPath, stagingSshPort, stagingSshUser, stagingSshHost, prodDeployScript);
+            DeployResult result = exec(sshCmd, DEPLOY_TIMEOUT_SEC);
             finalizeHistory(hist, result);
             pushWebhook(hist);
-            return hist.getId();
         } catch (Exception e) {
-            log.error("[R-7] PROD deploy failed", e);
+            log.error("[R-7] PROD promote failed", e);
             hist.setStatus(ReleaseHistory.ReleaseStatus.FAILED);
             hist.setErrorMessage(e.getMessage());
             hist.setFinishedAt(LocalDateTime.now());
@@ -158,8 +180,8 @@ public class ReleaseService {
             hist.setLog(truncateLog((hist.getLog() == null ? "" : hist.getLog()) + "\n\n[ERROR] " + e.getMessage()));
             historyRepo.save(hist);
             pushWebhook(hist);
-            return hist.getId();
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -185,7 +207,13 @@ public class ReleaseService {
      */
     private DeployResult exec(String cmd, long timeoutSec) throws IOException, InterruptedException {
         log.info("[R-7] exec: {}", cmd);
-        ProcessBuilder pb = new ProcessBuilder("bash", "-c", cmd);
+        // V2.0.6 R-7 关键修复：prod 部署必须用 systemd-run 创建独立 transient service，
+        // 否则 systemctl restart lingyao-backend 会 SIGTERM 整个进程组（包括 deploy-prod.sh / ssh client），
+        // 表现：log 截断到 "systemctl restart"，exit code 143 = SIGTERM
+        // setsid 修复不够，因为 systemd 用 cgroup 隔离进程，prod cgroup stop 会 kill 所有子进程
+        // 默认 service 模式（不传 --scope）：systemd-run 创建 transient service 并 wait 到 cmd 完成
+        // 不传 --unit 让 systemd-run 自动生成唯一 unit 名（run-XXXX.service）
+        ProcessBuilder pb = new ProcessBuilder("systemd-run", "bash", "-c", cmd);
         pb.redirectErrorStream(true);
         Process proc = pb.start();
 

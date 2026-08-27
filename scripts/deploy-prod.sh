@@ -25,7 +25,8 @@ PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 CVM="ubuntu@118.195.197.15"
 REMOTE_DIR="/opt/lingyao"
 JAR_NAME="lingyao-platform.jar"
-LOCAL_JAR="$PROJECT_ROOT/backend/target/lingyao-platform.jar"
+# V2.0.6 R-7: 接受外部 jarPath 参数（控制台按钮场景：jarPath 是 CVM 上路径，直接 cp 复用）
+LOCAL_JAR="${1:-$PROJECT_ROOT/backend/target/lingyao-platform.jar}"
 SERVICE_NAME="lingyao-backend"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
@@ -43,13 +44,16 @@ echo "⚠️  警告：这是 prod 部署，会直接影响生产服务！"
 echo ""
 
 # ── Step 1: scp 上传 ──
+# V2.0.6 R-7: ubuntu/root 用户默认无 id_rsa/id_ed25519，必须显式指定 release_staging_key
 echo "==== [1/5] scp 上传到 CVM (-C 压缩) ===="
-scp -C "$LOCAL_JAR" "$CVM:~/lingyao-platform-new.jar"
+SSH_KEY="${HOME}/.ssh/release_staging_key"
+[ ! -f "$SSH_KEY" ] && SSH_KEY="/root/.ssh/release_staging_key"
+scp -C -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$LOCAL_JAR" "$CVM:~/lingyao-platform-new.jar"
 
 # ── Step 2: CVM 备份 + 替换 + systemd 校验 + 重启 ──
 echo ""
 echo "==== [2/5] CVM 备份 + 替换 + systemd ExecStart 校验 + 重启 prod ===="
-ssh -T "$CVM" bash <<EOF
+ssh -T -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" bash <<EOF
 set -e
 PROD_DIR="$REMOTE_DIR"
 JAR=\${PROD_DIR}/$JAR_NAME
@@ -123,13 +127,13 @@ EOF
 # ── Step 3: 健康检查 ──
 echo ""
 echo "==== [3/5] 健康检查 prod 9091 ===="
-HEALTH=$(ssh "$CVM" "curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:9091/api/health")
+HEALTH=$(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" "curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:9091/api/health")
 
 if [ "$HEALTH" != "200" ]; then
     echo ""
     echo "❌ Prod health check failed: HTTP $HEALTH"
     echo "   看 CVM prod 日志："
-    ssh "$CVM" "sudo journalctl -u ${SERVICE_NAME} -n 30 --no-pager"
+    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" "sudo journalctl -u ${SERVICE_NAME} -n 30 --no-pager"
     exit 1
 fi
 echo "✅ prod health OK (HTTP $HEALTH)"
@@ -139,7 +143,7 @@ echo ""
 echo "==== [4/5] 验证 4 子产品页 ===="
 ALL_OK=true
 for h in geo hpd aidd por; do
-    HTTP=$(ssh "$CVM" "curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:9091/$h.html")
+    HTTP=$(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" "curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:9091/$h.html")
     echo "  9091 /$h.html: HTTP $HTTP"
     if [ "$HTTP" != "200" ]; then
         ALL_OK=false
@@ -154,7 +158,7 @@ fi
 # ── Step 5: 版本号验证 ──
 echo ""
 echo "==== [5/5] 版本号验证 ===="
-DIAG=$(ssh "$CVM" "curl -s --max-time 10 http://127.0.0.1:9091/api/_diag/version")
+DIAG=$(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" "curl -s --max-time 10 http://127.0.0.1:9091/api/_diag/version")
 echo "  /api/_diag/version: $DIAG"
 if echo "$DIAG" | grep -q '"code":401'; then
     echo "⚠️  /api/_diag/version 仍被鉴权拦截"

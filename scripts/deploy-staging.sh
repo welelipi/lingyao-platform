@@ -28,7 +28,8 @@ PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 CVM="ubuntu@118.195.197.15"
 REMOTE_DIR="/opt/lingyao/staging"   # V2.0.3 修复: staging 服务实际路径（不是 /opt/lingyao）
 JAR_NAME="lingyao-platform.jar"
-LOCAL_JAR="$PROJECT_ROOT/backend/target/lingyao-platform.jar"
+# V2.0.6 R-7: 接受外部 jarPath 参数（控制台按钮场景：jarPath 是 CVM 上 prod jar 路径，直接 cp 复用）
+LOCAL_JAR="${1:-$PROJECT_ROOT/backend/target/lingyao-platform.jar}"
 SERVICE_NAME="lingyao-backend-staging"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
@@ -45,13 +46,16 @@ echo "🎯 目标: staging 9092 (${SERVICE_NAME}) → ${REMOTE_DIR}/${JAR_NAME}"
 echo ""
 
 # ── Step 1: scp 上传（-C 启用压缩）──
+# V2.0.6 R-7: ubuntu 用户默认无 id_rsa/id_ed25519，必须显式指定 release_staging_key
 echo "==== [1/5] scp 上传到 CVM (-C 压缩) ===="
-scp -C "$LOCAL_JAR" "$CVM:~/lingyao-platform-new.jar"
+SSH_KEY="${HOME}/.ssh/release_staging_key"
+[ ! -f "$SSH_KEY" ] && SSH_KEY="/root/.ssh/release_staging_key"
+scp -C -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$LOCAL_JAR" "$CVM:~/lingyao-platform-new.jar"
 
 # ── Step 2: CVM 备份 + 替换 + systemd 路径迁移 + 重启 staging ──
 echo ""
 echo "==== [2/5] CVM 备份 + 替换 + systemd ExecStart 迁移 + 重启 staging ===="
-ssh -T "$CVM" bash <<EOF
+ssh -T -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" bash <<EOF
 set -e
 STAGING_DIR="$REMOTE_DIR"
 JAR=\${STAGING_DIR}/$JAR_NAME
@@ -117,13 +121,13 @@ EOF
 # ── Step 3: 健康检查（V2.0.3 修复：必须 ssh 到 CVM curl，因为 Mac 本地没有 9092）──
 echo ""
 echo "==== [3/5] 健康检查 staging 9092（CVM 内 curl）===="
-HEALTH=$(ssh "$CVM" "curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:9092/api/health")
+HEALTH=$(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" "curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:9092/api/health")
 
 if [ "$HEALTH" != "200" ]; then
     echo ""
     echo "❌ Staging health check failed: HTTP $HEALTH"
     echo "   看 CVM staging 日志："
-    ssh "$CVM" "sudo journalctl -u ${SERVICE_NAME} -n 30 --no-pager"
+    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" "sudo journalctl -u ${SERVICE_NAME} -n 30 --no-pager"
     exit 1
 fi
 echo "✅ staging health OK (HTTP $HEALTH)"
@@ -133,7 +137,7 @@ echo ""
 echo "==== [4/5] 验证 4 子产品页（CVM 内 curl）===="
 ALL_OK=true
 for h in geo hpd aidd por; do
-    HTTP=$(ssh "$CVM" "curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:9092/$h.html")
+    HTTP=$(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" "curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:9092/$h.html")
     echo "  9092 /$h.html: HTTP $HTTP"
     if [ "$HTTP" != "200" ]; then
         ALL_OK=false
@@ -148,7 +152,7 @@ fi
 # ── Step 5: 版本号验证（V2.0.3：/api/_diag/version 已加 permitAll 白名单）──
 echo ""
 echo "==== [5/5] 版本号验证（CVM 内 curl /api/_diag/version）===="
-DIAG=$(ssh "$CVM" "curl -s --max-time 10 http://127.0.0.1:9092/api/_diag/version")
+DIAG=$(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" "curl -s --max-time 10 http://127.0.0.1:9092/api/_diag/version")
 echo "  /api/_diag/version: $DIAG"
 if echo "$DIAG" | grep -q '"code":401'; then
     echo "⚠️  /api/_diag/version 仍被鉴权拦截（需 V2.0.3 jar 已部署）"
