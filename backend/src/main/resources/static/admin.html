@@ -685,11 +685,28 @@
     // ── 数据层 ─────────────────────────
     const TOKEN_KEY = 'lingyao_token';
     const USER_KEY = 'lingyao_user';
+    // V2.0.3: 老 key fallback 列表（ly_token / geo_token 是对外版历史 key，老用户 localStorage 兼容）
+    const TOKEN_KEYS_LEGACY = ['ly_token', 'geo_token'];
     const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
       ? 'http://127.0.0.1:9091'
       : '';  // 空字符串 = 相对路径，走 Nginx 反代（生产 IP / 域名都适用）
 
-    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+    function getToken() {
+      // 优先读新 key
+      const t = localStorage.getItem(TOKEN_KEY);
+      if (t) return t;
+      // V2.0.3: 老 key fallback（读到了自动迁移到新 key，老 key 清除）
+      for (const k of TOKEN_KEYS_LEGACY) {
+        const v = localStorage.getItem(k);
+        if (v) {
+          localStorage.setItem(TOKEN_KEY, v);
+          localStorage.removeItem(k);
+          console.info('[V2.0.3 token migration]', k, '→', TOKEN_KEY);
+          return v;
+        }
+      }
+      return null;
+    }
     function getUser() {
       const s = localStorage.getItem(USER_KEY);
       return s ? JSON.parse(s) : null;

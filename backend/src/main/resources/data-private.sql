@@ -17,16 +17,16 @@
 -- BCrypt hash of "admin123" — 与 data.sql admin 同密码保持一致
 -- password_changed=FALSE 触发首登强制改密
 INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, created_at, updated_at)
-VALUES (1, 'admin', '$2a$10$sGGMda/K1XOkDq/gg5B18.Xu99jzot/vt/Et6k6KUi5NVa1hKM6hK', '私有化超管', 'admin@private.local', 'ACTIVE', TRUE, FALSE, NOW(), NOW());
+VALUES (1, 'admin', '$2a$10$sGGMda/K1XOkDq/gg5B18.Xu99jzot/vt/Et6k6KUi5NVa1hKM6hK', '私有化超管', 'admin@private.local', 'ACTIVE', TRUE, FALSE, NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
 
 -- 2. 私有化客户公司（只有 1 家）
 -- deployment_mode=PRIVATE 标识这是私有化租户
 INSERT INTO company (id, name, code, deployment_mode, license_plan, status, max_users, contact_email, created_at, updated_at)
-VALUES (1, '私有化客户', 'PRIVATE-CUSTOMER', 'PRIVATE', 'ENTERPRISE', 'ACTIVE', 100, 'admin@private.local', NOW(), NOW());
+VALUES (1, '私有化客户', 'PRIVATE-CUSTOMER', 'PRIVATE', 'ENTERPRISE', 'ACTIVE', 100, 'admin@private.local', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
 
 -- 3. 超管绑定到私有化公司
 INSERT INTO company_user (id, company_id, user_id, role, status, created_at)
-VALUES (1, 1, 1, 'SUPER_ADMIN', 'ACTIVE', NOW());
+VALUES (1, 1, 1, 'SUPER_ADMIN', 'ACTIVE', NOW()) ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
 -- 产品目录（私有化客户默认看到全部 4 个产品）
@@ -36,7 +36,7 @@ VALUES
   (1, 'GEO', 'GEO 智策', 'AI 品牌监测与内容优化，监测 8 大 AI 平台', 'G', 1, 'ACTIVE', NOW(), NOW()),
   (2, 'HPD', '医院潜力预测', '医院销售潜力模型预测，WMAPE 6.6%', 'H', 2, 'ACTIVE', NOW(), NOW()),
   (3, 'AIDD', 'AIDD 研发反馈', 'AI 辅助药物研发信息反馈系统', 'A', 3, 'ACTIVE', NOW(), NOW()),
-  (4, 'POR', '药企协作辅助智能体', '让药企内部效率提升 300%', 'P', 4, 'ACTIVE', NOW(), NOW());
+  (4, 'POR', '药企协作辅助智能体', '让药企内部效率提升 300%', 'P', 4, 'ACTIVE', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
 -- 私有化客户获得全部 4 个产品的默认授权
@@ -47,7 +47,7 @@ VALUES
   (1, 1, 1, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()),  -- GEO
   (2, 1, 2, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()),  -- HPD
   (3, 1, 3, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()),  -- AIDD
-  (4, 1, 4, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW());  -- POR
+  (4, 1, 4, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;  -- POR
 
 -- ═══════════════════════════════════════════════════════════
 -- 超管获得全部产品的访问授权
@@ -57,7 +57,7 @@ VALUES
   (1, 1, 1, 1, 1, 'ACTIVE', NOW()),  -- admin → GEO
   (2, 1, 2, 1, 1, 'ACTIVE', NOW()),  -- admin → HPD
   (3, 1, 3, 1, 1, 'ACTIVE', NOW()),  -- admin → AIDD
-  (4, 1, 4, 1, 1, 'ACTIVE', NOW());  -- admin → POR
+  (4, 1, 4, 1, 1, 'ACTIVE', NOW()) ON CONFLICT (id) DO NOTHING;  -- admin → POR
 
 -- ═══════════════════════════════════════════════════════════
 -- 产品内默认角色（每个产品 2 个：超管 + 操作员）
@@ -71,7 +71,7 @@ VALUES
   (5, 3, 'SUPER_ADMIN', 'AIDD 超级管理员', '["*"]', 1, NOW()),
   (6, 3, 'OPERATOR', 'AIDD 操作员', '["read", "search"]', 2, NOW()),
   (7, 4, 'SUPER_ADMIN', 'POR 超级管理员', '["*"]', 1, NOW()),
-  (8, 4, 'OPERATOR', 'POR 操作员', '["read", "task"]', 2, NOW());
+  (8, 4, 'OPERATOR', 'POR 操作员', '["read", "task"]', 2, NOW()) ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
 -- 超管在所有产品内都是 SUPER_ADMIN
@@ -81,7 +81,7 @@ VALUES
   (1, 1, 1, 1, 'SUPER_ADMIN', 1, NOW()),  -- admin → GEO
   (2, 1, 2, 1, 'SUPER_ADMIN', 1, NOW()),  -- admin → HPD
   (3, 1, 3, 1, 'SUPER_ADMIN', 1, NOW()),  -- admin → AIDD
-  (4, 1, 4, 1, 'SUPER_ADMIN', 1, NOW());  -- admin → POR
+  (4, 1, 4, 1, 'SUPER_ADMIN', 1, NOW()) ON CONFLICT (id) DO NOTHING;  -- admin → POR
 
 -- ═══════════════════════════════════════════════════════════
 -- 子任务配置（私有化默认全部 REGISTERED）
@@ -93,7 +93,7 @@ VALUES
   (1, 1, 'GEO 监测子任务', 'geo-monitor', '/subtask/geo', '/api/sub/geo', 'REGISTERED', 'GEO 品牌监测核心引擎（私有化待激活）', NULL, NULL, NOW(), NOW()),
   (2, 2, '医院潜力预测子任务', 'hpd-predictor', '/subtask/hpd', '/api/sub/hpd', 'REGISTERED', '医院销售潜力预测模型（私有化待激活）', NULL, NULL, NOW(), NOW()),
   (3, 3, 'AIDD 研发子任务', 'aidd-engine', '/subtask/aidd', '/api/sub/aidd', 'REGISTERED', 'AI 辅助药物研发引擎（私有化待激活）', NULL, NULL, NOW(), NOW()),
-  (4, 4, '协作智能体子任务', 'por-agent', '/subtask/por', '/api/sub/por', 'REGISTERED', '药企协作智能体引擎（私有化待激活）', NULL, NULL, NOW(), NOW());
+  (4, 4, '协作智能体子任务', 'por-agent', '/subtask/por', '/api/sub/por', 'REGISTERED', '药企协作智能体引擎（私有化待激活）', NULL, NULL, NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
 -- 默认推送通道（同 SAAS 配置，客户需替换 webhook URL）
@@ -102,7 +102,7 @@ INSERT INTO notification_channel (id, channel_type, name, webhook_url, status, s
 VALUES
   (1, 'FEISHU', '飞书群机器人（私有化默认）', 'https://open.feishu.cn/open-apis/bot/v2/hook/REPLACE_ME', 'INACTIVE', 1, NOW(), NOW()),
   (2, 'WECHAT_WORK', '企微群机器人（私有化默认）', 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=REPLACE_ME', 'INACTIVE', 2, NOW(), NOW()),
-  (3, 'WECHAT_MP', '微信公众号模板消息', '', 'INACTIVE', 3, NOW(), NOW());
+  (3, 'WECHAT_MP', '微信公众号模板消息', '', 'INACTIVE', 3, NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
 -- ID 自增偏移（与 SAAS 演示数据完全隔离）

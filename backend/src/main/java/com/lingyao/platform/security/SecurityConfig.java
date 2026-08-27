@@ -34,6 +34,7 @@ public class SecurityConfig {
                     // ── 公开 API（不需登录） ─────
                     "/api/health",
                     "/api/version",
+                    "/api/_diag/**",            // V2.0.3: 开发者诊断 endpoint（无需 JWT 自检版本/PID/启动时间）
                     "/api/public/**",
                     "/api/auth/login",
                     "/api/auth/register",
