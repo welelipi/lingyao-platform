@@ -37,7 +37,7 @@ spring:
 
 # ---------- 业务配置（所有 profile 共享）----------
 app:
-  version: 2.0.9
+  version: 2.0.10
   release: ${APP_RELEASE:stable}
   build-time: ${APP_BUILD_TIME:}
   git-commit: ${APP_GIT_COMMIT:dev}

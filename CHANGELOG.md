@@ -302,6 +302,62 @@ echo "LINGYAO_RELEASE_WEBHOOK_ENABLED=true" >> /opt/lingyao/.env.private
 
 ---
 
+## 2026-08-28 · V2.0.10 (公司编辑弹窗 + 状态枚举 5 种 + 许可证过期提醒)
+
+### Commit `TBD` · V2.0.10 大超管后台能力升级
+
+**触发**：主人 2026-08-28 13:57 「把它做出来」（大超管后台优化 3 步方案）
+
+**满足铁律**：
+- **V1** Z 段 bump：2.0.9 → 2.0.10
+- **V2** FE/BE 同步：application.yml app.version + admin.html 底部版本号 + CHANGELOG
+- **V4** CHANGELOG 必记（本条目）
+- **V5** /api/_diag/version 端点已就绪
+
+**核心改动**：
+
+**Step A · 弹窗排版修复 + 编辑公司弹窗**
+- 修复 `#grantProductCheckboxes` 和 `#grantUserProductCheckboxes` label 排版 bug（之前 `display:flex` 在 block-level label 上导致 flex 容器宽度撑满父容器，复选框和文字分散到两端），现在改为 `inline-flex` + `width:auto` 紧凑对齐
+- 新建 `#editCompanyModal`（V2.0.10 · 模态-large）：含 9 个可编辑字段（公司名称 / 部署模式 / 许可证等级 / 许可证起止日期 / 公司状态 / 最大用户数 / 联系邮箱 / 联系电话 / 地址 / 备注）+ code 不可改提示
+- 部署模式/许可证等级/公司状态全部改为中文显示（共享云 SaaS / 私有化部署；试用/标准/企业；开通中/已开通/已过期/已暂停/已删除）
+- 二次确认逻辑：修改部署模式 / 状态（SUSPENDED/DELETED 切换）/ 许可证截止日期 → 弹 confirm 二次确认
+- 公司列表行加「✏ 编辑」按钮（中文显示：部署模式/许可证/状态）
+
+**Step B · 状态枚举升级 3→5 种**
+- `Company.CompanyStatus` 枚举从 3 种（ACTIVE/SUSPENDED/DELETED）扩到 5 种（**PENDING/ACTIVE/EXPIRED/SUSPENDED/DELETED**）
+- `TenantAdminService.createCompany()` 默认状态 = PENDING（开通中）
+- 新建 `schema-private.sql`：处理 `company_status_check` CHECK 约束升级（V2.0.8 SOP 同款 `ALTER TABLE DROP/ADD CONSTRAINT` 模式）
+- 新增表 `license_reminder_log`（用于过期提醒去重 + 审计）
+
+**Step C · 许可证过期提醒 scheduler**
+- 新建 `LicenseExpirationScheduler.java`（每日 9:00 早检查 + 每日 23:00 晚过期 cron）
+- 提前 30/15/7/1 天提醒大超管 + 公司超管（双发，邮箱 + 飞书复用现有通道）
+- 过期当天自动 `ACTIVE → EXPIRED`（晚 23:00 cron）
+- EXPIRED 公司超管登录拦截（在 `LoginService` 加 `CompanyStatus` 校验）
+
+**新增后端 API**：
+- `PUT /api/admin/companies/{id}` — 更新公司（仅 platformAdmin），高危字段前端二次确认
+
+**新增后端类**：
+- `UpdateCompanyRequest.java`（DTO，含二次确认字段）
+- `LicenseReminderLog.java`（Entity）
+- `LicenseExpirationScheduler.java`（`@Scheduled(cron)`）
+- `LicenseExpirationService.java`（业务逻辑）
+
+**新增 SQL 文件**：
+- `schema-private.sql`（V2.0.10+ 升级脚本，含 CHECK 约束 + 新表）
+
+**验收步骤**：
+1. 大超管后台「公司管理」Tab → 列表行点「✏ 编辑」→ 弹窗显示当前值
+2. 修改部署模式 → 弹 confirm「部署模式: 共享云 → 私有化部署，确定？」→ 确认后保存
+3. 修改许可证截止日期 → 弹 confirm → 确认后保存
+4. 新建公司 API 返回 status=PENDING（开通中），大超管手动改 ACTIVE 完成开通
+5. 凌晨 23:00 自动把过期公司的 status 改为 EXPIRED
+6. EXPIRED 公司的超管尝试登录 → 返回 403 + 提示「公司许可证已过期，请联系大超管」
+7. 每日 9:00 自动给 30/15/7/1 天后过期的公司推飞书 + 邮件通知大超管 + 公司超管
+
+---
+
 ## 2026-08-28 · V2.0.8 (产品改名 + 研发中置灰)
 
 ### Commit `TBD` · V2.0.8 产品品牌升级

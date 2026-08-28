@@ -241,6 +241,60 @@
       margin-top: 16px;
     }
 
+    /* ── 产品多选列表（紧凑对齐） ───────── */
+    .product-checkboxes {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 4px 0;
+    }
+    .product-checkboxes label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: auto;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: var(--text-bright);
+    }
+    .product-checkboxes label:hover {
+      background: rgba(0, 212, 255, 0.08);
+      border-color: var(--accent);
+    }
+    .product-checkboxes input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+    .product-checkboxes .product-code {
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 50px;
+    }
+    .product-checkboxes .product-name {
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    /* ── 公司状态徽章 ───────── */
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-badge.pending { background: #6b7280; color: #fff; }     /* 开通中 - 灰 */
+    .status-badge.active { background: #10b981; color: #fff; }       /* 已开通 - 绿 */
+    .status-badge.expired { background: #ef4444; color: #fff; }      /* 已过期 - 红 */
+    .status-badge.suspended { background: #f59e0b; color: #fff; }   /* 已暂停 - 黄 */
+    .status-badge.deleted { background: #374151; color: #9ca3af; }   /* 已删除 - 暗 */
+
     /* ── 通知条 ───────────── */
     .toast {
       position: fixed;
@@ -674,11 +728,95 @@
         <input type="hidden" name="companyId" id="grantCompanyId">
         <div class="form-field">
           <label>选择产品（可多选）</label>
-          <div id="grantProductCheckboxes" style="display:flex;flex-direction:column;gap:8px;padding:8px 0;"></div>
+          <div id="grantProductCheckboxes" class="product-checkboxes"></div>
         </div>
         <div class="form-actions">
           <button type="button" class="btn-ghost-sm" onclick="closeModal('grantProduct')">取消</button>
           <button type="submit" class="btn-primary-sm">开通</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<!-- 模态：编辑公司信息 — V2.0.10 -->
+  <div class="modal modal-large" id="editCompanyModal">
+    <div class="modal-backdrop" onclick="closeModal('editCompany')"></div>
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('editCompany')">&times;</button>
+      <div class="modal-header">
+        <h3>编辑公司信息</h3>
+        <p id="editCompanyContext">-</p>
+      </div>
+      <form class="modal-form" id="editCompanyForm">
+        <input type="hidden" name="id" id="editCompanyId">
+        <div class="form-field">
+          <label>公司名称 <span style="color:var(--text-dim);">（code 不可改）</span></label>
+          <input type="text" name="name" id="editCompanyName" required minlength="2" maxlength="128">
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>部署模式</label>
+            <select name="deploymentMode" id="editCompanyDeploymentMode" required>
+              <option value="SAAS">共享云（SaaS）</option>
+              <option value="PRIVATE">私有化部署</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>许可证等级</label>
+            <select name="licensePlan" id="editCompanyLicensePlan" required>
+              <option value="TRIAL">试用</option>
+              <option value="STANDARD">标准</option>
+              <option value="ENTERPRISE">企业</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>许可证起始</label>
+            <input type="datetime-local" name="licenseStart" id="editCompanyLicenseStart">
+          </div>
+          <div class="form-field">
+            <label>许可证截止 <span style="color:var(--text-dim);">（必填）</span></label>
+            <input type="datetime-local" name="licenseEnd" id="editCompanyLicenseEnd" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>公司状态</label>
+            <select name="status" id="editCompanyStatus" required>
+              <option value="PENDING">开通中</option>
+              <option value="ACTIVE">已开通</option>
+              <option value="EXPIRED">已过期</option>
+              <option value="SUSPENDED">已暂停</option>
+              <option value="DELETED">已删除</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>最大用户数</label>
+            <input type="number" name="maxUsers" id="editCompanyMaxUsers" min="1" max="10000">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>联系邮箱</label>
+            <input type="email" name="contactEmail" id="editCompanyContactEmail" maxlength="128">
+          </div>
+          <div class="form-field">
+            <label>联系电话</label>
+            <input type="text" name="contactPhone" id="editCompanyContactPhone" maxlength="32">
+          </div>
+        </div>
+        <div class="form-field">
+          <label>地址</label>
+          <input type="text" name="address" id="editCompanyAddress" maxlength="256">
+        </div>
+        <div class="form-field">
+          <label>备注</label>
+          <textarea name="remark" id="editCompanyRemark" maxlength="512" rows="2"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-ghost-sm" onclick="closeModal('editCompany')">取消</button>
+          <button type="submit" class="btn-primary-sm">保存修改</button>
         </div>
       </form>
     </div>
@@ -698,7 +836,7 @@
         <input type="hidden" name="companyId" id="grantUserCompanyId">
         <div class="form-field">
           <label>选择产品（可多选）</label>
-          <div id="grantUserProductCheckboxes" style="display:flex;flex-direction:column;gap:8px;padding:8px 0;"></div>
+          <div id="grantUserProductCheckboxes" class="product-checkboxes"></div>
         </div>
         <div class="form-actions">
           <button type="button" class="btn-ghost-sm" onclick="closeModal('grantUserProduct')">取消</button>
@@ -1182,6 +1320,27 @@
       ).join('');
     }
 
+    // ── 公司状态/部署模式/许可证等级 → 中文显示 ─────────
+    function formatDeploymentMode(dm) {
+      const map = { SAAS: '共享云', PRIVATE: '私有化部署' };
+      return map[dm] || dm;
+    }
+    function formatLicensePlan(lp) {
+      const map = { TRIAL: '试用', STANDARD: '标准', ENTERPRISE: '企业' };
+      return map[lp] || lp;
+    }
+    function formatCompanyStatus(st) {
+      const map = {
+        PENDING: '开通中', ACTIVE: '已开通', EXPIRED: '已过期',
+        SUSPENDED: '已暂停', DELETED: '已删除'
+      };
+      return map[st] || st;
+    }
+    function formatDateTime(dt) {
+      if (!dt) return '-';
+      return new Date(dt).toLocaleString('zh-CN', { hour12: false });
+    }
+
     function renderCompanies() {
       document.getElementById('companyCount').textContent = companiesCache.length;
       const body = document.getElementById('companyTableBody');
@@ -1193,17 +1352,20 @@
         const dm = c.deploymentMode || 'SAAS';
         const lp = c.licensePlan || 'STANDARD';
         const st = c.status || 'ACTIVE';
+        const statusClass = st.toLowerCase();
         return `
         <tr>
           <td>${c.id}</td>
           <td><strong>${escapeHtml(c.name)}</strong></td>
           <td><code>${escapeHtml(c.code)}</code></td>
-          <td><span class="badge ${dm.toLowerCase()}">${dm}</span></td>
-          <td>${lp}</td>
-          <td><span class="badge ${st.toLowerCase()}">${st}</span></td>
+          <td><span class="badge ${dm.toLowerCase()}">${formatDeploymentMode(dm)}</span></td>
+          <td><span title="${lp}">${formatLicensePlan(lp)}</span>
+              <br><small style="color:var(--text-dim);">到期 ${formatDateTime(c.licenseEnd)}</small></td>
+          <td><span class="status-badge ${statusClass}">${formatCompanyStatus(st)}</span></td>
           <td><span class="badge-pill" data-cp-cid="${c.id}">加载中…</span></td>
           <td>${escapeHtml(c.contactEmail || '-')}</td>
           <td>
+            <button class="btn-ghost-sm" data-action="edit-company" data-cid="${c.id}">✏ 编辑</button>
             <button class="btn-ghost-sm" data-action="grant-company" data-cid="${c.id}">开通产品</button>
           </td>
         </tr>`;
@@ -1433,7 +1595,29 @@
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const action = btn.dataset.action;
-      if (action === 'grant-company') {
+      if (action === 'edit-company') {
+        const companyId = parseInt(btn.dataset.cid);
+        const company = companiesCache.find(c => c.id === companyId);
+        if (!company) { showToast('公司不存在', 'error'); return; }
+        document.getElementById('editCompanyId').value = companyId;
+        document.getElementById('editCompanyContext').textContent =
+          `公司 code: ${company.code}（code 不可改）`;
+        document.getElementById('editCompanyName').value = company.name || '';
+        document.getElementById('editCompanyDeploymentMode').value = company.deploymentMode || 'SAAS';
+        document.getElementById('editCompanyLicensePlan').value = company.licensePlan || 'STANDARD';
+        document.getElementById('editCompanyStatus').value = company.status || 'PENDING';
+        document.getElementById('editCompanyMaxUsers').value = company.maxUsers || 10;
+        document.getElementById('editCompanyContactEmail').value = company.contactEmail || '';
+        document.getElementById('editCompanyContactPhone').value = company.contactPhone || '';
+        document.getElementById('editCompanyAddress').value = company.address || '';
+        document.getElementById('editCompanyRemark').value = company.remark || '';
+        // 日期格式转换：ISO -> datetime-local (YYYY-MM-DDTHH:mm)
+        document.getElementById('editCompanyLicenseStart').value =
+          company.licenseStart ? new Date(company.licenseStart).toISOString().slice(0, 16) : '';
+        document.getElementById('editCompanyLicenseEnd').value =
+          company.licenseEnd ? new Date(company.licenseEnd).toISOString().slice(0, 16) : '';
+        openModal('editCompany');
+      } else if (action === 'grant-company') {
         const companyId = parseInt(btn.dataset.cid);
         const company = companiesCache.find(c => c.id === companyId);
         document.getElementById('grantCompanyId').value = companyId;
@@ -1441,10 +1625,10 @@
           `为「${company ? company.name : ('#'+companyId)}」开通产品（可多选）`;
         const cbs = document.getElementById('grantProductCheckboxes');
         cbs.innerHTML = productsCache.map(p => `
-          <label style="display:flex;align-items:center;gap:8px;color:var(--text-bright);">
+          <label>
             <input type="checkbox" name="productId" value="${p.id}">
-            <strong>${escapeHtml(p.code)}</strong>
-            <span style="color:var(--text-dim);font-size:12px;">${escapeHtml(p.name)}</span>
+            <span class="product-code">${escapeHtml(p.code)}</span>
+            <span class="product-name">${escapeHtml(p.name)}</span>
           </label>
         `).join('');
         openModal('grantProduct');
@@ -1487,10 +1671,10 @@
           cbs.innerHTML = productsCache
             .filter(p => licensedIds.includes(p.id))
             .map(p => `
-              <label style="display:flex;align-items:center;gap:8px;color:var(--text-bright);">
+              <label>
                 <input type="checkbox" name="productId" value="${p.id}">
-                <strong>${escapeHtml(p.code)}</strong>
-                <span style="color:var(--text-dim);font-size:12px;">${escapeHtml(p.name)}</span>
+                <span class="product-code">${escapeHtml(p.code)}</span>
+                <span class="product-name">${escapeHtml(p.name)}</span>
               </label>
             `).join('');
         }
@@ -1621,6 +1805,61 @@
         showToast('用户创建成功', 'success');
         closeModal('user');
         e.target.reset();
+        await loadAll();
+      } catch (_) {}
+    });
+
+    // ── 表单：编辑公司信息 — V2.0.10 ───────────────────
+    document.getElementById('editCompanyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = parseInt(document.getElementById('editCompanyId').value);
+      const fd = new FormData(e.target);
+
+      // 取原值用于对比"二次确认"逻辑
+      const orig = companiesCache.find(c => c.id === id) || {};
+      const req = {
+        name: fd.get('name'),
+        deploymentMode: fd.get('deploymentMode'),
+        licensePlan: fd.get('licensePlan'),
+        status: fd.get('status'),
+        maxUsers: fd.get('maxUsers') ? parseInt(fd.get('maxUsers')) : null,
+        contactEmail: fd.get('contactEmail') || null,
+        contactPhone: fd.get('contactPhone') || null,
+        address: fd.get('address') || null,
+        remark: fd.get('remark') || null,
+      };
+      // 日期字段：空字符串传 null（保留原值），有值转 ISO
+      const ls = fd.get('licenseStart');
+      req.licenseStart = ls ? new Date(ls).toISOString() : null;
+      const le = fd.get('licenseEnd');
+      req.licenseEnd = le ? new Date(le).toISOString() : null;
+
+      // 二次确认：高危操作
+      const highRiskChecks = [];
+      if (orig.deploymentMode && orig.deploymentMode !== req.deploymentMode) {
+        highRiskChecks.push(`部署模式: ${formatDeploymentMode(orig.deploymentMode)} → ${formatDeploymentMode(req.deploymentMode)}`);
+      }
+      if (orig.status && orig.status !== req.status
+              && (req.status === 'SUSPENDED' || req.status === 'DELETED'
+                  || orig.status === 'SUSPENDED' || orig.status === 'DELETED')) {
+        highRiskChecks.push(`状态: ${formatCompanyStatus(orig.status)} → ${formatCompanyStatus(req.status)}`);
+      }
+      if (orig.licenseEnd && req.licenseEnd
+              && new Date(orig.licenseEnd).getTime() !== new Date(req.licenseEnd).getTime()) {
+        highRiskChecks.push(`许可证截止: ${formatDateTime(orig.licenseEnd)} → ${formatDateTime(req.licenseEnd)}`);
+      }
+      if (highRiskChecks.length > 0) {
+        const confirmMsg = `⚠️ 关键信息变更：\n\n${highRiskChecks.join('\\n')}\n\n确定提交？`;
+        if (!confirm(confirmMsg)) {
+          showToast('已取消', 'info');
+          return;
+        }
+      }
+
+      try {
+        const updated = await api('PUT', `/api/admin/companies/${id}`, req);
+        showToast(`公司「${updated.name}」已更新`, 'success');
+        closeModal('editCompany');
         await loadAll();
       } catch (_) {}
     });

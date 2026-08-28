@@ -14,4 +14,9 @@ public interface CompanyUserRepository extends JpaRepository<CompanyUser, Long> 
     Optional<CompanyUser> findByCompanyIdAndUserId(Long companyId, Long userId);
     boolean existsByCompanyIdAndUserId(Long companyId, Long userId);
     long countByCompanyIdAndStatus(Long companyId, CompanyUser.Status status);
+
+    /**
+     * V2.0.10：查找某公司的所有"公司超管"（SUPER_ADMIN 角色）成员关系
+     */
+    List<CompanyUser> findByCompanyIdAndRole(Long companyId, CompanyUser.CompanyRole role);
 }

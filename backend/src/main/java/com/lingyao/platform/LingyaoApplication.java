@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServic
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.List;
 
@@ -27,6 +28,7 @@ import java.util.List;
 @SpringBootApplication(exclude = { UserDetailsServiceAutoConfiguration.class })
 @EnableJpaAuditing
 @EnableAsync
+@EnableScheduling   // V2.0.10：启用 @Scheduled（LicenseExpirationScheduler）
 public class LingyaoApplication {
 
     private static final Logger log = LoggerFactory.getLogger(LingyaoApplication.class);

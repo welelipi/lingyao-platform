@@ -7,6 +7,7 @@ import com.lingyao.platform.dto.admin.CreateCompanyRequest;
 import com.lingyao.platform.dto.admin.CreateUserRequest;
 import com.lingyao.platform.dto.admin.GrantCompanyProductsRequest;
 import com.lingyao.platform.dto.admin.GrantProductRequest;
+import com.lingyao.platform.dto.admin.UpdateCompanyRequest;
 import com.lingyao.platform.entity.*;
 import com.lingyao.platform.repository.*;
 import com.lingyao.platform.security.CurrentUser;
@@ -64,6 +65,23 @@ public class AdminController {
         if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         try {
             return ApiResponse.ok("公司创建成功", tenantAdminService.createCompany(req));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(e.getMessage());
+        }
+    }
+
+    /**
+     * V2.0.10：更新公司信息（仅 platformAdmin）。
+     * code 不可改（唯一标识）；其他字段可改；高危操作前端二次确认。
+     */
+    @PutMapping("/companies/{id}")
+    public ApiResponse<Company> updateCompany(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateCompanyRequest req) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        try {
+            return ApiResponse.ok("公司更新成功", tenantAdminService.updateCompany(id, req));
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());
         }

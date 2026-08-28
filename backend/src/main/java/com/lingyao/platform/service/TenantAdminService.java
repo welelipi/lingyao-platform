@@ -5,6 +5,7 @@ import com.lingyao.platform.dto.admin.CreateCompanyRequest;
 import com.lingyao.platform.dto.admin.CreateUserRequest;
 import com.lingyao.platform.dto.admin.GrantCompanyProductsRequest;
 import com.lingyao.platform.dto.admin.GrantProductRequest;
+import com.lingyao.platform.dto.admin.UpdateCompanyRequest;
 import com.lingyao.platform.entity.*;
 import com.lingyao.platform.repository.*;
 import com.lingyao.platform.security.CurrentUser;
@@ -56,7 +57,8 @@ public class TenantAdminService {
         company.setCode(req.getCode());
         company.setDeploymentMode(Company.DeploymentMode.valueOf(req.getDeploymentMode()));
         company.setLicensePlan(Company.LicensePlan.valueOf(req.getLicensePlan()));
-        company.setStatus(Company.CompanyStatus.ACTIVE);
+        // V2.0.10：新建公司默认状态 = PENDING（开通中），由大超管手动改 ACTIVE 完成开通
+        company.setStatus(Company.CompanyStatus.PENDING);
         company.setMaxUsers(req.getMaxUsers() != null ? req.getMaxUsers() : 10);
         company.setContactEmail(req.getContactEmail());
         company.setContactPhone(req.getContactPhone());
@@ -86,6 +88,104 @@ public class TenantAdminService {
         auditLogService.record("COMPANY_CREATE", "COMPANY", String.valueOf(saved.getId()),
                 "创建公司: " + saved.getName() + " (" + saved.getCode() + ")");
         return saved;
+    }
+
+    /**
+     * 更新公司 — V2.0.10
+     *
+     * 允许修改字段：name / deploymentMode / licensePlan / status / licenseStart / licenseEnd /
+     *               maxUsers / contactEmail / contactPhone / address / remark
+     * 禁止修改字段：code（唯一标识，改动风险大；如需改走「迁移」专门接口）
+     */
+    @Transactional
+    public Company updateCompany(Long id, UpdateCompanyRequest req) {
+        Company company = companyRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("公司不存在: " + id));
+
+        StringBuilder diff = new StringBuilder("修改公司: ");
+
+        // 名称
+        if (!company.getName().equals(req.getName())) {
+            diff.append("name: ").append(company.getName()).append(" → ").append(req.getName()).append("; ");
+            company.setName(req.getName());
+        }
+        // 部署模式（高危，前端二次确认）
+        Company.DeploymentMode newDeployMode = Company.DeploymentMode.valueOf(req.getDeploymentMode());
+        if (company.getDeploymentMode() != newDeployMode) {
+            diff.append("deploymentMode: ").append(company.getDeploymentMode())
+                    .append(" → ").append(newDeployMode).append("; ");
+            company.setDeploymentMode(newDeployMode);
+        }
+        // 许可证等级
+        Company.LicensePlan newLicensePlan = Company.LicensePlan.valueOf(req.getLicensePlan());
+        if (company.getLicensePlan() != newLicensePlan) {
+            diff.append("licensePlan: ").append(company.getLicensePlan())
+                    .append(" → ").append(newLicensePlan).append("; ");
+            company.setLicensePlan(newLicensePlan);
+        }
+        // 状态（高危，前端二次确认）
+        Company.CompanyStatus newStatus = Company.CompanyStatus.valueOf(req.getStatus());
+        if (company.getStatus() != newStatus) {
+            diff.append("status: ").append(company.getStatus())
+                    .append(" → ").append(newStatus).append("; ");
+            company.setStatus(newStatus);
+        }
+        // 许可证起始（前端二次确认）
+        if (req.getLicenseStart() != null
+                && (company.getLicenseStart() == null
+                        || !req.getLicenseStart().equals(company.getLicenseStart()))) {
+            diff.append("licenseStart: ").append(company.getLicenseStart())
+                    .append(" → ").append(req.getLicenseStart()).append("; ");
+            company.setLicenseStart(req.getLicenseStart());
+        }
+        // 许可证截止（前端二次确认）
+        if (req.getLicenseEnd() != null
+                && (company.getLicenseEnd() == null
+                        || !req.getLicenseEnd().equals(company.getLicenseEnd()))) {
+            diff.append("licenseEnd: ").append(company.getLicenseEnd())
+                    .append(" → ").append(req.getLicenseEnd()).append("; ");
+            company.setLicenseEnd(req.getLicenseEnd());
+        }
+        // 最大用户数
+        if (req.getMaxUsers() != null && !req.getMaxUsers().equals(company.getMaxUsers())) {
+            diff.append("maxUsers: ").append(company.getMaxUsers())
+                    .append(" → ").append(req.getMaxUsers()).append("; ");
+            company.setMaxUsers(req.getMaxUsers());
+        }
+        // 联系邮箱
+        if (!safeEq(company.getContactEmail(), req.getContactEmail())) {
+            diff.append("contactEmail: ").append(company.getContactEmail())
+                    .append(" → ").append(req.getContactEmail()).append("; ");
+            company.setContactEmail(req.getContactEmail());
+        }
+        // 联系电话
+        if (!safeEq(company.getContactPhone(), req.getContactPhone())) {
+            diff.append("contactPhone: ").append(company.getContactPhone())
+                    .append(" → ").append(req.getContactPhone()).append("; ");
+            company.setContactPhone(req.getContactPhone());
+        }
+        // 地址
+        if (!safeEq(company.getAddress(), req.getAddress())) {
+            company.setAddress(req.getAddress());
+        }
+        // 备注
+        if (!safeEq(company.getRemark(), req.getRemark())) {
+            company.setRemark(req.getRemark());
+        }
+
+        Company saved = companyRepo.save(company);
+
+        if (diff.length() > "修改公司: ".length()) {
+            auditLogService.record("COMPANY_UPDATE", "COMPANY", String.valueOf(saved.getId()),
+                    diff.toString());
+        }
+        return saved;
+    }
+
+    private static boolean safeEq(String a, String b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return a.equals(b);
     }
 
     /**

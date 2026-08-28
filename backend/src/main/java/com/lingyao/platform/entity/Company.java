@@ -80,5 +80,13 @@ public class Company {
 
     public enum DeploymentMode { SAAS, PRIVATE }
     public enum LicensePlan { TRIAL, STANDARD, ENTERPRISE }
-    public enum CompanyStatus { ACTIVE, SUSPENDED, DELETED }
+    /**
+     * V2.0.10 状态枚举升级（3 种 → 5 种）：
+     * - PENDING  : 开通中（刚创建，部署未完成）
+     * - ACTIVE   : 已开通（正常使用）
+     * - EXPIRED  : 已过期（许可证到期，scheduler 自动转）
+     * - SUSPENDED: 已暂停（大超管手动）
+     * - DELETED  : 已删除（软删除）
+     */
+    public enum CompanyStatus { PENDING, ACTIVE, EXPIRED, SUSPENDED, DELETED }
 }

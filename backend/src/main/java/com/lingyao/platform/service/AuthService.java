@@ -61,6 +61,15 @@ public class AuthService {
                 .toList();
         Long currentCompanyId = memberships.isEmpty() ? null : memberships.get(0).getCompanyId();
 
+        // V2.0.10：公司状态 EXPIRED 拦截（非平台超管）
+        if (!Boolean.TRUE.equals(user.getIsPlatformAdmin()) && currentCompanyId != null) {
+            Company company = companyRepo.findById(currentCompanyId).orElse(null);
+            if (company != null && company.getStatus() == Company.CompanyStatus.EXPIRED) {
+                throw new IllegalArgumentException(
+                        "公司「" + company.getName() + "」许可证已过期，登录被拦截。请联系大超管续期或恢复状态。");
+            }
+        }
+
         // Phase 2 准备：从 Company 和 CompanyUser 加载 displayName/companyName（用于标准化断言）
         String companyCode = null;
         String companyName = null;
