@@ -260,6 +260,48 @@ echo "LINGYAO_RELEASE_WEBHOOK_ENABLED=true" >> /opt/lingyao/.env.private
 
 ---
 
+## 2026-08-28 · V2.0.9 (独立平台超管登录页 `/superadmin.html`)
+
+### Commit `TBD` · V2.0.9 大超管独立登录入口
+
+**触发**：主人 2026-08-28 13:23 「开始 Step 1」（大超管 4 步方案 · Step 1）
+
+**满足铁律**：
+- **V1** Z 段 bump：2.0.8 → 2.0.9
+- **V2** FE/BE 同步：application.yml app.version + superadmin.html 底部版本号 + CHANGELOG
+- **V4** CHANGELOG 必记（本条目）
+- **V5** /api/version + /api/_diag/version 端点已就绪
+
+**核心改动**：
+- 新增 `backend/src/main/resources/static/superadmin.html` —— 平台超管专属登录入口（极简设计）
+- 复用现有 `/api/auth/login` API（不新建后端）
+- 前端 role 校验：登录成功后判断 `user.platformAdmin`，非平台超管拦截并提示走 `/portal.html`
+- 已登录平台超管访问 `/superadmin.html` 直接跳 `/admin.html`（不重复登录）
+- `application.yml`：`app.version: 2.0.8 → 2.0.9`
+
+**URL 入口规划**：
+
+| 入口 | 谁用 | 登录后落点 |
+|---|---|---|
+| `/portal.html` | 操作员 / 公司超管 / 客户 | 4 个产品分入口（按权限显示）|
+| `/superadmin.html`（新）| **仅**平台超管 | 直接进 `/admin.html` |
+| `/admin.html` | 平台超管 + 公司超管（按 role 切菜单）| 后台管理界面 |
+
+**验收步骤**：
+1. 浏览器访问 `http://<host>/superadmin.html` → 看到「凌瑶智数 · 平台超管登录」极简页
+2. 输入平台超管账号 → 登录成功 → 跳 `/admin.html`
+3. 输入公司超管账号 → 提示「该账号不是平台超管，请通过 /portal.html 登录」并拦截
+4. 输入错误密码 → 提示「用户名或密码错误」
+5. `/portal.html` 访问不受影响（公司超管仍正常登录看产品）
+
+**配套 backlog（不在 V2.0.9 范围）**：
+- Step 2：报名管理 Tab + KPI「待审报名」（V2.0.10）
+- Step 3：admin.html role-based 菜单 + portal.html「⚙ 我的公司」按钮（V2.0.11）
+- Step 4：运维按钮下沉（V2.0.12）
+- V2.1.0：防机器人 V1（账号 + IP 双锁）
+
+---
+
 ## 2026-08-28 · V2.0.8 (产品改名 + 研发中置灰)
 
 ### Commit `TBD` · V2.0.8 产品品牌升级

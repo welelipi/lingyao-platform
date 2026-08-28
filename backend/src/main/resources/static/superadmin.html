@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>凌瑶智数 · 平台超管登录</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* ════════════════════════════════════════════════════════════════
+       凌瑶智数 · 平台超管登录页（独立 HTML，仅 platform_admin 可登录）
+       V2.0.9 · 极简设计：单卡居中、暗色玻璃态、与 portal.html 风格一致
+       ════════════════════════════════════════════════════════════════ */
+
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+                   'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: radial-gradient(ellipse at top left, #102a52 0%, #0a1f3d 40%, #050d1a 100%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(circle at 30% 30%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 70%, rgba(123, 97, 255, 0.08) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .login-card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 420px;
+      background: var(--glass);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 36px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    .login-card .logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .login-card .logo-mark {
+      display: inline-block;
+      width: 56px;
+      height: 56px;
+      background: var(--gradient-primary);
+      border-radius: 14px;
+      line-height: 56px;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--primary-deep);
+      margin-bottom: 16px;
+    }
+
+    .login-card h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .login-card .subtitle {
+      margin-top: 8px;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      color: var(--text);
+      font-size: 13px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--glass-light);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-bright);
+      font-size: 14px;
+      transition: var(--transition);
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--gradient-primary);
+      border: none;
+      border-radius: var(--radius);
+      color: var(--primary-deep);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      margin-top: 12px;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .login-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .error-msg {
+      color: #ff6b6b;
+      font-size: 13px;
+      text-align: center;
+      margin-top: 16px;
+      min-height: 18px;
+    }
+
+    .error-msg.success {
+      color: #4ADE80;
+    }
+
+    .notice {
+      margin-top: 24px;
+      padding: 12px 16px;
+      background: rgba(0, 212, 255, 0.06);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .notice strong {
+      color: var(--text);
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    .footer .version {
+      color: var(--accent);
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 16px;
+      color: var(--text-dim);
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo">
+      <div class="logo-mark">凌</div>
+      <h1>平台超管登录</h1>
+      <div class="subtitle">凌瑶智数 · LingYao Platform</div>
+    </div>
+
+    <form id="loginForm" autocomplete="off">
+      <div class="form-group">
+        <label for="username">用户名</label>
+        <input type="text" id="username" name="username" required autocomplete="username"
+               placeholder="请输入超管账号">
+      </div>
+
+      <div class="form-group">
+        <label for="password">密码</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password"
+               placeholder="请输入密码">
+      </div>
+
+      <button type="submit" class="login-btn" id="loginBtn">登录</button>
+
+      <div class="error-msg" id="errorMsg"></div>
+    </form>
+
+    <div class="notice">
+      <strong>提示</strong>：本入口仅限<strong>平台超管</strong>（platform_admin）登录。<br>
+      客户 / 公司超管 / 操作员请走 <a href="/portal.html" style="color:var(--accent);">/portal.html</a>。
+    </div>
+
+    <a href="/portal.html" class="back-link">← 返回产品门户</a>
+
+    <div class="footer">
+      <span class="version">V2.0.9</span> · 平台超管后台
+    </div>
+  </div>
+
+  <script>
+    // ════════════════════════════════════════════════════════════════
+    // superadmin.html · V2.0.9
+    // 极简登录页逻辑：复用 /api/auth/login + role 校验
+    // ════════════════════════════════════════════════════════════════
+
+    // ── API 基础地址（智能判断：localhost 直连 9091，生产走同源）────────
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://127.0.0.1:9091' : '';
+
+    // ── token 存储 key（与 portal.html / admin.html 保持一致）────────
+    const TOKEN_KEY = 'lingyao_token';
+    const USER_KEY  = 'lingyao_user';
+
+    function setToken(t) { localStorage.setItem(TOKEN_KEY, t || ''); }
+    function getToken()  { return localStorage.getItem(TOKEN_KEY) || ''; }
+    function setUser(u)  { localStorage.setItem(USER_KEY, JSON.stringify(u || {})); }
+    function clearAuth() {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    }
+
+    // ── 已登录检查：如果之前是大超管登录过，直接进后台 ─────────
+    (function checkAlreadyLoggedIn() {
+      const token = getToken();
+      const userJson = localStorage.getItem(USER_KEY);
+      if (!token || !userJson) return;
+      try {
+        const user = JSON.parse(userJson);
+        if (user && user.isPlatformAdmin) {
+          // 已经是平台超管登录态，直接跳 admin.html
+          location.href = '/admin.html';
+        }
+      } catch (_) {
+        clearAuth();
+      }
+    })();
+
+    // ── 登录表单提交 ──────────────────────────────────────────────
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const errEl = document.getElementById('errorMsg');
+      errEl.textContent = '';
+      errEl.classList.remove('success');
+      btn.disabled = true;
+      btn.textContent = '登录中...';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+
+        if (!res.ok) {
+          let msg = '登录失败';
+          try {
+            const d = await res.json();
+            msg = d.message || d.detail || msg;
+          } catch (_) {}
+          errEl.textContent = msg;
+          btn.disabled = false;
+          btn.textContent = '登录';
+          return;
+        }
+
+        const data = await res.json();
+        const payload = data.data || {};
+        const token = payload.token;
+        const u = payload.user || {};
+
+        // ── 角色校验：必须是 platform_admin ─────────────────────
+        if (!u.platformAdmin) {
+          clearAuth();
+          errEl.textContent = '该账号不是平台超管，请通过 /portal.html 登录';
+          btn.disabled = false;
+          btn.textContent = '登录';
+          return;
+        }
+
+        // ── 校验通过，存 token + user，跳 admin.html ─────────────
+        setToken(token);
+        const user = {
+          id: u.id,
+          username: u.username,
+          displayName: u.displayName || u.username,
+          real_name: u.displayName || u.username,
+          role: 'super_admin',
+          isPlatformAdmin: true,
+          company_id: payload.company?.id || null,
+          company_name: payload.company?.name || '',
+        };
+        setUser(user);
+
+        errEl.textContent = '登录成功，正在跳转...';
+        errEl.classList.add('success');
+        setTimeout(() => {
+          location.href = '/admin.html';
+        }, 300);
+      } catch (err) {
+        errEl.textContent = '网络错误：' + err.message;
+        btn.disabled = false;
+        btn.textContent = '登录';
+      }
+    });
+
+    // ── 回车键直接提交 ──────────────────────────────────────────────
+    document.getElementById('password').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+    });
+  </script>
+</body>
+</html>

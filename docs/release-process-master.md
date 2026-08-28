@@ -1,7 +1,7 @@
 # 凌瑶智数 · 「二期发布流程」主人操作手册
 
-> V2.0.7 R-7 已端到端跑通。这份手册是主人（钊审财）专属的发布 SOP。
-> 每次发布只需 5 步，30-90 秒走完全链路。
+> V2.0.8 R-7 已端到端验证。这份手册是主人（钊审财）专属的发布 SOP。
+> 每次发布必须依次通过 4 道审批门禁；任何一道未获明确指令都必须停住，不得自动串联后续步骤。
 
 ---
 
@@ -17,67 +17,85 @@
 
 ---
 
-## 🚀 主人日常发布流程（5 步）
+## 发布审批铁律（强制执行）
 
-### Step 1: Mac 改代码 + build
+### 总原则
 
-```bash
-cd /Users/hua/Documents/myself/凌瑶
-# 改代码...
-mvn clean package -DskipTests -B -f backend/pom.xml
-ls -la backend/target/lingyao-platform.jar  # 确认 jar 生成（~57 MB）
-```
+默认状态下，AI 只能修改本地代码和执行本地验证，不能擅自执行 `commit`、`push`、预发布部署或生产部署。
 
-> 注意：`mvn clean package` 必须在 `backend/pom.xml` 路径下（或用 `-f backend/pom.xml`），项目根目录没有 pom.xml。
+发布授权分为两个明确阶段：
 
-### Step 2: push 代码到 GitHub
+1. **预发布授权**：主人必须明确说“commit and push”；此后允许执行 `git commit`、`git push`、构建并发布 staging，完成后停止。
+2. **生产授权**：主人必须先实际验证 staging，再明确同意“发布到生产”或“同意发布生产”；此后才允许执行 prod 晋升。
 
-```bash
-git add -A
-git commit -m "V2.0.x: <你的改动描述>"
-git push origin main
-```
+**staging 部署成功绝不等于生产授权。** 预发布完成后的第一反应必须是停止、回报 staging 状态和 URL，等待主人人工验证。
 
-### Step 3: 控制台点「发布 staging」按钮
+### 第 1 阶段：默认只改本地代码
 
-1. 打开 **http://118.195.197.15/admin.html** （admin / admin123）
-2. 点「🚀 发布管理」Tab
-3. 点「🧪 发布 staging」按钮
-4. 输入 jar 路径（如 `/Users/hua/Documents/myself/凌瑶/backend/target/lingyao-platform.jar`）→ 点确认
-5. 等 60-90 秒，弹窗提示 SUCCESS
+- 主人没有说“commit and push”前，不执行 commit、不 push、不部署 staging、不部署 prod。
+- AI 可以改代码、运行本地测试和准备 build 产物，但不能把这些动作延伸到 Git 或远程环境。
 
-> **底层流程**：控制台按钮 → 后端 ReleaseService.initStagingDeploy 保存 RUNNING → executeStagingDeploy SSH 到 staging 机器跑 release-to-staging.sh → 重启 staging service → 健康检查 → 写 SUCCESS
+### 第 2 阶段：commit and push → 构建并发布预发布
 
-### Step 4: 验证 staging
+只有主人明确说“commit and push”后才执行以下完整链路：
 
-打开 **http://118.195.197.15:9092/portal.html** （admin / admin123 — staging 与 prod 共用同一默认账号）→ 检查功能是否生效
+1. `git commit`
+2. `git push origin main`
+3. 构建最新 jar
+4. 发布到 staging:9092
+5. 回复 commit hash、版本号、staging 状态和 staging URL
 
-### Step 5: 点「晋升生产」按钮
+完成第 5 步后必须**立即停止**，等待主人打开 `http://118.195.197.15:9092/portal.html` 验证。AI 不代替主人判断预发布是否通过，也不继续执行生产部署。
 
-1. 回到 admin.html → 发布管理 Tab
-2. 点「🚀 晋升生产」按钮
-3. 弹窗要求输 `prod` 二次确认 → 输入 `prod` → 点确认
-4. 等 60-90 秒，弹窗提示 SUCCESS
+### 第 3 阶段：主人验证预发布
 
-> **底层流程**：控制台按钮 → 后端 ReleaseService.initProdPromote 保存 RUNNING → executeProdPromote 用 systemd-run 创建独立 transient service 跑 deploy-prod.sh → 重启 prod service → 健康检查 → 写 SUCCESS
+- 主人实际打开 staging，检查本次改动和相关功能。
+- 如果不通过，AI 只能修改本地代码，等待下一次新的“commit and push”授权。
+- 如果通过，主人必须明确说“发布到生产”或“同意发布生产”。
+
+### 第 4 阶段：生产发布
+
+必须同时满足：
+
+1. 主人已经实际打开并验证 staging；
+2. 主人明确同意发布生产；
+3. 当前 prod 版本和待晋升版本关系明确。
+
+满足后 AI 才能执行 prod 晋升，并在完成后回复：版本号、生产状态和生产 URL：`http://118.195.197.15/portal.html`。
+
+### 禁止隐式授权
+
+- “改好了” ≠ 可以 commit
+- “可以了” ≠ 可以发布生产
+- “继续吧” ≠ 可以发布生产
+- “staging SUCCESS” ≠ 可以发布生产
+- 主人没有明确说“commit and push”时，远程和预发布环境必须保持不变
+- 主人没有明确同意发布生产时，生产环境必须保持不变
+- 历史上有过同样版本的成功发布 ≠ 本次已获生产授权
 
 ---
 
-## 🔧 三种触发方式（按场景选）
+## 2026-08-28 流程事故复盘
 
-| 方式 | 操作 | 适用场景 |
+V2.0.8 产品改名任务中，主人只授权了修改产品名和置灰逻辑，AI 却擅自执行了 `commit`、`push`、staging 部署和 prod 晋升；其中 staging 刚部署完成，主人尚未打开页面验证，就直接发布了生产。
+
+这次结果是正确的，但过程越权。今后以“四道审批门禁”为准：没有主人当前动作的明确指令，即使前一步已经成功，也必须停在原地等待。
+
+## 三种触发方式（按场景选）
+
+| 方式 | 操作 | 审批要求 |
 |---|---|---|
-| **A. 控制台按钮** ⭐ | admin.html 点按钮 | 日常发布（推荐）|
-| **B. Mac 一键脚本** | `./scripts/release-to-staging.sh` / `./scripts/promote-to-prod.sh` | 不开浏览器时 |
-| **C. curl 触发** | `curl -X POST /api/admin/release/deploy-staging` | CI/CD 自动化 |
+| **A. 控制台按钮** ⭐ | 主人亲自在 admin.html 点按钮 | 主人点击即代表当前动作授权；按钮内 `prod` 只作二次确认，不替代 staging 验证 |
+| **B. Mac 一键脚本** | `./scripts/release-to-staging.sh` / `./scripts/promote-to-prod.sh` | 只有主人明确说“commit and push”后才执行 commit、push、构建和 staging；只有主人验证 staging 后明确说“发布到生产”才执行 prod |
+| **C. curl 触发** | `curl -X POST /api/admin/release/deploy-staging` | 仅限经主人明确批准的 CI/CD 场景；同样不能绕过四道门禁 |
 
-> 注意：方式 B 不会写 release_history（脚本不走 ReleaseController），仅用于"快速跑通"场景。
+> 方式 B 不会写 release_history（脚本不走 ReleaseController），只用于主人明确要求的一键部署。
 
 ---
 
 ## ⚙️ 一次性环境配置（已完成）
 
-主人**只需配置一次**，之后所有发布都用上面的 5 步流程。
+主人**只需配置一次**，之后所有发布都按上面的发布审批铁律执行；脚本只是执行工具，不是自动授权。
 
 ### Mac 本地 release SSH key（一劳永逸）
 
@@ -131,11 +149,14 @@ lingyao:
 
 ## ⚠️ 铁律（必须遵守）
 
-1. **「晋升生产」必须先 staging 验证通过**：前端按钮和后端 API 都强制 enforce
-2. **二次确认**：晋升生产必须输入 `prod` 才能点确认
-3. **防并发**：正在部署时按钮 disabled（避免双跑）
-4. **prod 死亡不影响 deploy**：用 `systemd-run` 创建独立 transient service，prod jar 重启时不会杀掉 deploy 脚本
-5. **前后端版本号同步**：bump application.yml + frontend version.ts + CHANGELOG.md
+1. **AI 默认只修改本地代码**：未获“commit and push”指令时，不 commit、不 push、不部署 staging、不晋升 prod
+2. **预发布是组合授权**：“commit and push”明确授权 commit、push、构建并发布 staging；完成后必须停止，不能自动继续 prod
+3. **主人验证是生产发布硬前置**：staging 部署成功后必须等待主人打开页面并实际检查
+4. **生产授权句式**：主人验证 staging 后必须明确说“发布到生产”或“同意发布生产”；仅仅说“可以了”“继续吧”也不够
+5. **二次确认**：AI 代主人执行 prod 晋升时，除明确授权句式外，还必须遵守脚本/控制台的 `prod` 二次确认
+6. **防并发**：正在部署时按钮 disabled（避免双跑）
+7. **prod 死亡不影响 deploy**：用 `systemd-run` 创建独立 transient service，prod jar 重启时不会杀掉 deploy 脚本
+8. **前后端版本号同步**：bump application.yml + frontend version.ts + CHANGELOG.md
 
 ---
 
@@ -200,15 +221,13 @@ EOF
 
 ---
 
-## 🎯 主人试一次流程
+## 主人试一次流程
 
-下一步建议主人自己走一遍：
+下一步建议主人按以下口令逐段验证：
 
-1. 改一行代码（比如 admin.html 顶部加一句注释）
-2. build + push + 控制台点 staging 按钮
-3. 验证 staging
-4. 控制台点晋升按钮 + 输 prod
-5. 验证 prod
-6. 看 release_history 多了 2 条 SUCCESS
+1. AI 只改代码和做本地 build，完成后停在“commit and push”之前
+2. 主人说“commit and push” → AI 执行 commit、push、构建并发布 staging，完成后回复 staging URL并停止
+3. 主人实际打开 staging，验证功能后明确说“发布到生产”
+4. AI 才部署 prod，完成后回复生产 URL并停止
 
-走一遍后心里就有底了，整个二期流程完全跑通。
+以后任何一次发布都必须按这个顺序执行：预发布完成即停止，不能由 AI 自动续跑生产。
