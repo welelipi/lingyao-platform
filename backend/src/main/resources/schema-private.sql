@@ -19,17 +19,29 @@ ALTER TABLE company ADD CONSTRAINT company_status_check
     CHECK (status IN ('PENDING', 'ACTIVE', 'EXPIRED', 'SUSPENDED', 'DELETED'));
 
 -- ── 2) 创建 license_reminder_log 表 ──────────
+-- V2.0.10 修复：字段名 daysBefore → noticeDays（Spring Data JPA 解析方法名歧义）
+-- 老 jar 启动失败时 Hibernate 已经建过 days_before 列，需 RENAME 迁移
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='license_reminder_log' AND column_name='days_before'
+    ) THEN
+        ALTER TABLE license_reminder_log RENAME COLUMN days_before TO notice_days;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS license_reminder_log (
     id              BIGSERIAL PRIMARY KEY,
     company_id      BIGINT NOT NULL REFERENCES company(id) ON DELETE CASCADE,
     reminder_type   VARCHAR(16) NOT NULL,    -- EXPIRING / EXPIRED
-    days_before     INT,                     -- 提前天数（30/15/7/1，EXPIRED 为 NULL）
+    notice_days     INT,                     -- 提前天数（30/15/7/1，EXPIRED 为 NULL）
     sent_to         TEXT,                    -- 接收人列表（邮箱/企微 id 逗号分隔）
     channel         VARCHAR(32),             -- WECHAT_WORK / EMAIL / IN_APP
     sent_at         TIMESTAMP NOT NULL DEFAULT NOW(),
     success         BOOLEAN NOT NULL DEFAULT TRUE,
     error_message   TEXT,
-    created_at        TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_license_reminder_company

@@ -123,7 +123,7 @@ public class LicenseExpirationService {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1).minusSeconds(1);
         List<LicenseReminderLog> existing = reminderLogRepo
-                .findByCompanyIdAndReminderTypeAndDaysBeforeAndSentAtBetween(
+                .findByCompanyIdAndReminderTypeAndNoticeDaysAndSentAtBetween(
                         company.getId(),
                         LicenseReminderLog.ReminderType.EXPIRING,
                         daysBefore,
@@ -195,7 +195,7 @@ public class LicenseExpirationService {
         LicenseReminderLog log = new LicenseReminderLog();
         log.setCompanyId(company.getId());
         log.setReminderType(type);
-        log.setDaysBefore(daysBefore);
+        log.setNoticeDays(daysBefore);
         log.setSentTo(sentTo);
         log.setChannel(channel);
         log.setSentAt(LocalDateTime.now());

@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
  * 字段：
  * - company_id: 公司 ID
  * - reminder_type: EXPIRING（即将到期）/ EXPIRED（已过期）
- * - days_before: 提前天数（30/15/7/1，EXPIRED 时为 NULL）
+ * - notice_days: 提前天数（30/15/7/1，EXPIRED 时为 NULL）
  * - sent_to: 接收人列表（邮箱/企微 id 逗号分隔）
  * - channel: 推送通道（WECHAT_WORK / EMAIL / IN_APP）
  * - sent_at: 发送时间
@@ -46,8 +46,8 @@ public class LicenseReminderLog {
     @Column(name = "reminder_type", length = 16, nullable = false)
     private ReminderType reminderType;
 
-    @Column(name = "days_before")
-    private Integer daysBefore;
+    @Column(name = "notice_days")
+    private Integer noticeDays;
 
     @Column(name = "sent_to", length = 512)
     private String sentTo;
