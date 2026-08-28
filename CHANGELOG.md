@@ -226,3 +226,34 @@ echo "LINGYAO_RELEASE_WEBHOOK_ENABLED=true" >> /opt/lingyao/.env.private
 **附属收益**：
 - 多租户 + 大超管 + 演示租户的需求已经在 AdminController 落了大半（R-4/R-8 部分实现）
 - 前端不需要改版本号（Vite 模式从 `/api/version` 自动拉），保持单一真理源
+
+---
+
+## 2026-08-28 · V2.0.7 (端到端跑通验证)
+
+### Commit `TBD` · V2.0.7 端到端发布流程验证
+
+**触发**：主人 2026-08-28 10:38 「把整个流程再跑通一遍」
+
+**满足铁律**：
+- **V1** Z 段 bump：2.0.6 → 2.0.7
+- **V2** FE/BE 同步：backend `app.version` + admin.html 注释同步
+- **V3** 跨产品主版本不变
+- **V4** CHANGELOG 必记（本条目）
+- **V5** /api/version + /api/_diag/version 端点已就绪
+
+**改动**：
+- `application.yml`：`app.version: 2.0.6 → 2.0.7`
+- `admin.html`：13 处「V2.0.5 R-7」注释 → 「V2.0.7 R-7」（保持注释一致，便于代码考古）
+
+**验证步骤**：
+1. Mac build：`cd backend && mvn clean package -DskipTests`
+2. 控制台触发 staging 部署
+3. `curl http://118.195.197.15:9092/api/_diag/version` 返 `version: 2.0.7`
+4. 控制台触发 prod 晋升（输 `prod`）
+5. SSH 到 CVM：`curl http://127.0.0.1:9091/api/_diag/version` 返 `version: 2.0.7`
+
+**额外修复**：
+- 恢复本地 `~/.ssh/release_staging_key` 文件（之前被清理丢失）
+- 重新生成 keypair + 推 pubkey 到 CVM ubuntu authorized_keys + /root/.ssh/
+- prod 9091 外网访问不通问题：腾讯云安全组疑似只放行 9092，9091 外网走不通；本次通过 SSH 隧道 + 内部 curl 验证 prod 新版本
