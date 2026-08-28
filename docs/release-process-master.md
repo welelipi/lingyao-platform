@@ -1,7 +1,19 @@
 # 凌瑶智数 · 「二期发布流程」主人操作手册
 
-> V2.0.6 R-7 已端到端跑通。这份手册是主人（钊审财）专属的发布 SOP。
+> V2.0.7 R-7 已端到端跑通。这份手册是主人（钊审财）专属的发布 SOP。
 > 每次发布只需 5 步，30-90 秒走完全链路。
+
+---
+
+## 🌐 主人访问入口（铁律）
+
+| 环境 | URL | 端口 | 说明 |
+|---|---|---|---|
+| **Prod** | **http://118.195.197.15/** | **80**（nginx 反代 → 9091） | **主人日常入口** |
+| Prod 直连 | http://118.195.197.15:9091/ | 9091 | ❌ 外网**不可达**（腾讯云安全组未放行 9091），仅内网 SSH curl 用 |
+| **Staging** | http://118.195.197.15:9092/ | 9092 | ✅ 外网直连可达 |
+
+> ⚠️ **历史踩坑**：之前 SOP 写的是 `http://118.195.197.15:9091/portal.html`，主人实际访问时连接超时——是因为 9091 端口没在腾讯云安全组放行给外网，**主人日常访问的 prod 入口一直是 nginx 80**，9091 是内网端口。
 
 ---
 
@@ -12,10 +24,11 @@
 ```bash
 cd /Users/hua/Documents/myself/凌瑶
 # 改代码...
-cd backend && mvn clean package -DskipTests
-cd ..
+mvn clean package -DskipTests -B -f backend/pom.xml
 ls -la backend/target/lingyao-platform.jar  # 确认 jar 生成（~57 MB）
 ```
+
+> 注意：`mvn clean package` 必须在 `backend/pom.xml` 路径下（或用 `-f backend/pom.xml`），项目根目录没有 pom.xml。
 
 ### Step 2: push 代码到 GitHub
 
@@ -66,12 +79,36 @@ git push origin main
 
 主人**只需配置一次**，之后所有发布都用上面的 5 步流程。
 
-### CVM 上 release SSH key（一劳永逸）
+### Mac 本地 release SSH key（一劳永逸）
 
-**已完成**（V2.0.6 在 2026-08-27 配）：
-- 私钥：`/root/.ssh/release_staging_key`（prod jar 用）
-- 私钥：`/home/ubuntu/.ssh/release_staging_key`（ubuntu 用户用）
-- 公钥：已加入 `/home/ubuntu/.ssh/authorized_keys`
+> ⚠️ **2026-08-28 V2.0.7 发现**：Mac 本地 `~/.ssh/release_staging_key` 私钥文件被系统清理丢失，导致 `release-to-staging.sh`/`deploy-staging.sh` 找不到 key 会 fail。**V2.0.7 已重新生成**，下面的命令主人也可手动重跑：
+
+```bash
+# 1. Mac 本地生成 ed25519 keypair
+ssh-keygen -t ed25519 -f ~/.ssh/release_staging_key -N "" -C "release_staging_$(date +%Y%m%d)" <<< ""
+
+# 2. 把 pubkey 推到 CVM（任何能连的 key 都行，这里用默认 id_ed25519）
+scp -i ~/.ssh/id_ed25519 ~/.ssh/release_staging_key.pub ubuntu@118.195.197.15:/tmp/release_staging_key.pub
+ssh -i ~/.ssh/id_ed25519 ubuntu@118.195.197.15 "
+cat /tmp/release_staging_key.pub >> ~/.ssh/authorized_keys &&
+chmod 600 ~/.ssh/authorized_keys &&
+sudo mkdir -p /root/.ssh &&
+sudo cp /home/ubuntu/.ssh/release_staging_key /root/.ssh/release_staging_key &&
+sudo chmod 600 /root/.ssh/release_staging_key"
+
+# 3. 测试新 key 直连（不依赖默认 key）
+ssh -i ~/.ssh/release_staging_key -o BatchMode=yes ubuntu@118.195.197.15 'echo OK'
+
+# 4. ssh-agent 加载（可选，方便脚本不显式 -i）
+ssh-add ~/.ssh/release_staging_key
+```
+
+### CVM 上 release SSH key（已配）
+
+**已完成**（V2.0.6 在 2026-08-27 配，V2.0.7 在 2026-08-28 重新生成 + push）：
+- CVM ubuntu：`/home/ubuntu/.ssh/release_staging_key`（私钥）+ authorized_keys 含对应公钥
+- CVM root：`/root/.ssh/release_staging_key`（私钥，prod jar 是 root 跑）
+- 远程 pubkey comment：`release_staging_20260828`
 
 ### 配置文件覆盖
 
@@ -114,12 +151,14 @@ lingyao:
 
 ---
 
-## 📊 当前已部署版本（2026-08-27 17:43）
+## 📊 当前已部署版本（2026-08-28 10:46）
 
-| 环境 | 版本 | PID | 端口 |
-|---|---|---|---|
-| **Staging** | current (V2.0.6) | - | 9092 |
-| **Prod** | V2.0.6 | 533939 | 9091 |
+| 环境 | 版本 | PID | 端口 | URL |
+|---|---|---|---|---|
+| **Staging** | **V2.0.7** | 770279 | 9092 | http://118.195.197.15:9092/portal.html |
+| **Prod** | **V2.0.7** | 771156 | 9091（外网经 nginx:80）| http://118.195.197.15/portal.html |
+
+**Commit**：`c35e0dc V2.0.7: 端到端发布流程验证 (R-7)` · pushed origin/main
 
 > 备注：`current` 是 jarPath 没传版本号时的默认 fallback，主人传 jarPath 后会显示实际版本号。
 
