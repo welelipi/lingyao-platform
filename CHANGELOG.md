@@ -257,3 +257,40 @@ echo "LINGYAO_RELEASE_WEBHOOK_ENABLED=true" >> /opt/lingyao/.env.private
 - 恢复本地 `~/.ssh/release_staging_key` 文件（之前被清理丢失）
 - 重新生成 keypair + 推 pubkey 到 CVM ubuntu authorized_keys + /root/.ssh/
 - prod 9091 外网访问不通问题：腾讯云安全组疑似只放行 9092，9091 外网走不通；本次通过 SSH 隧道 + 内部 curl 验证 prod 新版本
+
+---
+
+## 2026-08-28 · V2.0.8 (产品改名 + 研发中置灰)
+
+### Commit `TBD` · V2.0.8 产品品牌升级
+
+**触发**：主人 2026-08-28 11:54 「改一下注册了之后目前4个产品的产品名...后两个产品置灰不可进入」
+
+**满足铁律**：
+- **V1** Z 段 bump：2.0.7 → 2.0.8
+- **V2** FE/BE 同步：application.yml app.version + admin.html 注释同步
+- **V4** CHANGELOG 必记（本条目）
+- **V5** /api/version + /api/_diag/version 端点已就绪
+
+**改动**：
+
+| 产品 code | 旧名 | 新名 | 状态 |
+|---|---|---|---|
+| GEO | GEO 智策 | 棱镜-智能GEO监测 | ACTIVE |
+| HPD | 医院潜力预测 | 皓元-智能医院潜力预测 | ACTIVE |
+| AIDD | AIDD 研发反馈 | 源策-科研信息助手（研发中，敬请期待）| COMING_SOON |
+| POR | 药企协作辅助智能体 | 飞轮-AI辅助协作智能体（研发中，敬请期待）| COMING_SOON |
+
+**文件改动**：
+- `SubTask.java`：Status 枚举加 `COMING_SOON` 值
+- `data.sql` + `data-private.sql`：product.name + product.status（AIDD/POR）+ sub_task.status（AIDD/POR）
+- `portal.html`：walkthrough step 1/2/3/4 标题同步新名（步骤 3/4 加「研发中，敬请期待」标记）
+
+**数据库更新**（SSH 一次性跑 psql）：
+- staging/prod PostgreSQL：UPDATE product + UPDATE sub_task（详见 commit message）
+
+**验证步骤**：
+1. staging 部署
+2. 登录 `:9092/portal.html` → 看到 4 个产品卡片：GEO/HPD 可点、AIDD/POR 置灰
+3. prod 部署
+4. 登录 nginx:80 → 同样效果

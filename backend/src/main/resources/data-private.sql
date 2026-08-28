@@ -33,10 +33,10 @@ VALUES (1, 1, 1, 'SUPER_ADMIN', 'ACTIVE', NOW()) ON CONFLICT (id) DO NOTHING;
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO product (id, code, name, description, icon, sort_order, status, created_at, updated_at)
 VALUES
-  (1, 'GEO', 'GEO 智策', 'AI 品牌监测与内容优化，监测 8 大 AI 平台', 'G', 1, 'ACTIVE', NOW(), NOW()),
-  (2, 'HPD', '医院潜力预测', '医院销售潜力模型预测，WMAPE 6.6%', 'H', 2, 'ACTIVE', NOW(), NOW()),
-  (3, 'AIDD', 'AIDD 研发反馈', 'AI 辅助药物研发信息反馈系统', 'A', 3, 'ACTIVE', NOW(), NOW()),
-  (4, 'POR', '药企协作辅助智能体', '让药企内部效率提升 300%', 'P', 4, 'ACTIVE', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
+  (1, 'GEO', '棱镜-智能GEO监测', 'AI 品牌监测与内容优化，监测 8 大 AI 平台', 'G', 1, 'ACTIVE', NOW(), NOW()),
+  (2, 'HPD', '皓元-智能医院潜力预测', '医院销售潜力模型预测，WMAPE 6.6%', 'H', 2, 'ACTIVE', NOW(), NOW()),
+  (3, 'AIDD', '源策-科研信息助手（研发中，敬请期待）', 'AI 辅助药物研发信息反馈系统', 'A', 3, 'COMING_SOON', NOW(), NOW()),
+  (4, 'POR', '飞轮-AI辅助协作智能体（研发中，敬请期待）', '让药企内部效率提升 300%', 'P', 4, 'COMING_SOON', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
 -- 私有化客户获得全部 4 个产品的默认授权
@@ -92,8 +92,8 @@ INSERT INTO sub_task (id, product_id, task_name, task_code, entry_path, api_pref
 VALUES
   (1, 1, 'GEO 监测子任务', 'geo-monitor', '/subtask/geo', '/api/sub/geo', 'REGISTERED', 'GEO 品牌监测核心引擎（私有化待激活）', NULL, NULL, NOW(), NOW()),
   (2, 2, '医院潜力预测子任务', 'hpd-predictor', '/subtask/hpd', '/api/sub/hpd', 'REGISTERED', '医院销售潜力预测模型（私有化待激活）', NULL, NULL, NOW(), NOW()),
-  (3, 3, 'AIDD 研发子任务', 'aidd-engine', '/subtask/aidd', '/api/sub/aidd', 'REGISTERED', 'AI 辅助药物研发引擎（私有化待激活）', NULL, NULL, NOW(), NOW()),
-  (4, 4, '协作智能体子任务', 'por-agent', '/subtask/por', '/api/sub/por', 'REGISTERED', '药企协作智能体引擎（私有化待激活）', NULL, NULL, NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
+  (3, 3, 'AIDD 研发子任务', 'aidd-engine', '/subtask/aidd', '/api/sub/aidd', 'COMING_SOON', 'AI 辅助药物研发引擎（私有化待激活）', NULL, NULL, NOW(), NOW()),
+  (4, 4, '协作智能体子任务', 'por-agent', '/subtask/por', '/api/sub/por', 'COMING_SOON', '药企协作智能体引擎（私有化待激活）', NULL, NULL, NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
 -- 默认推送通道（同 SAAS 配置，客户需替换 webhook URL）

@@ -82,5 +82,5 @@ public class SubTask {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public enum Status { REGISTERED, ACTIVE, MAINTENANCE, OFFLINE }
+    public enum Status { REGISTERED, ACTIVE, MAINTENANCE, OFFLINE, COMING_SOON }
 }
