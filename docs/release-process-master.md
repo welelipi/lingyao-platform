@@ -50,7 +50,7 @@ git push origin main
 
 ### Step 4: 验证 staging
 
-打开 **http://118.195.197.15:9092/portal.html** （admin / Staging_Admin_2026_Pg!）→ 检查功能是否生效
+打开 **http://118.195.197.15:9092/portal.html** （admin / admin123 — staging 与 prod 共用同一默认账号）→ 检查功能是否生效
 
 ### Step 5: 点「晋升生产」按钮
 
@@ -151,14 +151,14 @@ lingyao:
 
 ---
 
-## 📊 当前已部署版本（2026-08-28 10:46）
+## 📊 当前已部署版本（2026-08-28 12:06）
 
 | 环境 | 版本 | PID | 端口 | URL |
 |---|---|---|---|---|
-| **Staging** | **V2.0.7** | 770279 | 9092 | http://118.195.197.15:9092/portal.html |
-| **Prod** | **V2.0.7** | 771156 | 9091（外网经 nginx:80）| http://118.195.197.15/portal.html |
+| **Staging** | **V2.0.8** | 792498 | 9092 | http://118.195.197.15:9092/portal.html |
+| **Prod** | **V2.0.8** | 794142 | 9091（外网经 nginx:80）| http://118.195.197.15/portal.html |
 
-**Commit**：`c35e0dc V2.0.7: 端到端发布流程验证 (R-7)` · pushed origin/main
+**Commit**：`1b1dcb5 V2.0.8: 产品品牌升级（4 产品改名 + 后两个置灰研发中）` · pushed origin/main
 
 > 备注：`current` 是 jarPath 没传版本号时的默认 fallback，主人传 jarPath 后会显示实际版本号。
 
@@ -172,6 +172,31 @@ lingyao:
 3. `CHANGELOG.md` 加一条
 
 **主人可在控制台看**：admin.html 顶部版本号（待优化，目前从后端 /api/_diag/version 拉）
+
+---
+
+## 🗄️ 数据库 schema 同步铁律（V2.0.8 主人踩坑）
+
+当后端 `Enum` 字段加新值时（如 `SubTask.Status` 加 `COMING_SOON`），Hibernate `ddl-auto=update` 不会自动更新 PostgreSQL 的 `CHECK` 约束，会导致应用层写入时崩溃。
+
+**必须 SSH 跑 ALTER TABLE**：
+
+```bash
+# 1. ssh 到 CVM（从 staging 或 prod 看具体数据库名）
+ssh ubuntu@118.195.197.15
+
+# 2. 找到约束名（一般是 <table>_<column>_check）
+PGPASSWORD='Lingyao_Prod_2026_Pg!' psql -h 127.0.0.1 -U lingyao_app -d lingyao_staging -c "\d sub_task" | grep check
+
+# 3. DROP + ADD 新约束
+PGPASSWORD='Lingyao_Prod_2026_Pg!' psql -h 127.0.0.1 -U lingyao_app -d lingyao_staging <<EOF
+ALTER TABLE sub_task DROP CONSTRAINT IF EXISTS sub_task_status_check;
+ALTER TABLE sub_task ADD CONSTRAINT sub_task_status_check
+    CHECK ( status IN ('REGISTERED', 'ACTIVE', 'MAINTENANCE', 'OFFLINE', 'COMING_SOON') );
+EOF
+```
+
+> 此 SOP 必读：凡后端 Enum 加值，主人或 AI 必先 SSH 改 schema，再部署新 jar。
 
 ---
 
