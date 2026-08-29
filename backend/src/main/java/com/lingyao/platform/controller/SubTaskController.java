@@ -1,9 +1,11 @@
 package com.lingyao.platform.controller;
 
+import com.lingyao.platform.config.LingyaoSubTaskProperties;
 import com.lingyao.platform.dto.ApiResponse;
 import com.lingyao.platform.entity.Product;
 import com.lingyao.platform.entity.SubTask;
 import com.lingyao.platform.repository.ProductRepository;
+import com.lingyao.platform.repository.ProductUserGrantRepository;
 import com.lingyao.platform.repository.SubTaskRepository;
 import com.lingyao.platform.security.CurrentUser;
 import com.lingyao.platform.service.AuditLogService;
@@ -29,7 +31,9 @@ public class SubTaskController {
 
     @Autowired private ProductRepository productRepo;
     @Autowired private SubTaskRepository subTaskRepo;
+    @Autowired private ProductUserGrantRepository productUserGrantRepo;
     @Autowired private AuditLogService auditLogService;
+    @Autowired private LingyaoSubTaskProperties subTaskProperties;   // V2.0.11 D-1：路由配置外移
 
     /**
      * 子任务元信息 + 健康状态
@@ -41,6 +45,18 @@ public class SubTaskController {
         SubTask task = subTaskRepo.findByProductId(product.getId())
                 .orElseThrow(() -> new IllegalArgumentException("产品 " + code + " 尚未注册子任务"));
 
+        // === V2.0.11 D-1：优先读 lingyao.subtask.routes.<code> 配置，fallback 用 sub_task 表 ===
+        LingyaoSubTaskProperties.Route route = subTaskProperties.getRoute(code);
+        String resolvedBaseUrl = (route != null && route.getBaseUrl() != null && !route.getBaseUrl().isEmpty())
+                ? route.getBaseUrl()
+                : task.getBaseUrl();
+        String resolvedHealthUrl = (route != null && route.getHealthUrl() != null && !route.getHealthUrl().isEmpty())
+                ? route.getHealthUrl()
+                : task.getHealthUrl();
+        String resolvedEntryPath = (route != null && route.getEntryPath() != null && !route.getEntryPath().isEmpty())
+                ? route.getEntryPath()
+                : task.getEntryPath();
+
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("productCode", product.getCode());
         data.put("productName", product.getName());
@@ -48,12 +64,13 @@ public class SubTaskController {
         data.put("taskCode", task.getTaskCode());
         data.put("taskName", task.getTaskName());
         data.put("taskStatus", task.getStatus());
-        data.put("entryPath", task.getEntryPath());
+        data.put("entryPath", resolvedEntryPath);
         data.put("apiPrefix", task.getApiPrefix());
-        data.put("healthUrl", task.getHealthUrl());
-        data.put("baseUrl", task.getBaseUrl());
+        data.put("healthUrl", resolvedHealthUrl);
+        data.put("baseUrl", resolvedBaseUrl);
         data.put("ready", task.getStatus() == SubTask.Status.ACTIVE
-                        && task.getBaseUrl() != null && !task.getBaseUrl().isEmpty());
+                        && resolvedBaseUrl != null && !resolvedBaseUrl.isEmpty());
+        data.put("source", route != null && route.getBaseUrl() != null ? "config" : "sub_task_table");   // 调试用：标记 baseUrl 来源
 
         // 透视当前用户是否有权访问
         CurrentUser cu = CurrentUser.get();
@@ -151,6 +168,27 @@ public class SubTaskController {
 
         CurrentUser cu = CurrentUser.get();
 
+        // === 权限校验（SSO 直登铁律：主网站鉴权后，没权限 → 直接告知用户，不跳转子网站）===
+        if (cu == null) {
+            return ApiResponse.fail(401, "请先登录主网站");
+        }
+        boolean authorized = cu.isPlatformAdmin();  // 平台超管：所有产品直通
+        if (!authorized && cu.getCompanyId() != null && cu.getUserId() != null) {
+            authorized = productUserGrantRepo.existsByCompanyIdAndProductIdAndUserIdAndStatus(
+                    cu.getCompanyId(), product.getId(), cu.getUserId(),
+                    com.lingyao.platform.entity.ProductUserGrant.Status.ACTIVE);
+        }
+        if (!authorized) {
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("authorized", false);
+            err.put("productCode", product.getCode());
+            err.put("productName", product.getName());
+            err.put("reason", "NO_ACCESS");
+            return ApiResponse.fail(403,
+                    "您没有「" + product.getName() + "」的访问权限，请联系管理员开通后重试",
+                    err);
+        }
+
         // 审计：记录子任务进入
         auditLogService.record("SUBTASK_ENTER", "SUBTASK",
                 String.valueOf(task.getId()),
@@ -170,7 +208,13 @@ public class SubTaskController {
         if (task.getBaseUrl() != null && !task.getBaseUrl().isEmpty()) {
             // 子任务已部署：返回带标准化参数的跳转 URL
             String token = extractBearerToken(request);
-            String url = task.getBaseUrl();
+
+            // === V2.0.11 D-1：优先读 lingyao.subtask.routes.<code>.base-url 配置（环境变量可注入）===
+            // Fallback 才用 sub_task.base_url（向后兼容 dev 环境快速回滚）
+            LingyaoSubTaskProperties.Route route = subTaskProperties.getRoute(code);
+            String url = (route != null && route.getBaseUrl() != null && !route.getBaseUrl().isEmpty())
+                    ? route.getBaseUrl()
+                    : task.getBaseUrl();
 
             // === Phase 2 解耦：标准 5 参数（子产品只读这 5 个）===
             StringBuilder params = new StringBuilder();
@@ -185,12 +229,17 @@ public class SubTaskController {
             }
 
             // 同时保留 platform_token（向后兼容 1 周，过渡期内子产品可以验签老 JWT 或读新 claims）
+            // V2.0.14 PRD-1.4 (选项 C · URL fragment)：token 不再进 URL Query，避免泄漏到 history/Referer/access log
+            //   - 子产品前端 sso-callback 页面改为读 window.location.hash 中的 platform_token
+            //   - 后续 batch 升级为选项 A (server-side proxy) 时彻底消除 token 进浏览器
+            StringBuilder allParams = new StringBuilder(params);
             if (token != null && !token.isEmpty()) {
-                params.append("&platform_token=").append(java.net.URLEncoder.encode(token, java.nio.charset.StandardCharsets.UTF_8));
+                allParams.append("#platform_token=").append(java.net.URLEncoder.encode(token, java.nio.charset.StandardCharsets.UTF_8));
             }
 
-            data.put("redirectUrl", url + params.toString());
+            data.put("redirectUrl", url + allParams.toString());
             data.put("mode", "DIRECT_REDIRECT");
+            data.put("tokenInFragment", true);   // 标记 token 在 URL fragment，子产品前端读 hash
             data.put("identityAssertion", buildIdentityAssertion(cu, product.getCode())); // Phase 2 新增
             return ApiResponse.ok(data);
         }
