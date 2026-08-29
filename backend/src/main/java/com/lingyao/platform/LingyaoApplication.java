@@ -10,10 +10,13 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import jakarta.annotation.PostConstruct;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -24,6 +27,10 @@ import java.util.List;
  *    （登录流程由自定义 LoginController 接管，不走 Spring Security 默认 UserDetailsService，
  *     避免启动日志 "Using generated security password: ..." 噪声）
  * 2. pushHealthCheck 降级 ERROR → WARN + 加 INACTIVE 默认通道说明（避免吓到运维）
+ *
+ * V2.0.14 关键修复（C47 W5 P1-SSO · PRD-1.2）：
+ * 3. fail-fast 校验 LINGYAO_JWT_SECRET — 非 dev profile 缺 secret 或默认值必须报错退出
+ *    防止 6 仓 fallback 默认值硬编码导致 SSO 验签错位（dev profile 允许 fallback + WARN）
  */
 @SpringBootApplication(exclude = { UserDetailsServiceAutoConfiguration.class })
 @EnableJpaAuditing
@@ -34,9 +41,32 @@ public class LingyaoApplication {
     private static final Logger log = LoggerFactory.getLogger(LingyaoApplication.class);
 
     @Autowired private NotificationChannelRepository channelRepo;
+    @Autowired private Environment env;
 
     public static void main(String[] args) {
         SpringApplication.run(LingyaoApplication.class, args);
+    }
+
+    /**
+     * V2.0.14 PRD-1.2：fail-fast 校验 LINGYAO_JWT_SECRET
+     * - dev profile：secret 为空/默认值仅 WARN（保持 dev 友好）
+     * - 非 dev profile（private/staging/prod）：secret 空或默认值必须抛 IllegalStateException 退出
+     */
+    @PostConstruct
+    public void validateJwtSecret() {
+        String secret = System.getenv("LINGYAO_JWT_SECRET");
+        String[] profiles = env.getActiveProfiles();
+        boolean isDev = Arrays.asList(profiles).contains("dev");
+
+        if (secret == null || secret.isBlank() || secret.startsWith("lingyao-platform-default")) {
+            if (!isDev) {
+                throw new IllegalStateException(
+                    "LINGYAO_JWT_SECRET 未配置或仍为默认值（activeProfiles=" + Arrays.toString(profiles) + "）。"
+                  + "生产 / staging / private profile 必须通过部署平台显式注入 ≥32 字节非默认密钥。"
+                );
+            }
+            log.warn("[DEV ONLY] LINGYAO_JWT_SECRET 使用 fallback 默认值，生产 profile 必须显式注入");
+        }
     }
 
     /**

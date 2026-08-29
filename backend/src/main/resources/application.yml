@@ -37,17 +37,17 @@ spring:
 
 # ---------- 业务配置（所有 profile 共享）----------
 app:
-  version: 2.0.10
+  version: 2.0.14
   release: ${APP_RELEASE:stable}
   build-time: ${APP_BUILD_TIME:}
   git-commit: ${APP_GIT_COMMIT:dev}
   jwt:
-    secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
+    secret: ${LINGYAO_JWT_SECRET:}
     expiration-seconds: 86400
 
 lingyao:
   jwt:
-    secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
+    secret: ${LINGYAO_JWT_SECRET:}
     expiration-hours: 24
     issuer: lingyao-platform
 
@@ -67,11 +67,38 @@ lingyao:
     webhook-url: ${LINGYAO_RELEASE_WEBHOOK_URL:}
     webhook-enabled: ${LINGYAO_RELEASE_WEBHOOK_ENABLED:false}
 
+  # V2.0.11 D-1：子任务路由（取代 data.sql 硬编码 base_url）
+  # 环境变量覆盖：LINGYAO_SUBTASK_<PRODUCT>_BASE_URL / HEALTH_URL / ENTRY_PATH
+  subtask:
+    routes:
+      geo:
+        base-url: ${LINGYAO_SUBTASK_GEO_BASE_URL:http://localhost:5180/#/auth/lingyao/sso-callback}
+        health-url: ${LINGYAO_SUBTASK_GEO_HEALTH_URL:http://127.0.0.1:8090/api/health}
+        entry-path: ${LINGYAO_SUBTASK_GEO_ENTRY_PATH:/subtask/geo}
+      hpd:
+        base-url: ${LINGYAO_SUBTASK_HPD_BASE_URL:http://localhost:3100}
+        health-url: ${LINGYAO_SUBTASK_HPD_HEALTH_URL:http://localhost:8100/api/health}
+        entry-path: ${LINGYAO_SUBTASK_HPD_ENTRY_PATH:/subtask/hpd}
+      aidd:
+        base-url: ${LINGYAO_SUBTASK_AIDD_BASE_URL:http://localhost:13000/sso-callback.html}
+        health-url: ${LINGYAO_SUBTASK_AIDD_HEALTH_URL:http://localhost:18080/api/_diag/version}
+        entry-path: ${LINGYAO_SUBTASK_AIDD_ENTRY_PATH:/subtask/aidd}
+      dinfo:
+        base-url: ${LINGYAO_SUBTASK_DINFO_BASE_URL:http://localhost:5181/auth/lingyao/callback}
+        health-url: ${LINGYAO_SUBTASK_DINFO_HEALTH_URL:http://localhost:8281/api/_diag/version}
+        entry-path: ${LINGYAO_SUBTASK_DINFO_ENTRY_PATH:/subtask/dinfo}
+      porm:
+        base-url: ${LINGYAO_SUBTASK_PORM_BASE_URL:http://localhost:3190}
+        health-url: ${LINGYAO_SUBTASK_PORM_HEALTH_URL:http://localhost:8280/api/_diag/version}
+        entry-path: ${LINGYAO_SUBTASK_PORM_ENTRY_PATH:/subtask/porm}
+
 sso:
   protocol-version: "1.0"
   jwt:
-    secret: ${LINGYAO_JWT_SECRET:lingyao-platform-default-secret-key-change-in-production-must-be-at-least-256-bits-long}
+    secret: ${LINGYAO_JWT_SECRET:}
     token-ttl-seconds: 7200
+
+# ---------- Dev 配置（H2 + H2 Console + DDL）----------
 
 # ---------- Dev 配置（H2 + H2 Console + DDL）----------
 ---
