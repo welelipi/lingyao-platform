@@ -21,6 +21,8 @@ backend/mvnw.cmd
 !backend/src/main/resources/**/*.jar
 hs_err_pid*
 replay_pid*
+*.pid
+backend/dev-backend.pid
 
 # ===== Logs =====
 logs/
@@ -101,3 +103,11 @@ OEG/geo.db-*
 
 # ===== Python 后端实验性项目（待清理）=====
 portal-backend-py/
+
+# ===== GEOM 组件（2026-08-29 从 code/geo-platform 复制）=====
+# 独立 git 仓副本（保留 .git 以便 subtree add 拉历史）
+# 严禁 rm -rf 凌瑶/geom/ —— 详见 MEMORY.md「GEOM geom/ 永不删」铁律
+geom/
+
+# ===== chenlu-myself 旧独立仓副本（待主人确认是否清理）=====
+chenlu-myself/

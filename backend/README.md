@@ -16,7 +16,7 @@
 
 | 层 | 技术 | 版本 | 说明 |
 |---|---|---|---|
-| 主框架 | Java + Spring Boot | Java 21 + Spring Boot 3.3.5 | 与 GS-CoLab 决策一致 |
+| 主框架 | Java + Spring Boot | Java 21 + Spring Boot 3.3.5 | 与 明枢 决策一致 |
 | 数据访问 | Spring Data JPA + Hibernate | 6.5.3 | |
 | 数据库（开发） | H2 内存 | 2.x | 重启即清空 |
 | 数据库（生产） | PostgreSQL | 16+ | schema 隔离 |

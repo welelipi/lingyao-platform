@@ -38,6 +38,10 @@ public class ApiResponse<T> {
         return new ApiResponse<>(code, message, null, System.currentTimeMillis());
     }
 
+    public static <T> ApiResponse<T> fail(int code, String message, T data) {
+        return new ApiResponse<>(code, message, data, System.currentTimeMillis());
+    }
+
     public boolean isSuccess() {
         return code == 0;
     }

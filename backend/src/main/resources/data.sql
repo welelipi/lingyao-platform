@@ -53,32 +53,38 @@ INSERT INTO product (id, code, name, description, icon, sort_order, status, crea
 VALUES
   (1, 'GEO', '棱镜-智能GEO监测', 'AI 品牌监测与内容优化，监测 8 大 AI 平台', 'G', 1, 'ACTIVE', NOW(), NOW()),
   (2, 'HPD', '皓元-智能医院潜力预测', '医院销售潜力模型预测，WMAPE 6.6%', 'H', 2, 'ACTIVE', NOW(), NOW()),
-  (3, 'AIDD', '源策-科研信息助手（研发中，敬请期待）', 'AI 辅助药物研发信息反馈系统', 'A', 3, 'COMING_SOON', NOW(), NOW()),
-  (4, 'POR', '飞轮-AI辅助协作智能体（研发中，敬请期待）', '让药企内部效率提升 300%', 'P', 4, 'COMING_SOON', NOW(), NOW());
+  (3, 'AIDD', '源策-AI 立项 Copilot', 'AI 辅助药物研发立项 Copilot（双种子方向：肿瘤 + 自免），含 CDE 中国监管数据 + 商业测算（PDB/米内）双增强', 'A', 3, 'ACTIVE', NOW(), NOW()),
+  (4, 'DINFO', '辰录 · 智能信息填报系统', 'Dinfo 基于 GH-Department info V1.5.23 继承的 9 实体 + 9 Controller + 10 前端页面 + 飞书 OAuth + JWT 鉴权 + Excel 重载，新增 LLM 智能填写 + 多任务架构', 'D', 4, 'ACTIVE', NOW(), NOW()),
+  (5, 'PORM', '明枢-PORM 智能协作平台', 'POR-M 透明 × 协作中枢（看得见的协作），从 POR/GS-CoLab 衍生 v1.0.0，每张表/每条工单/每次审批都可被看见、可被追溯', '明', 5, 'ACTIVE', NOW(), NOW());
 
 -- ═══════════════════════════════════════════════════════════
--- 公司产品授权（A 药企: GEO + HPD；B 药企: AIDD + POR）
+-- 公司产品授权（A 药企: GEO + HPD + AIDD + DINFO + PORM；B 药企: 仅 GEO）
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO company_product (id, company_id, product_id, license_start, license_end, max_users, status, created_at, updated_at)
 VALUES
   (1, 1, 1, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
   (2, 1, 2, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
-  (3, 2, 3, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
-  (4, 2, 4, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW());
+  (3, 1, 3, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
+  (4, 1, 4, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
+  (5, 1, 5, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
+  (6, 2, 1, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW());
 
 -- ═══════════════════════════════════════════════════════════
--- 用户产品授权（A_admin 有 GEO+HPD 全权限；a_user1 只有 GEO）
+-- 用户产品授权（A_admin 有 GEO+HPD+AIDD+DINFO+PORM 全权限；a_user1 只有 GEO；B 平台 b_admin 只有 GEO）
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO product_user_grant (id, company_id, product_id, user_id, granted_by, status, created_at)
 VALUES
   (1, 1, 1, 2, 2, 'ACTIVE', NOW()),  -- a_admin 有 GEO
-  (2, 1, 2, 2, 2, 'ACTIVE', NOW()),  -- a_admin 有 HPD
-  (3, 1, 1, 3, 2, 'ACTIVE', NOW());  -- a_user1 只有 GEO
-
-INSERT INTO product_user_grant (id, company_id, product_id, user_id, granted_by, status, created_at)
-VALUES
-  (4, 2, 3, 4, 4, 'ACTIVE', NOW()),  -- b_admin 有 AIDD
-  (5, 2, 4, 4, 4, 'ACTIVE', NOW());  -- b_admin 有 POR
+  (2, 1, 2, 2, 2, 'ACTIVE', NOW()),  -- a_admin 有 HPD（皓元-智能医院潜力预测）
+  (3, 1, 1, 3, 2, 'ACTIVE', NOW()),  -- a_user1 只有 GEO
+  (8, 1, 3, 2, 2, 'ACTIVE', NOW()),  -- a_admin 有 AIDD（AIDD 上架）
+  (9, 1, 3, 1, 1, 'ACTIVE', NOW()),  -- 平台超管 admin 也有 AIDD
+  (10, 1, 4, 2, 2, 'ACTIVE', NOW()), -- a_admin 有 DINFO（辰录 上架）
+  (11, 1, 4, 1, 1, 'ACTIVE', NOW()), -- 平台超管 admin 也有 DINFO
+  (12, 1, 5, 2, 2, 'ACTIVE', NOW()), -- a_admin 有 PORM（明枢 上架）
+  (13, 1, 5, 1, 1, 'ACTIVE', NOW()), -- 平台超管 admin 也有 PORM
+  (14, 2, 1, 4, 4, 'ACTIVE', NOW()), -- b_admin 有 GEO（B 公司换 GEO）
+  (15, 1, 2, 1, 1, 'ACTIVE', NOW()); -- 平台超管 admin 也有 HPD
 
 -- ═══════════════════════════════════════════════════════════
 -- 产品内角色
@@ -93,8 +99,10 @@ VALUES
   (6, 2, 'OPERATOR', 'HPD 操作员', '["read", "predict"]', 2, NOW()),
   (7, 3, 'SUPER_ADMIN', 'AIDD 超级管理员', '["*"]', 1, NOW()),
   (8, 3, 'OPERATOR', 'AIDD 操作员', '["read", "search"]', 2, NOW()),
-  (9, 4, 'SUPER_ADMIN', 'POR 超级管理员', '["*"]', 1, NOW()),
-  (10, 4, 'OPERATOR', 'POR 操作员', '["read", "task"]', 2, NOW());
+  (11, 4, 'SUPER_ADMIN', 'DINFO 超级管理员', '["*"]', 1, NOW()),
+  (12, 4, 'OPERATOR', 'DINFO 操作员', '["read", "write", "fill"]', 2, NOW()),
+  (13, 5, 'SUPER_ADMIN', 'PORM 超级管理员', '["*"]', 1, NOW()),
+  (14, 5, 'OPERATOR', 'PORM 操作员', '["read", "task"]', 2, NOW());
 
 -- ═══════════════════════════════════════════════════════════
 -- 产品内用户角色分配
@@ -104,18 +112,26 @@ VALUES
   (1, 1, 1, 2, 'SUPER_ADMIN', 2, NOW()),    -- a_admin 在 GEO 内是超级管理员
   (2, 1, 2, 2, 'SUPER_ADMIN', 2, NOW()),    -- a_admin 在 HPD 内是超级管理员
   (3, 1, 1, 3, 'OPERATOR', 2, NOW()),       -- a_user1 在 GEO 内是操作员
-  (4, 2, 3, 4, 'SUPER_ADMIN', 4, NOW()),    -- b_admin 在 AIDD 内是超级管理员
-  (5, 2, 4, 4, 'SUPER_ADMIN', 4, NOW());    -- b_admin 在 POR 内是超级管理员
+  (6, 1, 3, 2, 'SUPER_ADMIN', 2, NOW()),    -- a_admin 在 AIDD 内是超级管理员
+  (7, 1, 4, 2, 'SUPER_ADMIN', 2, NOW()),    -- a_admin 在 DINFO 内是超级管理员
+  (8, 1, 5, 2, 'SUPER_ADMIN', 2, NOW()),    -- a_admin 在 PORM 内是超级管理员
+  (9, 1, 5, 1, 'SUPER_ADMIN', 1, NOW()),    -- 平台超管 admin 在 PORM 内是超级管理员
+  (10, 1, 3, 1, 'SUPER_ADMIN', 1, NOW()),   -- 平台超管 admin 在 AIDD 内是超级管理员
+  (11, 1, 4, 1, 'SUPER_ADMIN', 1, NOW()),   -- 平台超管 admin 在 DINFO 内是超级管理员
+  (12, 1, 2, 1, 'SUPER_ADMIN', 1, NOW());   -- 平台超管 admin 在 HPD 内是超级管理员
 
 -- ═══════════════════════════════════════════════════════════
--- 子任务配置（4 个产品子任务接入点）
+-- 子任务配置（5 个产品子任务接入点：GEO/HPD/AIDD/DINFO/PORM）
+-- V2.0.11 起 base_url / health_url 优先读 application.yml 的 lingyao.subtask.routes.<code>
+-- 字段保留作 fallback（dev 环境快速回滚用），生产环境强烈建议用环境变量覆盖
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO sub_task (id, product_id, task_name, task_code, entry_path, api_prefix, status, description, base_url, health_url, created_at, updated_at)
 VALUES
-  (1, 1, 'GEO 监测子任务', 'geo-monitor', '/subtask/geo', '/api/sub/geo', 'ACTIVE', 'GEO 品牌监测核心引擎（已对接 OEG 子任务）', 'http://127.0.0.1:8090', 'http://127.0.0.1:8090/api/health', NOW(), NOW()),
-  (2, 2, '医院潜力预测子任务', 'hpd-predictor', '/subtask/hpd', '/api/sub/hpd', 'REGISTERED', '医院销售潜力预测模型', NULL, NULL, NOW(), NOW()),
-  (3, 3, 'AIDD 研发子任务', 'aidd-engine', '/subtask/aidd', '/api/sub/aidd', 'COMING_SOON', 'AI 辅助药物研发引擎', NULL, NULL, NOW(), NOW()),
-  (4, 4, '协作智能体子任务', 'por-agent', '/subtask/por', '/api/sub/por', 'COMING_SOON', '药企协作智能体引擎', NULL, NULL, NOW(), NOW());
+  (1, 1, 'GEO 监测子任务', 'geo-monitor', '/subtask/geo', '/api/sub/geo', 'ACTIVE', 'GEO 品牌监测核心引擎（已对接 OEG 子任务）· V0.9.12.32 C47 W5 P1-SSO 接入凌瑶主站', 'http://localhost:5180/#/auth/lingyao/sso-callback', 'http://127.0.0.1:8090/api/health', NOW(), NOW()),
+  (2, 2, 'HPD 医院潜力预测子任务', 'hpd-predictor', '/subtask/hpd', '/api/sub/hpd', 'ACTIVE', 'HPD 智能医院潜力预测（指向 MPD-myself 独立站 http://localhost:3100）', 'http://localhost:3100/#/sso/callback', 'http://localhost:3100/api/health', NOW(), NOW()),
+  (3, 3, 'AIDD 研发子任务', 'aidd-engine', '/subtask/aidd', '/api/sub/aidd', 'ACTIVE', 'AI 立项 Copilot 双种子方向（肿瘤 + 自免），CDE + 商业测算双增强（C47 W5 P1-SSO 已对接）', 'http://localhost:13000/sso-callback.html', 'http://localhost:18080/api/_diag/version', NOW(), NOW()),
+  (4, 4, '辰录 DINFO 填报子任务', 'dinfo-fill', '/subtask/dinfo', '/api/sub/dinfo', 'ACTIVE', 'Dinfo 智能信息填报系统（基于 GH-Department info V1.5.23），含 LLM 智能填写 + 多任务架构 · D1.1.0 C47 W5 P1-SSO 接入凌瑶主站', 'http://localhost:5181/auth/lingyao/callback', 'http://localhost:8281/api/_diag/version', NOW(), NOW()),
+  (5, 5, '明枢 PORM 协作子任务', 'porm-collab', '/subtask/porm', '/api/sub/porm', 'ACTIVE', 'POR-M 明枢智能协作平台（v1.0.0，源头 GS-CoLab v0.4.0+），透明 × 协作中枢 · v0.8.152 C47 W5 P1-SSO 接入凌瑶主站', 'http://localhost:8280/api/sso/callback-redirect', 'http://localhost:8280/api/_diag/version', NOW(), NOW());
 
 -- ═══════════════════════════════════════════════════════════
 -- 默认推送通道配置

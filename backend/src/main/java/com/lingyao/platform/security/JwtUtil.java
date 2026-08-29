@@ -47,6 +47,9 @@ public class JwtUtil {
     @Value("${lingyao.jwt.issuer:lingyao-platform}")
     private String issuer;
 
+    // V2.0.11+ HPD SSO 改造：JWT audience 标记，主仓签发给子产品的 token 都带这个 audience
+    private static final String DEFAULT_AUDIENCE = "lingyao-sso";
+
     private SecretKey getKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
@@ -108,6 +111,7 @@ public class JwtUtil {
         return Jwts.builder()
                 .claims(claims)
                 .issuer(issuer)
+                .audience().add(DEFAULT_AUDIENCE).and()
                 .subject(String.valueOf(userId))
                 .issuedAt(now)
                 .expiration(exp)

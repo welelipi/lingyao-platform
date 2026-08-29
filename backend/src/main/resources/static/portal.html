@@ -713,7 +713,7 @@
 
       <div class="walkthrough-step" id="wt-step-2" style="display:none;">
         <div class="step-icon">🅗</div>
-        <h2>第 2 步 · 皓元-智能医院潜力预测</h2>
+        <h2>第 2 步 · HPD 皓元-智能医院潜力预测</h2>
         <p>基于床位数推算 CACS 药品最大销量，WMAPE 精度 6.6%</p>
         <div class="step-tip">💡 销售代表：拿到一家新医院，先来这里输入床位数，立刻知道能卖多少</div>
         <div class="walkthrough-actions">
@@ -731,10 +731,10 @@
       </div>
 
       <div class="walkthrough-step" id="wt-step-3" style="display:none;">
-        <div class="step-icon">🅐</div>
-        <h2>第 3 步 · 源策-科研信息助手</h2>
-        <p>为研发团队提供 AI 驱动的文献挖掘、靶点预测、化合物筛选</p>
-        <div class="step-tip">⏳ 研发中，敬请期待</div>
+        <div class="step-icon">🅓</div>
+        <h2>第 3 步 · 辰录 · 智能信息填报系统</h2>
+        <p>Dinfo 基于 GH-Department info 9 实体 + 9 Controller + 10 前端页面 + 飞书 OAuth + JWT 鉴权</p>
+        <div class="step-tip">💡 行政/HR：把部门填表从 Excel 搬到飞书，AI 帮你智能填字段</div>
         <div class="walkthrough-actions">
           <button class="btn-secondary" onclick="prevStep(2)">← 上一步</button>
           <button class="btn-primary" onclick="nextStep(4)">下一步 →</button>
@@ -751,9 +751,9 @@
 
       <div class="walkthrough-step" id="wt-step-4" style="display:none;">
         <div class="step-icon">🅟</div>
-        <h2>第 4 步 · 飞轮-AI辅助协作智能体</h2>
-        <p>5 个 AI 智能体（小聚/小亮/小催/小成/小进）协同管理你的项目</p>
-        <div class="step-tip">⏳ 研发中，敬请期待</div>
+        <h2>第 4 步 · 明枢-PORM 智能协作平台</h2>
+        <p>透明 × 协作中枢，每张表/每条工单/每次审批都可被看见、可被追溯</p>
+        <div class="step-tip">💡 PMO/部门经理：在同一个透明工作台上让业务方、PMO、老板、BP 协同</div>
         <div class="walkthrough-actions">
           <button class="btn-secondary" onclick="prevStep(3)">← 上一步</button>
           <button class="btn-primary" onclick="nextStep(5)">下一步 →</button>
@@ -942,7 +942,7 @@
           <span class="module-icon">${iconFor(code)}</span>
           <h3>${m.productName}</h3>
           <div class="subtitle">${m.taskName || m.productName}</div>
-          <p class="description">入口：${m.entryPath || '—'}</p>
+          <p class="description">${m.productDesc || ''}</p>
           <span class="module-status ${isReady ? 'active' : 'coming-soon'}">
             ${isReady ? '✓ 已开通' : '⏳ 待部署'}
           </span>
@@ -968,37 +968,100 @@
     // 简单图标映射
     function iconFor(code) {
       return {
-        geo: '🅖', hpd: '🅗', aidd: '🅐', por: '🅟'
+        geo: '🅖', hpd: '🅗', aidd: '🅐', dinfo: '🅓', porm: '🅟'
       }[code] || '◉';
     }
 
     // ── 模块跳转 ─────────────────────────
     // 通过后端 /api/sub/{code}/enter 获取带 JWT 的跳转 URL
+    // SSO 直登铁律：主网站鉴权后没权限 → 主网站弹窗告知，不跳转子网站
     async function enterModule(moduleCode) {
       try {
         const res = await fetch(`${API_BASE}/api/sub/${moduleCode}/enter`, {
           headers: { 'Authorization': `Bearer ${getToken()}` }
         });
-        if (!res.ok) {
-          let msg = '进入失败';
-          try { const d = await res.json(); msg = d.message || msg; } catch (_) {}
-          alert('进入失败：' + msg);
+
+        // 后端用 ApiResponse.fail(403) 时 res.ok=false，且 res.body.code != 0
+        let body = null;
+        try { body = await res.json(); } catch (_) {}
+
+        if (!res.ok || (body && body.code !== undefined && body.code !== 0)) {
+          // === 主网站告知用户无法登陆（铁律：不要让用户跳过去看到登录页）===
+          const code = body ? body.code : res.status;
+          let msg = body && body.message ? body.message : '进入失败';
+          if (code === 401) {
+            showToast('登录已过期，请重新登录', 'error');
+            doLogout();
+            return;
+          }
+          if (code === 403) {
+            const productName = (body && body.data && body.data.productName) || moduleCode;
+            showAccessDeniedModal(productName, msg);
+            return;
+          }
+          showToast('进入失败：' + msg, 'error');
           return;
         }
-        const data = await res.json();
-        const payload = data.data || {};
+
+        const data = body && body.data ? body.data : {};
         // 模式 1: 子任务已部署 → 直接跳转
-        if (payload.mode === 'DIRECT_REDIRECT' && payload.redirectUrl) {
-          window.location.href = payload.redirectUrl;
+        if (data.mode === 'DIRECT_REDIRECT' && data.redirectUrl) {
+          window.location.href = data.redirectUrl;
           return;
         }
         // 模式 2: 路由层降级 → 跳 entryPath
-        const entry = payload.fallbackPath || '/';
-        alert('该模块尚未部署，将跳转到占位页面：' + entry);
+        const entry = data.fallbackPath || '/';
+        showToast('该模块尚未部署，跳转占位页面：' + entry, 'warn');
         window.location.href = entry;
       } catch (e) {
-        alert('跳转失败：' + e.message);
+        showToast('跳转失败：' + e.message, 'error');
       }
+    }
+
+    // ── 主网站「无法登陆」模弹 ─────────────────────────
+    // 铁律：用户鉴权失败时，绝对不能让用户跳到子网站看到登录页；
+    // 必须主网站告知用户原因。
+    function showAccessDeniedModal(productName, reason) {
+      // 移除已有
+      const old = document.getElementById('access-denied-modal');
+      if (old) old.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'access-denied-modal';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;';
+      overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;padding:32px 36px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:left;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;color:#dc2626;font-size:24px;font-weight:bold;">⊘</div>
+            <div>
+              <div style="font-size:18px;font-weight:600;color:#111;">无法访问「${productName}」</div>
+              <div style="font-size:13px;color:#6b7280;margin-top:2px;">Access Denied</div>
+            </div>
+          </div>
+          <div style="background:#fef3f2;border:1px solid #fecaca;border-radius:8px;padding:12px 14px;color:#7f1d1d;font-size:14px;line-height:1.6;margin-bottom:16px;">
+            ${reason}
+          </div>
+          <div style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:20px;">
+            您当前登录的账号没有该产品的访问权限。如需开通，请联系您所在公司的系统管理员。
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button id="adm-close" style="padding:8px 16px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;font-size:14px;color:#374151;">关闭</button>
+            <button id="adm-logout" style="padding:8px 16px;background:#fff;border:1px solid #dc2626;border-radius:6px;cursor:pointer;font-size:14px;color:#dc2626;">注销并切换账号</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      document.getElementById('adm-close').onclick = () => overlay.remove();
+      document.getElementById('adm-logout').onclick = () => { overlay.remove(); doLogout(); };
+    }
+
+    function showToast(msg, type = 'info') {
+      // 轻量 toast 提示
+      const colors = { info:'#3b82f6', warn:'#f59e0b', error:'#dc2626' };
+      const t = document.createElement('div');
+      t.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${colors[type]||'#3b82f6'};color:#fff;padding:10px 20px;border-radius:6px;font-size:14px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.15);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;`;
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
     }
 
     // ── 登录处理 ─────────────────────────

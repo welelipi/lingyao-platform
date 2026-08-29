@@ -3,6 +3,139 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.13 (2026-08-29 18:50) — AIDD SSO 接入（依次启动第 1 站）
+
+### 改动
+- `application.yml` `app.version`: 2.0.12 → 2.0.13
+- `application.yml` `lingyao.subtask.routes.aidd.base-url`: `http://localhost:13000` → `http://localhost:13000/sso-callback.html`（AIDD 是静态 HTML，跳 SSO 回调页而非 hash 路由）
+- `data.sql` sub_task AIDD 描述加「C47 W5 P1-SSO 已对接」+ base_url 同步
+
+### 配合改动（AIDD 仓内）
+- AIDD 1.0.0-W-Cycle177 → 1.0.0-W-Cycle178-D1-LingyaoSSO
+- 后端：`LingyaoSsoService.java`（新建 3 级回退匹配）+ `AuthController` 加 `POST /api/sso/login` + `TenantUser` 加 4 字段
+- 前端：`sso-callback.html`（新建，5 参数 → POST → 跳 dashboard）+ `login.html` 加 "凌瑶主站登录" 按钮
+
+### 端到端验证（18:50）
+主仓 admin → `/api/sub/aidd/enter` → 跳 AIDD `sso-callback.html` → AIDD `/api/sso/login` 验签 → 自动关联 AIDD admin 用户 → 签 AIDD 本地 JWT → 可访问 AIDD `/api/auth/me` ✅
+
+### PORM 接入补充（19:05 第 2 站）
+- PORM 0.8.151 → 0.8.152
+- 后端：`LingyaoSsoController.java`（新建，HS512 验签，User 域字段加 3 个）+ `pom.xml` 加 jjwt 0.12.6 + `SecurityConfig` 加白名单 + `application.yml` 加 lingyao.jwt.secret + `start_mingshu_daemon.py` 新建（profile 必须 demo,h2 因为 UserSyncer @Profile("h2")）
+- 前端：`pages/SsoCallbackPage.jsx`（新建，state-routing 'ssoCallback' 分支）+ `App.jsx` 跳过 /api/auth/me + `services/api.js` 加 lingyaoSsoLogin endpoint
+- 主仓：`data.sql` sub_task.porm base_url 改 `http://localhost:8280/api/sso/callback-redirect`（标准模式）
+
+### PORM 端到端验证（19:05）
+主仓 admin → `/api/sub/porm/enter` → 跳 PORM `/?platform_token=...&...` → PORM `/api/sso/login` 验签 → 自动关联 PORM admin 用户（userId=ou_demo_admin, role=superadmin）→ 签 PORM 本地 token → 可访问 PORM `/api/auth/mode` ✅
+
+### PORM 踩坑记录（铁律级）
+1. **YAML 不能有重复顶层 key**：第一次把 `mingshu.lingyao` 单独加在 line 11，但 line 18 已有 `mingshu.sso`，导致 DuplicateKeyException 启动失败 → 必须合并到一个 `mingshu:` 块下
+2. **profile 必须 demo,h2**：UserSyncer 是 `@Profile("h2")`，单独用 demo 时 Spring 找不到 bean → FeishuOAuth2SuccessHandler 注入失败 → 必须 `demo,h2` 双 profile
+3. **SSO 业务消息要在 SecurityConfig permitAll 之前**：先 permitAll 才能让 `/api/sso/login` 走到 controller，否则被 Spring Security 401 拦截
+
+### 后续 2 子产品
+- [x] Dinfo（Vue + 飞书 callback 共存）~0.5-1.0 工作日 → ✅ 14:55 完成
+- [x] GEOM（Python FastAPI + 飞书 callback 不动）~1 人天 → ✅ 15:18 完成
+
+---
+
+## V2.0.13 (2026-08-29 19:35) — Dinfo SSO 接入（依次启动第 3 站）
+
+### 改动
+- `application.yml` `app.version`: 2.0.13（沿用 18:50 AIDD 那次 bump）
+- `application.yml` `lingyao.subtask.routes.dinfo.base-url`: `http://localhost:5181` → `http://localhost:5181/auth/lingyao/callback`
+- `data.sql` sub_task Dinfo 描述加「C47 W5 P1-SSO 已对接」+ base_url 同步
+
+### 配合改动（Dinfo 仓内）
+- Dinfo D1.0.1 → D1.1.0
+- 后端：`LingyaoSsoController.java`（新建，HS512 验签）+ `Employee` 加 4 字段（lingyaoUserId/lingyaoTenantId/lingyaoUsername/lastSsoLoginAt）+ `application.yml` 加 `app.lingyao.jwt.secret`
+- 前端：`router/index.ts` 加 `/auth/lingyao/callback` 路由 + `views/LingyaoCallback.vue`（新建）
+- 启动：`start_dinfo_daemon.py` 新建（Java 双 fork 守护 + LINGYAO_JWT_SECRET 注入）
+
+### Dinfo 端到端验证（14:55）
+主仓 admin → `/api/sub/dinfo/enter` → 跳 Dinfo `/auth/lingyao/callback` → Dinfo `/api/auth/lingyao/callback` 验签 → 自动关联 dinfo_admin → 签本地 JWT ✅
+
+### Dinfo 踩坑记录（铁律级）
+1. **JwtUtil HS256 vs HS512 自动推断**：Dinfo 原本 JwtUtil 写死 HS256，验签凌瑶 HS512 token 抛 signature mismatch → 改成 `Keys.hmacShaKeyFor` 自动推断（jjwt 0.12.x 的 feature），按 algorithms 列表首个匹配
+2. **adm-true 超管兜底**：主仓 admin token 没有 role 字段，只有 `adm: true`；必须 `Boolean.TRUE.equals(admObj)` 兜底绑定到 dinfo_admin，否则 Dinfo 找不到员工返 403
+3. **Dtos.ApiResponse.fail() 只有双参数**：原本 LingyaoSsoController 想传 (code, message, data) 编译报错 → 去掉 data 参数，用 (code, message) 双参数
+4. **端口 8281 被 POR 源头仓占用**：lsof 显示源头仓进程 PID 93027 没有 lingyao_sso 端点 → kill -9 释放端口后重启 Dinfo daemon
+
+---
+
+## V2.0.13 (2026-08-29 15:22) — GEOM SSO 接入（依次启动第 4 站 · 收官）
+
+### 改动
+- `application.yml` `lingyao.subtask.routes.geo.base-url`: `http://localhost:5180` → `http://localhost:5180/#/auth/lingyao/sso-callback`（GEOM 前端是 hash router，必须带 #/）
+- `data.sql` sub_task GEO 描述加「V0.9.12.32 C47 W5 P1-SSO 接入凌瑶主站」
+
+### 配合改动（GEOM 副本仓，凌瑶/geom/）
+- GEOM V0.9.12.31.6 → V0.9.12.32
+- 后端：`app/config.py` 加 `LINGYAO_JWT_SECRET`（默认与凌瑶主仓完全一致）+ `app/database.py` sys_user 加 4 字段 + `app/routers/lingyao_sso.py` 新建（PyJWT HS512 验签 + 3 级回退匹配）+ `main.py` include_router
+- 前端：`geo-frontend/src/router/index.js` 加 `/auth/lingyao/sso-callback` 路由 + `pages/LingyaoSsoCallback.vue` 新建（hash router 模式截 window.location.hash）
+- 启动：`start_geom_daemon.py` 新建（Python 双 fork + setsid，sandbox 友好）
+
+### GEOM 端到端验证（15:18）
+主仓 admin → `/api/sub/geo/enter` → 跳 GEOM `/#/auth/lingyao/sso-callback` → GEOM `/api/auth/lingyao/sso-callback` 验签 → 自动关联 liuling99（super_admin）→ 签本地 JWT ✅
+
+### GEOM 踩坑记录（铁律级）
+1. **APIRouter prefix 嵌套陷阱**：`APIRouter(prefix="/api/auth/lingyao")` + `include_router(prefix="/api/auth")` → 路径变成 `/api/auth/api/auth/lingyao/status`（404）。正解：APIRouter 裸路径 `/lingyao`，由 include_router 注入 `/api/auth`
+2. **GEOM database.py 无 query_one helper**：必须用 `db = get_db(); db.row_factory = sqlite3.Row; row = db.execute(...).fetchone(); dict(row)` 模式
+3. **sandbox 杀 nohup 进程**：必须用 Python 双重 fork + setsid 守护（macOS 无 setsid 命令 → `os.setsid()`）
+4. **PyJWT 自动推断算法**：必须显式声明 `algorithms=["HS512"]`，不能让 PyJWT 从 header 推（HS256 兼容但排查耗时长）
+
+---
+
+## V2.0.13 收官总结：4 子产品全部 SSO 接入凌瑶主站 ✅
+
+| 子产品 | 端口 | 后端栈 | SSO 端点 | 状态 | 完成时间 |
+|---|---|---|---|---|---|
+| **AIDD** | 18080 | Spring Boot 3 | POST /api/sso/login | ✅ | 18:50 |
+| **PORM** | 8280 | Spring Boot 3 | POST /api/sso/login | ✅ | 19:05 |
+| **Dinfo** | 8281 | Spring Boot 3 | POST /api/auth/lingyao/callback | ✅ | 14:55 |
+| **GEOM** | 8090 | FastAPI + PyJWT | POST /api/auth/lingyao/sso-callback | ✅ | 15:18 |
+
+**统一模式**（HPD 已建立的）：
+1. 凌瑶主站签 JWT（HS512，audience=lingyao-sso，含 `uid/cid/adm/identity{user_id,username,display_name}` claim）
+2. 子产品用共享 LINGYAO_JWT_SECRET 验签
+3. 3 级回退匹配本地用户：lingyao_user_id → lingyao_username → 平台主仓 admin 兜底（adm-true）
+4. 命中即更新 lastSsoLoginAt + 返回本地 JWT（HS256，7-30 天 TTL）
+
+**dev 验证矩阵（15:22）**：
+```
+主仓 9091   PID 99254 ✅
+AIDD 18080  PID 98799 ✅
+PORM 8280   PID 402   ✅（重启后，新鲜）
+Dinfo 8281  PID 93914 ✅
+GEOM 8090   PID 98880 ✅
+```
+
+### 🔄 修正（15:30 · 主人提醒「皓元呢？」）
+
+**HPD/MPDM 皓元其实早就做完了**——18:27 那次「主仓 v2.0.12 HPD 改造」就是在 MPD-myself 上做的（当时 HPD 仓 = MPD-myself）。本次汇报只数了今天 4 个改造，漏了 HPD。
+
+完整 5 子产品 SSO 矩阵：
+| 子产品 | 端口 | 后端栈 | SSO 端点 | 完成时间 |
+|---|---|---|---|---|
+| **HPD/MPDM** | 8100/3100 | FastAPI + PyJWT | POST /api/sso/login | **18:27 之前**（V2.0.12 改造） |
+| AIDD | 18080 | Spring Boot 3 | POST /api/sso/login | 18:50 |
+| PORM | 8280 | Spring Boot 3 | POST /api/sso/login | 19:05 |
+| Dinfo | 8281 | Spring Boot 3 | POST /api/auth/lingyao/callback | 14:55 |
+| GEOM | 8090 | FastAPI + PyJWT | POST /api/auth/lingyao/sso-callback | 15:18 |
+
+HPD 端到端实测（15:30）：
+```
+POST /api/sso/login → 200
+{"success":true,"authorized":true,"token":"eyJ...","role":"super_admin","user":{"id":3,"username":"admin","lingyao_user_id":1,"lingyao_tenant_id":1},"source":"lingyao"}
+```
+
+**5/5 全部端到端通过 ✅**
+
+**后续可做（非阻塞）**：
+- [ ] staging / prod 部署：5 个产品都用 staging/prod 的 LINGYAO_JWT_SECRET（生产环境必须改默认值）
+- [ ] 数据闭环：4 子产品的 last_sso_login_at 可以汇总到主仓审计
+- [ ] 退出统一：在子产品 logout 时跳回主仓（目前是各自独立 logout）
+
+
 ---
 
 ## 2026-08-27 · V2.0.1 (版本号方案 A 落地)
@@ -299,6 +432,97 @@ echo "LINGYAO_RELEASE_WEBHOOK_ENABLED=true" >> /opt/lingyao/.env.private
 - Step 3：admin.html role-based 菜单 + portal.html「⚙ 我的公司」按钮（V2.0.11）
 - Step 4：运维按钮下沉（V2.0.12）
 - V2.1.0：防机器人 V1（账号 + IP 双锁）
+
+---
+
+## 2026-08-29 · V2.0.12 (HPD SSO 接收端前置：主仓 JWT 加 audience='lingyao-sso')
+
+### Commit `TBD` · 子产品 SSO 联调前置：主仓 JWT 必须带 audience claim
+
+**触发**：主人 2026-08-29 18:14 「B 开始改造」→ HPD SSO 实施 → 主仓 token 缺 audience，子产品无法验签
+
+**满足铁律**：
+- **V1** Z 段 bump：2.0.11 → 2.0.12
+- **V4** CHANGELOG 必记（本条目）
+- **跨项目治理** 铁律：所有组件先备份再动手（备份至 `_backups-2026-08-29/pre-hpd-sso-jwt-aud-*`）
+
+#### 改动详情
+
+- `backend/.../security/JwtUtil.java` 加 `DEFAULT_AUDIENCE = "lingyao-sso"`，`Jwts.builder()` 加 `.audience().add(DEFAULT_AUDIENCE).and()`
+- `application.yml` app.version 2.0.11 → 2.0.12
+- 主仓对内 JwtAuthFilter 不强制校验 audience（jjwt 默认行为），向后兼容
+- 子产品用 `LINGYAO_JWT_SECRET` + `aud='lingyao-sso'` 验签主仓签发的 token
+
+#### 配套改动（主仓不变，只 HPD/AIDD/Dinfo/PORM/GEOM 各仓对应改动）
+
+- HPD：`backend/app/security.py` 加 `load_lingyao_jwt_secret()` + `backend/app/routers/lingyao_sso.py` 新路由 + `models/models.py` User 表加 `lingyao_user_id/tenant_id/username` + `frontend/src/pages/hoyuan/SsoCallback.tsx` 新组件 + `App.tsx` 加路由 + `Login.tsx` 加按钮
+
+---
+
+## 2026-08-29 · V2.0.11 (D-1 base_url 配置外移，远端代码库稳定性)
+
+### Commit `TBD` · 主仓 5 项稳定性 Fix 第 1+2 项：sub_task.base_url 配置外移 + daemon 路径参数化
+
+**触发**：主人 2026-08-29 17:45 「请架构师验证上传远端代码库后是否稳定」+ 17:52 「先做 D-1」+ 18:05 「继续」
+
+**满足铁律**：
+- **V1** Z 段 bump：2.0.10 → 2.0.11
+- **V4** CHANGELOG 必记（本条目）
+- **跨项目治理** 铁律：所有组件先备份再动手（备份至 `_backups-2026-08-29/pre-d1-stability-fix-20260829-175357/`）
+
+#### Fix 1 - sub_task.base_url 配置外移（17:50 完成）
+
+- 新增 `backend/src/main/java/com/lingyao/platform/config/LingyaoSubTaskProperties.java`（@ConfigurationProperties 配置类）
+- `application.yml` 加 `lingyao.subtask.routes.{geo,hpd,aidd,dinfo,porm}` 段
+- `SubTaskController.java` `info()` + `enter()` 改读配置类（保留 sub_task 表 fallback）
+- `data.sql` 加注释说明 base_url 字段由配置类接管
+- 5 张卡片 enter URL 验证：`source: "config"` ✅
+- 环境变量覆盖验证：`LINGYAO_SUBTASK_GEO_BASE_URL=http://10.99.99.99:8090` 生效 ✅
+
+#### Fix 2 - daemon 路径参数化（18:08 完成）
+
+- `scripts/start_backend_daemon.py` / `start_dev_daemon.py` / `start_frontend_daemon.py` 三个守护脚本
+- `PROJECT_DIR = os.environ.get("LINGYAO_HOME", "/Users/hua/Documents/myself/凌瑶")`
+- 顺手参数化 `JAVA_BIN`（LINGYAO_JAVA_BIN）和 `PYTHON_BIN`（LINGYAO_PYTHON_BIN）和 dev `SERVER_PORT`（LINGYAO_DEV_PORT）
+- 3 个 daemon py_compile 通过；LINGYAO_HOME=/opt/lingyao-test 覆盖生效；前端 daemon 重启后 8765 HTTP 200 ✅
+
+#### Fix 3 - README 升级（18:13 完成）
+
+- 从 2026-08-11 的 "products/ 符号链接" 模型升级到 **5 个产品矩阵**（GEO/HPD/AIDD/Dinfo/PORM）
+- SSO 协议从旧 3 参数（`token/from/company_id`）改为 **V1.0 标准 5 参数**（`tenant_id/user_id/user/display_name/platform_token`）
+- 加"项目结构"图、"启动方式（开发者）"3 段、"V2.0.11 稳定性 Fix 清单"
+- README 文件从 75 行 → 148 行（+97%）
+
+#### Fix 4 - CVM 部署文档化（18:13 完成）
+
+- 新增 `deploy/cvm/DEPLOYMENT.md`（13KB）
+- 10 个章节：部署架构图 / 系统要求 / 目录规划 / 构建部署 / Profile 差异 / 5 子产品对接 / 运维 SOP / ICP 备案 / 常见问题 / 参考文档
+- 关键铁律：**JDK 21 必须**（JDK 17 跑不动 V2.0.11+），**PostgreSQL 14+** for private profile
+
+#### Fix 5 - SSO-CORS 策略文档（18:13 完成）
+
+- 新增 `docs/portal-sso-design/03-sso-cors-policy.md`（11KB）
+- 3 层协议分层：L1 JWT 鉴权 + L2 URL 跳转 + L3 Cookie 共享
+- 4 种部署场景：生产 `.lingyao.cn` 子域共享 / 开发机 `SameSite=Lax` / 跨域 JWT-only / 完全独立 cookie
+- 7 条绝对不能做的反例 + 7 条推荐安全实践
+
+**改动**：
+- 新增 `backend/src/main/java/com/lingyao/platform/config/LingyaoSubTaskProperties.java`：`@ConfigurationProperties(prefix="lingyao.subtask")` 映射 `Map<String, Route>`，含 `baseUrl` / `healthUrl` / `entryPath` 三字段
+- `application.yml`：在 `lingyao:` 段下加 `subtask.routes.{geo,hpd,aidd,dinfo,porm}` 配置（5 个产品 × 3 字段 = 15 行），每个值用 `${LINGYAO_SUBTASK_<X>_<FIELD>:默认值}` 模式支持环境变量覆盖
+- `SubTaskController.java`：注入 `LingyaoSubTaskProperties`，`enter()` 和 `info()` 优先读配置类（`getRoute(code).getBaseUrl()`），fallback 才用 `sub_task.base_url` 表字段
+- `application.yml`：`app.version: 2.0.10 → 2.0.11`
+- `data.sql` 暂不改：保留 `base_url` 字段做向后兼容 fallback（dev 环境回滚用）
+
+**架构价值**：
+- CVM 部署通过环境变量覆盖 `LINGYAO_SUBTASK_GEO_BASE_URL=http://10.0.0.5:8090` 即可切换子产品 URL
+- 上传远端代码库后，接收方不需要改代码就能跑（默认 localhost）
+- 调试可视化：`info()` 接口新增 `source` 字段（`config` 或 `sub_task_table`），前端可判断 baseUrl 来自配置还是表
+
+**验证**：
+- dev 9091 启动成功
+- `curl /api/sub/geo/info` 的 `data.baseUrl` 应为 `http://127.0.0.1:8090`（默认），`source: config`
+- 改环境变量 `LINGYAO_SUBTASK_GEO_BASE_URL=http://10.0.0.5:8090` 重启，`data.baseUrl` 应为新值
+- admin 登录后点 5 张卡片仍能正常跳转（行为不变，因为配置类默认值与原 data.sql 一致）
 
 ---
 

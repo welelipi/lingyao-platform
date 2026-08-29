@@ -3,8 +3,10 @@
 from __future__ import annotations
 import os, sys
 
-PROJECT_DIR = "/Users/hua/Documents/myself/凌瑶"
-JAVA_BIN = "/Users/hua/sdk/jdk-21/Contents/Home/bin/java"
+# 路径参数化（V2.0.11 Fix 2 上传远端代码库稳定性）：用 LINGYAO_HOME 覆盖 macOS 本地路径
+# 用法：LINGYAO_HOME=/opt/lingyao python3 scripts/start_backend_daemon.py
+PROJECT_DIR = os.environ.get("LINGYAO_HOME", "/Users/hua/Documents/myself/凌瑶")
+JAVA_BIN = os.environ.get("LINGYAO_JAVA_BIN", "/Users/hua/sdk/jdk-21/Contents/Home/bin/java")
 JAR_PATH = f"{PROJECT_DIR}/backend/target/lingyao-platform.jar"
 CONFIG_PATH = f"{PROJECT_DIR}/backend/src/main/resources/application-private.yml"
 LOG_FILE = f"{PROJECT_DIR}/logs/backend.out"
