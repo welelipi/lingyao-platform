@@ -32,6 +32,30 @@ log_fd = os.open(LOG_FILE, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
 os.dup2(log_fd, sys.stdout.fileno())
 os.dup2(log_fd, sys.stderr.fileno())
 
+# ════════════════════════════════════════════════════════════
+# V2.0.14 PRD-1.2 修复：非 dev profile 必须有 LINGYAO_JWT_SECRET
+# 仿 backend/docker/entrypoint.sh 设计：持久化到 data/.jwt_secret
+# - 第一次启动生成密钥（openssl rand 48 字节 base64）
+# - 后续启动复用同一份 secret（保证 SSO token 重启后仍有效）
+# ════════════════════════════════════════════════════════════
+JWT_SECRET_FILE = f"{PROJECT_DIR}/data/.jwt_secret"
+
+if not os.environ.get("LINGYAO_JWT_SECRET"):
+    if os.path.exists(JWT_SECRET_FILE):
+        # 复用持久化的密钥
+        with open(JWT_SECRET_FILE, "r") as f:
+            os.environ["LINGYAO_JWT_SECRET"] = f.read().strip()
+    else:
+        # 首次启动：生成新密钥并持久化
+        import secrets
+        generated = secrets.token_urlsafe(48)  # 48 字节随机 → base64 64 字符
+        os.makedirs(os.path.dirname(JWT_SECRET_FILE), exist_ok=True)
+        with open(JWT_SECRET_FILE, "w") as f:
+            f.write(generated)
+        os.chmod(JWT_SECRET_FILE, 0o600)
+        os.environ["LINGYAO_JWT_SECRET"] = generated
+        print(f"[backend-daemon] 首次启动：生成 JWT 密钥（持久化到 {JWT_SECRET_FILE}）", flush=True)
+
 os.chdir(PROJECT_DIR)
 os.execv(JAVA_BIN, [
     JAVA_BIN,
