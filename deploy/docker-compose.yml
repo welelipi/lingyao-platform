@@ -1,0 +1,113 @@
+# ════════════════════════════════════════════════════════════
+# 凌瑶智数 · 本地 dev / 云端 prod 共用编排
+# ────────────────────────────────────────────────────────────
+# 设计原则：同一份 yaml 在 Mac 本地 和 CVM 云端都能跑
+# 差异仅由 .env 文件注入（密码/JWT secret/Git commit 等）
+#
+# 本地启动：
+#   cd deploy && cp .env.example .env && docker compose up -d
+#
+# 云端启动（云端主流程负责）：
+#   cd /opt/lingyao/deploy && cp .env.example .env && \
+#     # 主人填真实密码到 .env，然后：
+#   docker compose up -d
+#
+# 健康检查：
+#   curl http://127.0.0.1:9091/api/version
+#   docker compose ps
+# ════════════════════════════════════════════════════════════
+
+services:
+  # ──────────────────────────────────────────────────────────
+  # PostgreSQL 16-alpine（与 CVM 现有 lingyao-postgres 容器同源）
+  # 数据持久化到 named volume `lingyao-pg-data`
+  # ──────────────────────────────────────────────────────────
+  lingyao-postgres:
+    # 本地 dev 默认走 DaoCloud 加速器（主人 Docker daemon 已配 m.daocloud.io）
+    # 云端 prod：如在 CVM 上跑且不能访问 dao cloud，请改回 image: postgres:16-alpine
+    image: ${POSTGRES_IMAGE:-m.daocloud.io/docker.io/library/postgres:16-alpine}
+    container_name: lingyao-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lingyao}
+      POSTGRES_USER: ${POSTGRES_USER:-lingyao_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?必须设置 POSTGRES_PASSWORD（参考 .env.example）}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: Asia/Shanghai
+    volumes:
+      - lingyao-pg-data:/var/lib/postgresql/data
+      # 初始化脚本（首次启动时执行，幂等设计）
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      # 本地开发：127.0.0.1:5432；云端：建议改为 "5432:5432" 让 backend 同机访问
+      # 云端主流程请按 DEPLOYMENT.md 修改此映射
+      - "${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lingyao_app} -d ${POSTGRES_DB:-lingyao}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ──────────────────────────────────────────────────────────
+  # 凌瑶主站后端（Spring Boot 3 + JDK 21 + private profile）
+  # 依赖 lingyao-postgres 健康后再启动
+  # ──────────────────────────────────────────────────────────
+  lingyao-backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    image: lingyao/platform:${APP_VERSION:-2.0.14}
+    container_name: lingyao-backend
+    restart: unless-stopped
+    depends_on:
+      lingyao-postgres:
+        condition: service_healthy
+    environment:
+      # Spring profile
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-private}
+      # ★ 关键修复：覆盖 application-private.yml 硬编码的 127.0.0.1
+      # 容器内应通过 docker compose service name 连 postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://lingyao-postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-lingyao}
+      # 数据库连接（与 lingyao-postgres 服务对齐）
+      LINGYAO_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      # JWT secret（留空走 entrypoint.sh 自动生成并持久化）
+      LINGYAO_JWT_SECRET: ${LINGYAO_JWT_SECRET:-}
+      # 版本元数据（注入到 /api/version 端点）
+      APP_GIT_COMMIT: ${APP_GIT_COMMIT:-local}
+      APP_BUILD_TIME: ${APP_BUILD_TIME:-}
+      APP_RELEASE: ${APP_RELEASE:-stable}
+      # 时区
+      TZ: Asia/Shanghai
+      # JVM
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
+    volumes:
+      # JWT secret 持久化（容器重建不丢密钥，旧 token 不失效）
+      - lingyao-backend-data:/app/data
+      - lingyao-backend-logs:/app/logs
+    ports:
+      - "${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-9091}:9091"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9091/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  lingyao-pg-data:
+    name: lingyao-pg-data
+  lingyao-backend-data:
+    name: lingyao-backend-data
+  lingyao-backend-logs:
+    name: lingyao-backend-logs

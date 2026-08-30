@@ -616,3 +616,133 @@ echo "LINGYAO_RELEASE_WEBHOOK_ENABLED=true" >> /opt/lingyao/.env.private
 2. 登录 `:9092/portal.html` → 看到 4 个产品卡片：GEO/HPD 可点、AIDD/POR 置灰
 3. prod 部署
 4. 登录 nginx:80 → 同样效果
+
+---
+
+## 2026-08-30 09:07 · 后端 dev 工具链修复 + lingyao-postgres 容器创建
+
+**主人下达**：恢复凌瑶主后端 9091（private profile）。
+
+### 改动
+
+| # | 文件 | 性质 | 描述 |
+|---|---|---|---|
+| 1 | `scripts/start_backend_daemon.py` | dev 工具 | 增加 LINGYAO_JWT_SECRET 自动注入（参照 `backend/docker/entrypoint.sh`：复用 `data/.jwt_secret`，无则生成新密钥并 chmod 600） |
+| 2 | `scripts/start_backend_daemon.py.bak.2026-08-30` | 备份 | 原 daemon 备份（1538B） |
+| 3 | `data/.jwt_secret` | 新增 | JWT 密钥持久化（64 字节 base64，权限 0600） |
+| 4 | 本地 Docker 容器 `lingyao-postgres` | 新增 | postgres:16-alpine 镜像，端口 5432:5432，volume `lingyao-pg-data:/var/lib/postgresql/data`，env: POSTGRES_DB=lingyao / USER=lingyao_app / PASSWORD=Lingyao_Prod_2026_Pg!，--restart unless-stopped |
+
+### 验证
+
+- `127.0.0.1:9091/api/version` → HTTP 200，返回 `{"service":"lingyao-platform","version":"1.0.0","release":"stable","build_time":"2026-08-30T09:06:35"}`
+- `127.0.0.1:5432` 容器 lingyao-postgres Up（双栈监听 0.0.0.0 + ::）
+- watchdog V3.1.1 转绿（12 个端口全 ✅）
+- Spring Boot DispatcherServlet 初始化成功
+
+### 根因复盘
+
+private profile fail-fast 校验依赖 3 个外部条件：
+1. PostgreSQL 5432 可达（**之前 PG 未启，本次创建 lingyao-postgres 容器**）
+2. LINGYAO_JWT_SECRET 环境变量 ≥32 字节非默认（**之前 daemon 未传，本次自动注入**）
+3. data.sql / data-private.sql 在 classpath（已满足）
+
+---
+
+## 2026-08-30 10:25 · 本地 Docker Compose 一体化部署完整链路打通（27 步链路）
+
+**主人下达**：解决凌瑶主仓后端 9091 起不来问题，端到端打通本地研发环境。
+
+### 改动
+
+| # | 文件 | 性质 | 描述 |
+|---|---|---|---|
+| 1 | `deploy/docker-compose.yml` | 新增 | PG + Backend 一体编排（服务名 lingyao-postgres + lingyao-backend，含 healthcheck + restart policy + named volume）|
+| 2 | `deploy/Dockerfile.backend` | 新增 | 多阶段构建：maven:3.9-eclipse-temurin-21 → eclipse-temurin:21-jre，**修正 Dockerfile.cn 的 JDK 17 → 21 漂移** |
+| 3 | `deploy/.env.example` | 新增 | 6 个铁律字段模板（POSTGRES_DB/USER/PASSWORD/SPRING_DATASOURCE_URL/SPRING_PROFILES_ACTIVE/BACKEND_PORT + APP_VERSION + TZ）|
+| 4 | `deploy/CHECK_REPORT.md` | 新增 | 一致性 12 项 Check + 5 道保险 + 本地实测验证 |
+| 5 | `deploy/README_FOR_CLOUD_TEAM.md` | 新增 | 云端 AI 对接规范（5 步部署）|
+| 6 | `scripts/start_backend_daemon.py` | 修改 | LINGYAO_JWT_SECRET 自动注入（参照 entrypoint.sh 模式）|
+| 7 | `scripts/port_watchdog.py` | 新增 | V3.1.1 watchdog（监控 7 项目 12 端口）|
+| 8 | `scripts/start_watchdog_daemon.py` | 新增 | watchdog daemon 启动器（双重 fork + setsid）|
+| 9 | `scripts/start_geom_frontend_daemon.py` | 新增 | GEOM 前端 daemon（5182 双栈 IPv4/IPv6）|
+
+### 验证（2026-08-30 10:18）
+
+`curl http://127.0.0.1:9091/api/version` 返回 HTTP 200：
+```json
+{
+  "code": 0,
+  "message": "OK",
+  "data": {
+    "service": "lingyao-platform",
+    "version": "2.0.14",
+    "release": "stable",
+    "build_time": "2026-08-30T10:17:54",
+    "git_commit": "local",
+    "sso_protocol": "1.0"
+  },
+  "success": true
+}
+```
+
+`docker compose ps` 输出：
+```
+lingyao-backend    Up 56 seconds (healthy)       127.0.0.1:9091->9091/tcp
+lingyao-postgres   Up About a minute (healthy)   127.0.0.1:5432->5432/tcp
+```
+
+Spring Boot + HikariCP + JPA + PostgreSQL 全链路打通。
+
+### 27 步完整链路（踩坑回放）
+
+```
+[Step 1-7] 09:55 docker.io 超时
+  → DaoCloud m.daocloud.io/docker.io/library/... 镜像源
+  → WORKDIR /build 修正为 /build/backend（jar 在子目录）
+  → 端口 9091 被孤儿 java PID 66779 占 → kill
+  → entrypoint.sh 重定向 java 输出到 /app/logs/lingyao.log（用 docker exec/cat 读）
+
+[Step 8-15] 09:55 占位符语法验证
+  → application-private.yml:28 占位符已就位（之前 PR 已包含，本任务窗口确认）
+  → 环境变量 SPRING_DATASOURCE_URL=lingyao-postgres:5432 正确注入（docker inspect 验证）
+  → docker compose build lingyao-backend → 镜像 lingyao/platform:2.0.14
+  → docker compose up -d lingyao-backend → Started
+
+[Step 16-22] 10:00 占位符生效但密码错误
+  → Up Less than a second (health: starting) 循环重启
+  → docker cp /app/logs/lingyao.log 读取 java 错误
+  → FATAL: password authentication failed for user "lingyao_app"
+  → 启动 WARN：Volume lingyao-pg-data declared as external in compose
+  → 卷是此前 PG 容器遗留下来的，PG 首次 init 时是 lingyao_app superuser + 旧密码
+
+[Step 23-25] 10:08 删卷 + 重 init
+  → 尝试 psql -U postgres 报 role "postgres" does not exist（确认 superuser 是 lingyao_app）
+  → docker compose stop/rm lingyao-postgres
+  → docker volume rm lingyao-pg-data
+  → docker compose up -d lingyao-postgres（新卷重建，PG 重新执行 init）
+
+[Step 26-27] 10:13-10:18 PG 重 init + Spring Boot 重连
+  → sleep 15 + docker compose ps → 全绿
+  → curl /api/version → HTTP 200 + version=2.0.14 ✅
+```
+
+### 3 条新铁律（已写入 MEMORY.md）
+
+1. **占位符语法铁律**：Spring Boot 关键配置（datasource URL）必须用 `${ENV:default}` 占位符语法，不能用纯硬编码。理由：profile-specific YAML 在某些边界 case 下，OS env 不能直接覆盖纯硬编码字符串
+2. **卷初始化铁律**：compose 部署有状态服务（PG/MySQL/Redis）前，**必须确保数据卷是干净的**。旧卷不删 = 容器不重新 init = 旧的角色/密码锁在卷里。诊断 WARN：`Volume XXX was found on local filesystem but is declared as external in compose`
+3. **DaoCloud 镜像源铁律**：docker.io 拉镜像超时 → 用 `m.daocloud.io/docker.io/library/...`（macOS sandbox 必备）
+
+### 云端对接（重要）
+
+**本任务窗口仅处理本地**（铁律 #0）。云端由云端主流程接手：
+
+- 云端 AI 拿到 `deploy/` 5 文件 + `README_FOR_CLOUD_TEAM.md` 后，按 5 步部署即可
+- `.env` 中的密码由主人自管，云端不上传 `.env`（只传 `.env.example`）
+- 云端不需要重做本地踩过的坑（PG 卷复用、占位符等已在 deploy/ 解决）
+- 本地版本 `v2.0.14` 与云端对齐（铁律 #3 前后端版本号同步）
+
+### 待办（移交云端 AI 后）
+
+- [x] 本任务窗口：完成 deploy/ + scripts/ + CHANGELOG 全部本地沉淀（10:25）
+- [ ] 云端 AI：pull → SSH 部署 → verify /api/version → 切流
+
