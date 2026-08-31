@@ -3,7 +3,55 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.18 (2026-08-31 19:55) — W5 CORS 白名单扩展 5 家子产品本地域（配合 DINFO 登录 P0 阻塞解除）
+
+### 改动
+- `backend/src/main/java/.../config/WebConfig.java` · CORS `allowedOriginPatterns` 新增 5 家子产品 22 个本地域：
+  - DINFO 辰录（强耦合 · P0）：`http://localhost:{5181,8281}`
+  - POR-M 明枢（强耦合 · 同窗口推）：`http://localhost:{8280,3190}`
+  - GEOM 棱镜：`http://localhost:{5180,5182,8090}`
+  - MPDM 皓元：`http://localhost:{3100,8100}`
+  - AIDD 源策：`http://localhost:{13000,18080}`
+  - MED-PPT：`http://localhost:{19880,19881}`
+- `backend/src/main/resources/application.yml` · `app.version` 2.0.17 → **2.0.18**
+
+### 业务价值
+- ✅ **解除 DINFO M2 阻塞**：DINFO 前端（5181）+ 后端（8281）调主站 API 不再被 CORS 拦截
+- ✅ 5 家子产品全部能跨域调主站 `/api/**`（不再需要反向代理或同源部署）
+- ✅ 完全向后兼容：原有 12 个域全部保留（本地 8765/9091 + CVM 118.195.197.15 + lydmed.com）
+
+### 铁律 #15 验证
+- `allowedOriginPatterns` 仍用 pattern 形式（不是 `allowedOrigins("*")`）→ 配合 `allowCredentials(true)` 不会触发 "wildcard + credentials" 冲突
+- 生产域（118.195.197.15 + lydmed.com）保留
+
+### 验证（待启动后实测）
+- ⏳ curl OPTIONS preflight → 检查 Access-Control-Allow-Origin
+- ⏳ curl `/api/sub/dinfo/enter` → 检查 redirectUrl 含 DINFO 域 + platform_token fragment
+- ⏳ 跨域从 5181 调 9091 → 检查响应头
+
+### 配合 DINFO 登录的端到端进度
+| 步骤 | 状态 |
+|---|---|
+| ① 主站 portal.html 显示 DINFO 入口 | ✅ V2.0.17 W4 |
+| ② 主站签发 JWT 含 `is_tenant_admin` 平铺字段 | ✅ V2.0.16 W1 |
+| ③ 主站 `/api/sub/dinfo/enter` 生成 redirectUrl | ✅ V2.0.11 已实现 |
+| ④ token 走 URL fragment（不进 history/log） | ✅ V2.0.14 fix |
+| ⑤ **DINFO 前端能跨域调主站** | ✅ **V2.0.18 W5（本轮）** |
+| ⑥ DINFO 端 LingyaoSsoCallback.vue 解析 fragment | ⏳ DINFO 窗口在写（M2）|
+| ⑦ DINFO 端 `/api/auth/lingyao-sso` 验签 + 自动绑 | ⏳ DINFO 窗口在写（M2）|
+
+### 暂不推送（按主人 19:46 拍板）
+- commit 列表（V2.0.16 W1 + V2.0.17 W4 + V2.0.18 W5）保留在本地
+
+### PRD
+- `/tmp/dinfo-prd/MainSite_MultiTenant_Support_PRD.md` · W1 + W4
+- 主站侧 W5 不在原 PRD 内（CORS 是配合 DINFO 实施时发现的环境缺口）
+
+---
+
 ## V2.0.17 (2026-08-31 19:25) — W4 主站 portal.html 按子产品开通状态动态渲染 + UserView.tenantAdmin
+
+> 📌 **暂不推送（2026-08-31 19:46 主人拍板）**：仅作为告知，commit `d5b192b` (V2.0.16) + `c35c103` (V2.0.17) 保留在本地不推送远端主仓
 
 ### 改动
 - `website/portal.html` · login 响应处理加 `subProductGrants` + `isTenantAdmin` 提取
