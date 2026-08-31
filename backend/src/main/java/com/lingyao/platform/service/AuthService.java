@@ -85,18 +85,33 @@ public class AuthService {
         // 加载产品授权
         List<LoginResponse.ProductView> products = buildProductView(user.getId(), currentCompanyId, user.getIsPlatformAdmin());
 
-        // 颁发 JWT — Phase 2 解耦版（10 参新方法）
+        // === V2.0.16 W1 计算 JWT claims 平铺字段 ===
+
+        // is_tenant_admin: 平台超管 或 该用户在当前租户的 CompanyUser.role = SUPER_ADMIN
+        boolean isPlatformAdminFlag = user.getIsPlatformAdmin() != null && user.getIsPlatformAdmin();
+        boolean isTenantAdmin = isPlatformAdminFlag || memberships.stream()
+                .anyMatch(cu -> cu.getRole() == CompanyUser.CompanyRole.SUPER_ADMIN);
+
+        // sub_product_grants: 当前用户已授权的子产品 code 列表（licensed=true）
+        List<String> subProductGrants = products.stream()
+                .filter(LoginResponse.ProductView::isLicensed)
+                .map(LoginResponse.ProductView::getCode)
+                .toList();
+
+        // 颁发 JWT — V2.0.16 W1（11 参 + 平铺字段 is_tenant_admin / sub_product_grants / tenant_name）
         String token = jwtUtil.generate(
                 user.getId(),
                 user.getUsername(),
                 currentCompanyId,
                 companyCode,
-                user.getIsPlatformAdmin() != null && user.getIsPlatformAdmin(),
+                isPlatformAdminFlag,
                 null,           // productCode: 主网站登录时不绑定具体产品，由 /enter 端点注入
                 null,           // roleCode: 主网站不再持有产品内角色
                 displayName,    // Phase 2 新增
                 companyName,    // Phase 2 新增
-                user.getUsername() // Phase 2 新增：授权人
+                user.getUsername(), // Phase 2 新增：授权人
+                isTenantAdmin,  // V2.0.16 W1 新增
+                subProductGrants // V2.0.16 W1 新增
         );
 
         // 设置 CurrentUser（供后续 Service 使用）— Phase 2 解耦版

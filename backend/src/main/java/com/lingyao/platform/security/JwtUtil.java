@@ -8,9 +8,11 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -67,13 +69,19 @@ public class JwtUtil {
      */
     public String generate(Long userId, String username, Long companyId, String companyCode,
                           boolean isPlatformAdmin, String productCode, String roleCode,
-                          String displayName, String companyName, String authorizedBy) {
+                          String displayName, String companyName, String authorizedBy,
+                          boolean isTenantAdmin, List<String> subProductGrants) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("uid", userId);
         claims.put("username", username);
         claims.put("cid", companyId);
         claims.put("ccode", companyCode);
         claims.put("adm", isPlatformAdmin);
+
+        // === V2.0.16 W1 新增：平铺字段（子产品 DINFO M2 直接读）===
+        claims.put("tenant_name", companyName == null ? companyCode : companyName);
+        claims.put("is_tenant_admin", isTenantAdmin);
+        claims.put("sub_product_grants", subProductGrants == null ? Collections.emptyList() : subProductGrants);
 
         // === Phase 2 新增：标准化三段断言 ===
 
@@ -117,6 +125,19 @@ public class JwtUtil {
                 .expiration(exp)
                 .signWith(getKey())
                 .compact();
+    }
+
+    /**
+     * 向后兼容的 generate 方法（V2.0.16 之前的 10 参版本，不含 W1 平铺字段）
+     * W1 子产品用平铺字段；老调用方保留兼容入口
+     */
+    @Deprecated
+    public String generate(Long userId, String username, Long companyId, String companyCode,
+                          boolean isPlatformAdmin, String productCode, String roleCode,
+                          String displayName, String companyName, String authorizedBy) {
+        return generate(userId, username, companyId, companyCode, isPlatformAdmin,
+                productCode, roleCode, displayName, companyName, authorizedBy,
+                isPlatformAdmin, Collections.emptyList());
     }
 
     /**

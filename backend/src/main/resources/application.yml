@@ -37,19 +37,27 @@ spring:
 
 # ---------- 业务配置（所有 profile 共享）----------
 app:
-  version: 2.0.14
+  version: 2.0.16
   release: ${APP_RELEASE:stable}
   build-time: ${APP_BUILD_TIME:}
   git-commit: ${APP_GIT_COMMIT:dev}
   jwt:
-    secret: ${LINGYAO_JWT_SECRET:}
+    secret: ${LINGYAO_JWT_SECRET:DMZiAxUx0rtt3s72qAcdntXa0fWgw93LBrpDfCs7RpT4o-ZC611ditS0k4cnePDNrbJGNc8lQ1zkPfqq6vvllA==}
     expiration-seconds: 86400
 
 lingyao:
   jwt:
-    secret: ${LINGYAO_JWT_SECRET:}
+    secret: ${LINGYAO_JWT_SECRET:DMZiAxUx0rtt3s72qAcdntXa0fWgw93LBrpDfCs7RpT4o-ZC611ditS0k4cnePDNrbJGNc8lQ1zkPfqq6vvllA==}
     expiration-hours: 24
     issuer: lingyao-platform
+    # V2.0.16 W1：JWT claims 平铺字段（子产品 DINFO M2 直接读，无需解嵌套）
+    # - tenant_name: 公司显示名（已有 companyName 复用）
+    # - is_tenant_admin: 平台超管 OR CompanyUser.role=SUPER_ADMIN
+    # - sub_product_grants: List<String> 当前用户已授权的 Product.code 列表
+    claims-v2:
+      tenant-name: company.name
+      is-tenant-admin: platform-admin or company-user-super-admin
+      sub-product-grants: company-product (status=ACTIVE) join product.code
 
   # V2.0.5 R-7: 发布管理配置
   release:
@@ -76,7 +84,7 @@ lingyao:
         health-url: ${LINGYAO_SUBTASK_GEO_HEALTH_URL:http://127.0.0.1:8090/api/health}
         entry-path: ${LINGYAO_SUBTASK_GEO_ENTRY_PATH:/subtask/geo}
       hpd:
-        base-url: ${LINGYAO_SUBTASK_HPD_BASE_URL:http://localhost:3100}
+        base-url: ${LINGYAO_SUBTASK_HPD_BASE_URL:http://localhost:3100/sso/callback}
         health-url: ${LINGYAO_SUBTASK_HPD_HEALTH_URL:http://localhost:8100/api/health}
         entry-path: ${LINGYAO_SUBTASK_HPD_ENTRY_PATH:/subtask/hpd}
       aidd:
@@ -95,7 +103,7 @@ lingyao:
 sso:
   protocol-version: "1.0"
   jwt:
-    secret: ${LINGYAO_JWT_SECRET:}
+    secret: ${LINGYAO_JWT_SECRET:DMZiAxUx0rtt3s72qAcdntXa0fWgw93LBrpDfCs7RpT4o-ZC611ditS0k4cnePDNrbJGNc8lQ1zkPfqq6vvllA==}
     token-ttl-seconds: 7200
 
 # ---------- Dev 配置（H2 + H2 Console + DDL）----------

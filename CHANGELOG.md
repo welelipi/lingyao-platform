@@ -3,6 +3,62 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.16 (2026-08-31 18:58) — JWT claims 平铺字段 W1（DINFO M2 配套）
+
+### 改动
+- `application.yml` `app.version`: 2.0.15 → 2.0.16
+- `JwtUtil.java` 新增 11 参 `generate()` 方法（含 `isTenantAdmin` + `subProductGrants`）；保留 10 参 / 7 参 @Deprecated 向后兼容
+- `AuthService.java` 计算 `isTenantAdmin` = `isPlatformAdmin OR CompanyUser.role=SUPER_ADMIN`；计算 `subProductGrants` = `products.filter(licensed).map(code)`
+- `application.yml` 新增 `lingyao.jwt.claims-v2` 文档块（平铺字段来源说明）
+
+### 新 JWT claims 平铺字段
+```json
+{
+  "uid": 1,
+  "username": "admin",
+  "cid": 1,
+  "ccode": "jinsai",
+  "adm": true,
+  "tenant_name": "金赛药业",            // 🆕 V2.0.16 平铺
+  "is_tenant_admin": true,              // 🆕 V2.0.16 平铺（adm OR CompanyUser.role=SUPER_ADMIN）
+  "sub_product_grants": ["GEO","HPD","AIDD","POR"],  // 🆕 V2.0.16 平铺（Product.code 列表）
+  "tenant": {"id":"1","code":"jinsai","name":"金赛药业"},        // Phase 2 嵌套（保留）
+  "identity": {"user_id":"1","username":"admin","display_name":"平台超管"},  // Phase 2 嵌套（保留）
+  "grants": {...}                                                  // Phase 2 嵌套（保留）
+}
+```
+
+### 降级兼容
+- 老 token（无平铺字段）→ 子产品按空值处理（不影响老逻辑）
+- 老 10 参 / 7 参 `generate()` 方法 @Deprecated，但保留兼容（默认 isTenantAdmin=isPlatformAdmin / subProductGrants=[]）
+
+### 配套 PRD
+- `/tmp/dinfo-prd/MainSite_MultiTenant_Support_PRD.md`（656 行 · W1 实施）
+
+### 配套 DINFO 端（V2.0.16 主站 W1 落地后）
+- DINFO M2（SSO 自动绑）可直接读 `is_tenant_admin` 判断是否该公司超管
+- DINFO M5（分享调研入口）可直接读 `sub_product_grants` 判断是否开通辰录
+
+### 待主人验证
+- `mvn package` 重打 jar
+- 重启后端 + 登录 admin → 解析 token → 看到 `tenant_name` / `is_tenant_admin` / `sub_product_grants` 3 个平铺字段
+- 转发 token 给 DINFO / GEOM / MPDM / AIDD / POR-M 子产品验签（不破坏嵌套结构兼容）
+
+## V2.0.15 (2026-08-31 11:15) — SSO 全家桶 5/5 全通 + JWT secret 64B 固化 + 地雷清除
+
+### 改动
+- `application.yml` `app.version`: 2.0.14 → 2.0.15
+- JWT secret 3 处默认值升级为 64 字节（HS512，与 5 家子产品验签对齐）：`app.jwt.secret` / `lingyao.jwt.secret` / sso 协议 secret
+- **mvn package 重打 jar**（64B secret + 2.0.15 打进 classpath），`target/lingyao-platform.jar` 2026-08-31 11:14
+- **删除外部覆盖地雷**：`凌瑶/application.yml`（根目录）+ `凌瑶/backend/application.yml`（classpath 外部覆盖优先级高于 jar 内，导致旧 jar 读不进新配置）。已备份至 `_backups-2026-08-31/`
+- GEOM geo.db：`sys_user` liuling99 绑定 `lingyao_user_id='1'`（备份 `geom/_backups-2026-08-31/geo.db.bak-110549`）
+- DINFO H2 内存库：`employee` 表 dinfo_admin 绑定 `lingyao_user_id='1'`（经 /h2-console 执行；H2 重启后失效，绑定靠 DataImportService ReloadAll 保留或需重新执行）
+
+### 验证（2026-08-31 11:16）
+- 主站登录 OK（HS512 签发）
+- 棱镜 8090 🟢 liuling99 / 皓元 8100 🟢 admin / 源策 18080 🟢 / 辰录 8281 🟢 辰录超级管理员 / 明枢 8280 🟢 王老板
+- 前端 8765 HTTP 200
+
 ## V2.0.13 (2026-08-29 18:50) — AIDD SSO 接入（依次启动第 1 站）
 
 ### 改动
