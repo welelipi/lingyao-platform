@@ -138,6 +138,8 @@ public class AuthService {
         uv.setDisplayName(user.getDisplayName());
         uv.setEmail(user.getEmail());
         uv.setPlatformAdmin(Boolean.TRUE.equals(user.getIsPlatformAdmin()));
+        // === V2.0.16 W1/W4 新增：与 JWT 平铺字段 is_tenant_admin 保持一致 ===
+        uv.setTenantAdmin(isTenantAdmin);
         resp.setUser(uv);
 
         if (currentCompanyId != null) {

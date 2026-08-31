@@ -39,6 +39,8 @@ public class LoginResponse {
         private String displayName;
         private String email;
         private boolean platformAdmin;
+        // === V2.0.16 W1/W4 新增：与 JWT 平铺字段 is_tenant_admin 保持一致 ===
+        private boolean tenantAdmin;
     }
 
     @Data

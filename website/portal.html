@@ -927,35 +927,51 @@
         grid.innerHTML = '<p style="color:#888;text-align:center;padding:32px;">暂无可用模块</p>';
         return;
       }
-      // 后端字段: productCode, productName, taskName, status, entryPath
-      // 平台管理员可看全部；普通用户看 granted
+      // === V2.0.16 W4 改造：按 subProductGrants 过滤已开通子产品 ===
+      // 平台超管（isPlatformAdmin=true）跳过过滤，看全部产品（便于运维）
+      // 普通用户只看已授权子产品（其他置灰+遮罩+不可点击）
       const grantedCodes = new Set(
-        (user && user.grantedProducts) || [] // 后端 login 时没有这字段，先全部展示
+        (user && user.subProductGrants) || []
       );
+      const isPlatformAdmin = !!(user && user.isPlatformAdmin);
       grid.innerHTML = modules.map(m => {
         const code = (m.productCode || '').toLowerCase();
         const isReady = m.status === 'REGISTERED' || m.status === 'ACTIVE';
+        const isGranted = isPlatformAdmin ||
+                          grantedCodes.has(code) ||
+                          grantedCodes.has((m.productCode || '').toUpperCase());
+        // W4 视觉反馈：未开通 = 灰色遮罩 + 🔒 图标 + 不可点击
+        const isLocked = !isGranted;
+        const statusText = isLocked ? '🔒 未开通' : (isReady ? '✓ 已开通' : '⏳ 待部署');
+        const cardClass = isLocked ? 'coming-soon' : (isReady ? 'active' : 'coming-soon');
         return `
-        <div class="module-card ${isReady ? 'active' : 'coming-soon'}"
+        <div class="module-card ${cardClass}"
              data-code="${m.productCode}"
-             data-status="${m.status}">
+             data-status="${m.status}"
+             data-locked="${isLocked}"
+             style="${isLocked ? 'opacity:0.55;cursor:not-allowed;' : ''}">
           <span class="module-icon">${iconFor(code)}</span>
           <h3>${m.productName}</h3>
           <div class="subtitle">${m.taskName || m.productName}</div>
           <p class="description">${m.productDesc || ''}</p>
-          <span class="module-status ${isReady ? 'active' : 'coming-soon'}">
-            ${isReady ? '✓ 已开通' : '⏳ 待部署'}
+          <span class="module-status ${isLocked ? 'coming-soon' : (isReady ? 'active' : 'coming-soon')}">
+            ${statusText}
           </span>
-          ${isReady ? `<div class="enter-link">进入系统 →</div>` : ''}
+          ${!isLocked && isReady ? `<div class="enter-link">进入系统 →</div>` : ''}
         </div>
       `;
       }).join('');
 
-      // 绑定点击
+      // 绑定点击 — V2.0.16 W4：未开通产品拦截
       grid.querySelectorAll('.module-card').forEach(card => {
         card.addEventListener('click', () => {
           const status = card.getAttribute('data-status');
           const code = card.getAttribute('data-code');
+          const locked = card.getAttribute('data-locked') === 'true';
+          if (locked) {
+            alert('该子产品尚未开通，请联系平台管理员在「管理后台 → 子产品开通管理」中开通。');
+            return;
+          }
           if (status === 'REGISTERED' || status === 'ACTIVE') {
             enterModule(code);
           } else {
@@ -1096,6 +1112,12 @@
         setToken(payload.token);
         // 适配后端字段 → 前端期望
         const u = payload.user || {};
+        // === V2.0.16 W4 改造：提取已授权子产品 code 列表 ===
+        // 数据源: LoginResponse.products (来自 buildProductView().filter(licensed))
+        // 与 JWT sub_product_grants 平铺字段保持一致
+        const subProductGrants = (payload.products || [])
+          .filter(p => p.licensed === true)
+          .map(p => p.code);
         const user = {
           id: u.id,
           username: u.username,
@@ -1103,7 +1125,10 @@
           role: u.platformAdmin ? 'super_admin' : 'operator',
           isPlatformAdmin: !!u.platformAdmin,
           company_id: payload.company?.id || 1,
-          company_name: payload.company?.name || ''
+          company_name: payload.company?.name || '',
+          // === V2.0.16 W4 新增 ===
+          subProductGrants,
+          isTenantAdmin: !!(u.isTenantAdmin) // 来自 JWT 平铺字段
         };
         setUser(user);
         showPortal(user);

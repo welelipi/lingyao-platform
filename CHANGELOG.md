@@ -3,6 +3,41 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.17 (2026-08-31 19:25) — W4 主站 portal.html 按子产品开通状态动态渲染 + UserView.tenantAdmin
+
+### 改动
+- `website/portal.html` · login 响应处理加 `subProductGrants` + `isTenantAdmin` 提取
+- `website/portal.html` · `renderModules` 加按授权过滤 + 视觉反馈（未开通置灰+🔒+不可点击）
+- `website/portal.html` · 点击 handler 加未开通产品拦截（提示联系平台管理员）
+- `backend/src/main/java/.../dto/LoginResponse.java` · UserView 加 `tenantAdmin` 字段
+- `backend/src/main/java/.../service/AuthService.java` · UserView 设置 tenantAdmin（与 JWT 平铺字段一致）
+
+### 业务价值
+- 租户开通 GEO/HPD/AIDD/DINFO/PORM 中部分子产品时，portal 只显示已开通子产品入口
+- 未开通产品置灰+🔒，用户点击时提示"请联系平台管理员在管理后台 → 子产品开通管理中开通"
+- 平台超管（isPlatformAdmin=true）跳过过滤，看全部产品（便于运维）
+
+### 验证（dev profile · lingyao-postgres）
+- mvn package 成功
+- 重启后端 PID 78877 · 9091 · 启动正常
+- login 响应：user.platformAdmin=true + user.tenantAdmin=true + 5 licensed products ✅
+
+### 待验证（需主人用普通租户用户登录验证）
+- 非平台超管的租户用户 → portal 只显示已授权子产品
+- 未开通产品点击 → 弹"请联系平台管理员"提示
+
+### 配套
+- DINFO M2（SSO 自动绑）可读 user.tenantAdmin
+- DINFO M5（分享调研入口）可读 user.subProductGrants
+
+### PRD
+- `/tmp/dinfo-prd/MainSite_MultiTenant_Support_PRD.md` (W4)
+
+### owner
+- 凌瑶主人 <owner@lingyao.local>
+
+---
+
 ## V2.0.16 (2026-08-31 18:58) — JWT claims 平铺字段 W1（DINFO M2 配套）
 
 ### 改动
