@@ -468,6 +468,26 @@
       transform: translateX(4px);
     }
 
+    /* V2.0.19 W6 阶段 2：复制链接按钮（超管专属） */
+    .module-card .copy-link-btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(95, 153, 255, 0.1);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .module-card .copy-link-btn:hover {
+      background: var(--accent);
+      color: white;
+      transform: translateY(-1px);
+    }
+
     /* ── 登录表单 ─────── */
     .login-container {
       max-width: 420px;
@@ -979,6 +999,8 @@
         const isLocked = !isGranted;
         const statusText = isLocked ? '🔒 未开通' : (isReady ? '✓ 已开通' : '⏳ 待部署');
         const cardClass = isLocked ? 'coming-soon' : (isReady ? 'active' : 'coming-soon');
+        // V2.0.19 W6 阶段 2：超管可见「复制链接」按钮（生成 5 分钟短时专属链接）
+        const canCopyLink = !isLocked && (isPlatformAdmin || user.isTenantAdmin);
         return `
         <div class="module-card ${cardClass}"
              data-code="${m.productCode}"
@@ -993,6 +1015,7 @@
             ${statusText}
           </span>
           ${!isLocked && isReady ? `<div class="enter-link">进入系统 →</div>` : ''}
+          ${canCopyLink ? `<button class="copy-link-btn" data-action="copy-sub-product-link" data-pcode="${m.productCode}" data-pname="${m.productName.replace(/"/g, '&quot;')}" title="生成 5 分钟短时专属链接并复制">📋 复制链接</button>` : ''}
         </div>
       `;
       }).join('');
@@ -1011,6 +1034,40 @@
             enterModule(code);
           } else {
             alert('该模块正在规划中，敬请期待！');
+          }
+        });
+      });
+
+      // V2.0.19 W6 阶段 2：复制链接按钮点击事件（超管专属 · 5 分钟短时 JWT）
+      grid.querySelectorAll('.copy-link-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation(); // 阻止卡片 click
+          const pcode = btn.getAttribute('data-pcode');
+          const pname = btn.getAttribute('data-pname');
+          if (!confirm(`生成「${pname}」的 5 分钟短时专属链接？\n链接将复制到剪贴板，请通过安全渠道发给用户。`)) return;
+          try {
+            const res = await fetch(API_BASE + `/api/admin/sub-product/${pcode}/generate-link`, {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('lingyao_token'),
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({})
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || (json.code !== undefined && json.code !== 0)) {
+              alert('生成链接失败：' + (json.message || `HTTP ${res.status}`));
+              return;
+            }
+            const url = json.data.link;
+            await navigator.clipboard.writeText(url).then(() => {
+              alert(`✅ 链接已复制到剪贴板\n\n有效期：${json.data.token_ttl_seconds} 秒\n过期时间：${new Date(json.data.expires_at).toLocaleString('zh-CN')}\n\n请尽快发给目标用户！`);
+            }).catch(() => {
+              // 降级：弹窗让用户手动复制
+              prompt('请手动复制以下链接（5 分钟内有效）：', url);
+            });
+          } catch (err) {
+            alert('请求失败：' + err.message);
           }
         });
       });

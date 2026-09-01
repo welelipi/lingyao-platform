@@ -70,6 +70,8 @@
       <button class="ca-tab active" data-tab="overview" data-page-node-id="8gaNnXSRUDt6dm8Z08hLyG">概览</button>
       <button class="ca-tab" data-tab="users" data-page-node-id="R4ePYYPgkCC8KXPWj8cuLS">用户管理</button>
       <button class="ca-tab" data-tab="products" data-page-node-id="a6BlGPEHsaCuHgaByWayL4">产品授权</button>
+      <button class="ca-tab" data-tab="sso-config" data-page-node-id="SsoCfgTabBtn">SSO 配置</button>
+      <button class="ca-tab" data-tab="approvals" data-page-node-id="ApvlTabBtn">集中审批</button>
     </div>
 
     <!-- Tab 1: 概览 -->
@@ -131,6 +133,47 @@
     <div class="ca-tab-content" id="tab-products" data-page-node-id="EsjAHvKRRFOQkScnqz8k6s">
       <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;" data-page-node-id="EbaEhjg0selcaH6PwUBOUq">本公司已开通的产品，可对员工进行授权/撤销</p>
       <div class="products-grid" id="productsGrid" data-page-node-id="OnEUJHKuJ0aoa4TSY08ILR"></div>
+    </div>
+
+    <!-- Tab 4: SSO 配置（V2.0.19 W6 阶段 2 前端） -->
+    <div class="ca-tab-content" id="tab-sso-config" data-page-node-id="SsoCfgTabContent">
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;" data-page-node-id="SsoCfgTip">
+        本公司子产品的 SSO 单点登录配置。每个子产品可独立生成 5 分钟过期的一次性专属链接。
+      </p>
+      <div class="ca-card" data-page-node-id="SsoCfgListCard">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;" data-page-node-id="SsoCfgHead">
+          <h3 style="font-size:16px;" data-page-node-id="SsoCfgTitle">子产品 SSO 接入列表</h3>
+          <button class="btn-ghost-sm" data-action="refresh-sso" data-page-node-id="SsoCfgRefreshBtn">🔄 刷新</button>
+        </div>
+        <div id="ssoConfigGrid" data-page-node-id="SsoCfgGrid" class="products-grid"></div>
+      </div>
+    </div>
+
+    <!-- Tab 5: 集中审批（V2.0.19 W6 阶段 2 前端） -->
+    <div class="ca-tab-content" id="tab-approvals" data-page-node-id="ApvlTabContent">
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;" data-page-node-id="ApvlTip">
+        集中审批本公司子产品接入申请、用户授权变更等操作。
+      </p>
+      <div class="ca-card" data-page-node-id="ApvlListCard">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;" data-page-node-id="ApvlHead">
+          <h3 style="font-size:16px;" data-page-node-id="ApvlTitle">待审批列表</h3>
+          <button class="btn-ghost-sm" data-action="refresh-approvals" data-page-node-id="ApvlRefreshBtn">🔄 刷新</button>
+        </div>
+        <table class="data-table" id="approvalsTable" data-page-node-id="ApvlTable">
+          <thead data-page-node-id="ApvlThead">
+            <tr data-page-node-id="ApvlTheadRow">
+              <th data-page-node-id="ApvlTh1">类型</th>
+              <th data-page-node-id="ApvlTh2">申请人</th>
+              <th data-page-node-id="ApvlTh3">目标产品</th>
+              <th data-page-node-id="ApvlTh4">说明</th>
+              <th data-page-node-id="ApvlTh5">提交时间</th>
+              <th data-page-node-id="ApvlTh6">状态</th>
+              <th data-page-node-id="ApvlTh7">操作</th>
+            </tr>
+          </thead>
+          <tbody id="approvalsTbody" data-page-node-id="ApvlTbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -216,6 +259,40 @@
       <div id="grantProductList" style="max-height:400px;overflow-y:auto;" data-page-node-id="SY31PzCdlrZ7Vbp4FsSA25"></div>
       <div class="form-actions" data-page-node-id="E7BVGwksWALt7KKTjfk9Cw">
         <button type="button" class="btn-ghost-sm" onclick="closeModal('grantProduct')" data-page-node-id="Ie5ITKdSQ004YbPGANjYZQ">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态：生成专属链接（V2.0.19 W6 阶段 2 前端） -->
+  <div class="modal" id="ssoLinkModal" data-page-node-id="SsoLinkModal">
+    <div class="modal-backdrop" onclick="closeModal('ssoLink')" data-page-node-id="SsoLinkBackdrop"></div>
+    <div class="modal-content modal-large" data-page-node-id="SsoLinkContent">
+      <button class="modal-close" onclick="closeModal('ssoLink')" data-page-node-id="SsoLinkClose">&times;</button>
+      <div class="modal-header" data-page-node-id="SsoLinkHeader">
+        <h3 id="ssoLinkTitle" data-page-node-id="SsoLinkTitleEl">生成 SSO 专属链接</h3>
+        <p id="ssoLinkSubtitle" data-page-node-id="SsoLinkSubtitle">链接 5 分钟内有效，请尽快发给用户</p>
+      </div>
+      <div id="ssoLinkResultView" data-page-node-id="SsoLinkResultView" style="padding:8px 0;">
+        <div style="background:rgba(95,153,255,0.08);border:1px solid var(--accent);border-radius:8px;padding:16px;margin-bottom:16px;" data-page-node-id="SsoLinkWarnBox">
+          <p style="font-size:13px;margin-bottom:12px;color:var(--text-dim);" data-page-node-id="SsoLinkWarnText">
+            ⚠️ <strong data-page-node-id="SsoLinkWarnStrong">安全提醒</strong>：此链接 5 分钟内有效，过期后无法重新生成同样的链接。请通过安全渠道（加密聊天/邮件）发给目标用户，不要在群聊中分享。
+          </p>
+          <div data-page-node-id="SsoLinkUrlRow">
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;" data-page-node-id="SsoLinkUrlLabel">专属链接</label>
+            <div style="display:flex;gap:8px;align-items:center;" data-page-node-id="SsoLinkUrlInputRow">
+              <input type="text" id="ssoLinkUrl" readonly style="flex:1;font-family:monospace;font-size:12px;" data-page-node-id="SsoLinkUrlInput">
+              <button type="button" class="btn-primary-sm" data-action="copy-sso-link" data-page-node-id="SsoLinkCopyBtn">📋 复制</button>
+            </div>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:16px;font-size:12px;color:var(--text-dim);" data-page-node-id="SsoLinkMetaRow">
+            <span data-page-node-id="SsoLinkTtl">TTL：<strong style="color:var(--text);">-</strong></span>
+            <span data-page-node-id="SsoLinkExpiry">过期时间：<strong style="color:var(--text);">-</strong></span>
+          </div>
+        </div>
+        <div class="form-actions" data-page-node-id="SsoLinkActions">
+          <button type="button" class="btn-ghost-sm" data-action="regenerate-sso-link" data-page-node-id="SsoLinkRegenerateBtn">🔄 重新生成</button>
+          <button type="button" class="btn-primary-sm" onclick="closeModal('ssoLink')" data-page-node-id="SsoLinkDoneBtn">完成</button>
+        </div>
       </div>
     </div>
   </div>
@@ -579,13 +656,199 @@
       } catch (_) {}
     }
 
-    // ── Tab 切换 ─────────────────
+    // ── SSO 配置 Tab（V2.0.19 W6 阶段 2 前端）────────────
+    let ssoConfigCache = [];
+
+    async function loadSsoConfig() {
+      try {
+        ssoConfigCache = await api('GET', '/api/company-admin/sub-products');
+        renderSsoConfig();
+      } catch (e) {
+        showToast('加载 SSO 配置失败：' + e.message, 'error');
+      }
+    }
+
+    function renderSsoConfig() {
+      const grid = document.getElementById('ssoConfigGrid');
+      if (!ssoConfigCache.length) {
+        grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🔗</div>本公司暂未开通子产品</div>';
+        return;
+      }
+      grid.innerHTML = ssoConfigCache.map(p => {
+        const hasSubTask = p.subTask && p.subTask.baseUrl;
+        return `
+          <div class="product-card" data-product-code="${escapeHtml(p.code)}">
+            <div class="product-head">
+              <div style="display:flex;gap:12px;align-items:center;">
+                <div class="product-icon">${escapeHtml(p.icon || p.code?.charAt(0) || '?')}</div>
+                <div>
+                  <div class="product-name">${escapeHtml(p.name)}</div>
+                  <div class="product-code">${escapeHtml(p.code)}</div>
+                </div>
+              </div>
+              <span class="status-tag ${p.subTask?.status || 'NOT_CONFIGURED'}">${p.subTask?.status || '未配置'}</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-dim);margin:8px 0;word-break:break-all;">
+              baseUrl：<code style="color:var(--text);font-size:11px;">${escapeHtml(hasSubTask ? p.subTask.baseUrl : '未配置')}</code>
+            </div>
+            <div style="margin-top:12px;text-align:right;">
+              <button class="btn-primary-sm" data-action="generate-sso-link" data-pcode="${escapeHtml(p.code)}" data-pname="${escapeHtml(p.name)}">
+                🔗 生成专属链接
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('[data-action="generate-sso-link"]').forEach(btn => {
+        btn.addEventListener('click', () => openSsoLinkModal(btn.dataset.pcode, btn.dataset.pname));
+      });
+    }
+
+    function openSsoLinkModal(pcode, pname) {
+      document.getElementById('ssoLinkTitle').textContent = `生成 ${pname}（${pcode}）的 SSO 专属链接`;
+      document.getElementById('ssoLinkUrl').value = '';
+      document.querySelector('#ssoLinkMetaRow [data-page-node-id="SsoLinkTtl"] strong').textContent = '-';
+      document.querySelector('#ssoLinkMetaRow [data-page-node-id="SsoLinkExpiry"] strong').textContent = '-';
+      // 存储 pcode 到 dataset 供复制/重新生成使用
+      document.getElementById('ssoLinkContent').dataset.currentPcode = pcode;
+      openModal('ssoLink');
+      // 自动生成
+      doGenerateSsoLink(pcode);
+    }
+
+    async function doGenerateSsoLink(pcode) {
+      try {
+        const res = await api('POST', `/api/admin/sub-product/${pcode}/generate-link`, {});
+        document.getElementById('ssoLinkUrl').value = res.link;
+        document.querySelector('#ssoLinkMetaRow [data-page-node-id="SsoLinkTtl"] strong').textContent = `${res.token_ttl_seconds} 秒`;
+        document.querySelector('#ssoLinkMetaRow [data-page-node-id="SsoLinkExpiry"] strong').textContent = fmtDate(res.expires_at);
+        showToast('链接已生成（5 分钟内有效）', 'success');
+      } catch (e) {
+        showToast('生成链接失败：' + e.message, 'error');
+      }
+    }
+
+    // 重新生成
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="regenerate-sso-link"]');
+      if (btn) {
+        const pcode = document.getElementById('ssoLinkContent').dataset.currentPcode;
+        if (pcode) doGenerateSsoLink(pcode);
+      }
+    });
+
+    // 复制按钮
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="copy-sso-link"]');
+      if (btn) {
+        const urlEl = document.getElementById('ssoLinkUrl');
+        if (!urlEl.value) {
+          showToast('链接未生成', 'error');
+          return;
+        }
+        navigator.clipboard.writeText(urlEl.value).then(() => {
+          showToast('已复制到剪贴板', 'success');
+        }).catch(() => {
+          urlEl.select();
+          document.execCommand('copy');
+          showToast('已复制', 'success');
+        });
+      }
+    });
+
+    // 刷新 SSO 配置
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="refresh-sso"]');
+      if (btn) loadSsoConfig();
+    });
+
+    // ── 集中审批 Tab（V2.0.19 W6 阶段 2 前端）────────────
+    let approvalsCache = [];
+
+    async function loadApprovals() {
+      try {
+        approvalsCache = await api('GET', '/api/sub/pending');
+        renderApprovals();
+      } catch (e) {
+        showToast('加载审批列表失败：' + e.message, 'error');
+        approvalsCache = [];
+        renderApprovals();
+      }
+    }
+
+    function renderApprovals() {
+      const tb = document.getElementById('approvalsTbody');
+      if (!approvalsCache.length) {
+        tb.innerHTML = '<tr><td colspan="7" class="empty-state">暂无待审批</td></tr>';
+        return;
+      }
+      tb.innerHTML = approvalsCache.map(a => `
+        <tr>
+          <td><span class="role-tag ${escapeHtml(a.type || 'UNKNOWN')}">${escapeHtml(a.type || '-')}</span></td>
+          <td><strong>${escapeHtml(a.requester || a.applicant || '-')}</strong></td>
+          <td>${escapeHtml(a.productCode || a.targetProduct || '-')}</td>
+          <td style="font-size:12px;color:var(--text-dim);">${escapeHtml(a.reason || a.description || '-')}</td>
+          <td style="font-size:12px;color:var(--text-dim);">${fmtDate(a.submittedAt || a.createdAt)}</td>
+          <td><span class="status-tag ${escapeHtml(a.status || 'PENDING')}">${escapeHtml(a.status || 'PENDING')}</span></td>
+          <td>
+            <button class="btn-success-sm" data-action="approve-item" data-id="${escapeHtml(a.id || a.taskId)}" data-type="${escapeHtml(a.type || 'sub_task')}">通过</button>
+            <button class="btn-warn-sm" data-action="reject-item" data-id="${escapeHtml(a.id || a.taskId)}" data-type="${escapeHtml(a.type || 'sub_task')}">拒绝</button>
+          </td>
+        </tr>
+      `).join('');
+
+      tb.querySelectorAll('[data-action="approve-item"]').forEach(btn => {
+        btn.addEventListener('click', () => doApproveItem(btn.dataset.id, btn.dataset.type));
+      });
+      tb.querySelectorAll('[data-action="reject-item"]').forEach(btn => {
+        btn.addEventListener('click', () => doRejectItem(btn.dataset.id, btn.dataset.type));
+      });
+    }
+
+    async function doApproveItem(id, type) {
+      if (!confirm('确认通过该审批？')) return;
+      try {
+        await api('POST', `/api/sub/${id}/approve`, { type });
+        showToast('已通过', 'success');
+        await loadApprovals();
+      } catch (e) {
+        showToast('操作失败：' + e.message, 'error');
+      }
+    }
+
+    async function doRejectItem(id, type) {
+      const reason = prompt('拒绝理由（可留空）：');
+      if (reason === null) return; // 用户取消
+      try {
+        await api('POST', `/api/sub/${id}/reject`, { type, reason });
+        showToast('已拒绝', 'success');
+        await loadApprovals();
+      } catch (e) {
+        showToast('操作失败：' + e.message, 'error');
+      }
+    }
+
+    // 刷新审批列表
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="refresh-approvals"]');
+      if (btn) loadApprovals();
+    });
+
+    // ── Tab 切换（增强：切到 SSO 配置/集中审批时按需加载）────────────
     document.querySelectorAll('.ca-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.ca-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.ca-tab-content').forEach(c => c.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+
+        // 首次进入新 Tab 时加载
+        if (tab.dataset.tab === 'sso-config' && ssoConfigCache.length === 0) {
+          loadSsoConfig();
+        } else if (tab.dataset.tab === 'approvals' && approvalsCache.length === 0) {
+          loadApprovals();
+        }
       });
     });
 
