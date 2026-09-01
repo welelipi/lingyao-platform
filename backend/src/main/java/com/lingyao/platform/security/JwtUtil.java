@@ -116,11 +116,15 @@ public class JwtUtil {
         Date now = new Date();
         Date exp = new Date(now.getTime() + expirationHours * 3600 * 1000);
 
+        // V2.0.20 P1：每个 token 都带 jti（UUID），用于 logout 后的黑名单校验
+        String jti = java.util.UUID.randomUUID().toString();
+
         return Jwts.builder()
                 .claims(claims)
                 .issuer(issuer)
                 .audience().add(DEFAULT_AUDIENCE).and()
                 .subject(String.valueOf(userId))
+                .id(jti)  // 标准 jti claim
                 .issuedAt(now)
                 .expiration(exp)
                 .signWith(getKey())
@@ -223,11 +227,15 @@ public class JwtUtil {
         // SSO token 短期有效（2 小时），首次登录后子平台应该换发长 token
         Date exp = new Date(now.getTime() + 2 * 3600 * 1000);
 
+        // V2.0.20 P1：SSO token 也带 jti（子平台调用主平台 logout 也能吊销）
+        String jti = java.util.UUID.randomUUID().toString();
+
         return Jwts.builder()
                 .claims(claims)
                 .issuer(issuer)
                 .audience().add(DEFAULT_AUDIENCE).and()
                 .subject(employeeId)
+                .id(jti)
                 .issuedAt(now)
                 .expiration(exp)
                 .signWith(getKey())

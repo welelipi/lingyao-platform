@@ -1,5 +1,6 @@
 package com.lingyao.platform.security;
 
+import com.lingyao.platform.repository.TokenBlacklistRepository;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -38,6 +39,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Autowired
     private TenantAwareUtil tenantAwareUtil;
 
+    // V2.0.20 P1 阶段 A：黑名单校验
+    @Autowired
+    private TokenBlacklistRepository tokenBlacklistRepository;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
@@ -46,6 +51,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = header.substring(7);
             try {
                 Claims claims = jwtUtil.parse(token);
+
+                // V2.0.20 P1 阶段 A：黑名单校验（logout / password_changed / admin_revoke）
+                String jti = claims.getId();
+                if (jti != null && tokenBlacklistRepository.existsByJti(jti)) {
+                    logger.debug("JWT 已被吊销 (jti=" + jti + ")");
+                    // 不抛异常 → 让后续接口返回 401，由 GlobalExceptionHandler 统一处理
+                    // 这里只清掉 SecurityContext，跳过设置 CurrentUser
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 CurrentUser currentUser = new CurrentUser();
                 currentUser.setUserId(claims.get("uid", Number.class) != null
