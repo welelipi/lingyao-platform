@@ -6,10 +6,14 @@ import com.lingyao.platform.entity.*;
 import com.lingyao.platform.repository.*;
 import com.lingyao.platform.security.CurrentUser;
 import com.lingyao.platform.security.JwtUtil;
+import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,6 +35,8 @@ public class AuthService {
     @Autowired private JwtUtil jwtUtil;
     @Autowired private LoginAttemptService attemptService;
     @Autowired private AuditLogService auditLogService;
+    // V2.0.20 P1 阶段 A
+    @Autowired private TokenBlacklistRepository tokenBlacklistRepository;
 
     public LoginResponse login(LoginRequest req, String ip) {
         // Bug-09：登录前先检查是否锁定
@@ -190,6 +196,104 @@ public class AuthService {
         attemptService.recordSuccess(user.getUsername());
         auditLogService.record("PASSWORD_CHANGED", "USER", String.valueOf(user.getId()),
                 "用户修改密码成功: " + user.getUsername());
+    }
+
+    // ═══════════════════════ V2.0.20 P1 阶段 A 新增：logout + getMe ═══════════════════════
+
+    /**
+     * P1.2 logout：把当前 jti 写入黑名单，JwtAuthFilter 校验时拒绝
+     *
+     * @param userId  当前用户 ID（用于审计）
+     * @param claims  解析后的 Claims（含 jti + exp）
+     * @param ip      客户端 IP（用于审计）
+     */
+    @Transactional
+    public void logout(Long userId, Claims claims, String ip) {
+        String jti = claims.getId();
+        Date exp = claims.getExpiration();
+        if (jti == null || exp == null) {
+            // 老 token 没 jti/exp（理论上不应该出现），静默放过
+            return;
+        }
+        // 幂等：已黑名单的不重复插入（jti 唯一约束保护）
+        if (tokenBlacklistRepository.existsByJti(jti)) {
+            return;
+        }
+        LocalDateTime expiresAt = LocalDateTime.ofInstant(exp.toInstant(), ZoneId.systemDefault());
+        TokenBlacklist entry = new TokenBlacklist(
+                jti, userId, null, expiresAt, "LOGOUT", ip);
+        tokenBlacklistRepository.save(entry);
+
+        auditLogService.record("LOGOUT", "USER", String.valueOf(userId),
+                "用户主动退出登录 (jti=" + jti + ")");
+    }
+
+    /**
+     * P1.1 /me：返回当前用户的 profile + company + products
+     *
+     * 用于前端刷新页面 / token 即将过期时校验身份信息
+     * 不返回密码 hash 等敏感字段
+     *
+     * @param userId  当前用户 ID
+     * @return LoginResponse（token / expiresIn 字段填充为占位）
+     */
+    public LoginResponse getMe(Long userId) {
+        SysUser user = userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在: " + userId));
+
+        // 解析多公司
+        List<CompanyUser> memberships = companyUserRepo.findByUserId(userId).stream()
+                .filter(cu -> cu.getStatus() == CompanyUser.Status.ACTIVE)
+                .toList();
+        Long currentCompanyId = memberships.isEmpty() ? null : memberships.get(0).getCompanyId();
+
+        String companyCode = null;
+        String companyName = null;
+        if (currentCompanyId != null) {
+            Company company = companyRepo.findById(currentCompanyId).orElse(null);
+            if (company != null) {
+                companyCode = company.getCode();
+                companyName = company.getName();
+            }
+        }
+
+        String displayName = user.getDisplayName() != null ? user.getDisplayName() : user.getUsername();
+        boolean isPlatformAdminFlag = Boolean.TRUE.equals(user.getIsPlatformAdmin());
+        boolean isTenantAdmin = isPlatformAdminFlag || memberships.stream()
+                .anyMatch(cu -> cu.getRole() == CompanyUser.CompanyRole.SUPER_ADMIN);
+
+        List<LoginResponse.ProductView> products = buildProductView(userId, currentCompanyId, isPlatformAdminFlag);
+
+        LoginResponse resp = new LoginResponse();
+        // /me 不重发 token，前端继续用旧 token
+        resp.setToken(null);
+        resp.setExpiresIn(jwtUtil.getExpirationSeconds());
+
+        LoginResponse.UserView uv = new LoginResponse.UserView();
+        uv.setId(user.getId());
+        uv.setUsername(user.getUsername());
+        uv.setDisplayName(user.getDisplayName());
+        uv.setEmail(user.getEmail());
+        uv.setPlatformAdmin(isPlatformAdminFlag);
+        uv.setTenantAdmin(isTenantAdmin);
+        resp.setUser(uv);
+
+        if (currentCompanyId != null) {
+            final String fCompanyCode = companyCode;
+            final String fCompanyName = companyName;
+            companyRepo.findById(currentCompanyId).ifPresent(c -> {
+                LoginResponse.CompanyView cv = new LoginResponse.CompanyView();
+                cv.setId(c.getId());
+                cv.setCode(c.getCode());
+                cv.setName(c.getName());
+                resp.setCompany(cv);
+            });
+        }
+
+        resp.setProducts(products);
+        resp.setMustChangePassword(Boolean.FALSE.equals(user.getPasswordChanged()));
+
+        return resp;
     }
 
     private List<LoginResponse.ProductView> buildProductView(Long userId, Long companyId, Boolean isPlatformAdmin) {

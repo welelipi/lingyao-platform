@@ -37,6 +37,7 @@ public class SecurityConfig {
                     "/api/_diag/**",            // V2.0.3: 开发者诊断 endpoint（无需 JWT 自检版本/PID/启动时间）
                     "/api/public/**",
                     "/api/auth/login",
+                    "/api/auth/logout",           // V2.0.20 P1 阶段 A：logout 幂等，允许未登录调用（前端清 token）
                     "/api/auth/register",
                     "/api/registrations",         // 公开报名提交
                     "/api/registrations/stats",   // 公开统计（仅数量）
