@@ -3,6 +3,42 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.20 (2026-09-01 17:05) — W6 阶段 2.5 修复：集中审批 3 接口后端 + POR-M callback 路径
+
+主人 16:49 拍板「1」= P0 立即修 B1 + B2。修完 9 个 E2E 场景全通过，本地 commit 不 push。
+
+### 新增
+- **sub_task_approval 表 + 实体 + Repository**（V2.0.19 W6 阶段 2 前端集中审批 Tab 调的是空气接口）
+  - 通用审批流：SUBTASK_INVOKE / PRODUCT_GRANT / SSO_LINK_REQUEST / OTHER
+  - 单层审批：PENDING → APPROVED / REJECTED
+  - payload_json 字段保留扩展（任意附加 JSON）
+  - 4 CHECK 约束 + 5 索引（company_id+status 复合索引优先）
+- **3 个 SubTaskController 接口**：
+  - `GET /api/sub/pending` — 查当前公司待审批（平台超管看全部）
+  - `POST /api/sub/{id}/approve` — 通过审批
+  - `POST /api/sub/{id}/reject` — 拒绝审批（带 reason）
+
+### 修复
+- **B2 POR-M base-url 缺 callback 路径**（V2.0.18 引入的隐性 bug）
+  - 旧：`http://localhost:3190` → SSO 跳转会丢 token
+  - 新：`http://localhost:3190/auth/lingyao/callback`（参考 DINFO 风格）
+
+### 权限分层
+- 平台超管：看/审批 任意公司
+- 公司超管：仅看/审批 自己公司（用 TenantContext.isTenantAdmin 二次校验）
+- 普通用户：403
+
+### 与现有 audit_log 解耦
+- 单独记录 SUBTASK_APPROVAL_APPROVE / SUBTASK_APPROVAL_REJECT 到 audit_log
+
+### E2E 9 场景全通过
+① 空列表 / ② 灌 3 条 / ③ pending 列表 / ④ approve / ⑤ reject+reason
+⑥ 审批后状态过滤 / ⑦ 未登录 / ⑧ 重复 approve / ⑨ approve 不存在
+
+---
+
+## V2.0.19 (2026-09-01 16:30) — W6 阶段 2 后端 + 前端 3 个页面
+
 ## V2.0.19 (2026-09-01 16:18) — W6 阶段 2 后端 · 子产品专属链接生成/验签（短时 5 分钟 JWT）
 
 ### 背景
