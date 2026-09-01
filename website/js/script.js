@@ -527,11 +527,32 @@
     });
   }
 
-  // 退出登录
+  // 退出登录 — V2.0.20 P1 阶段 A
+  // 调后端 /api/auth/logout（服务端黑名单），再清前端状态
   function logout() {
+    const token = localStorage.getItem('lingyao_token');
+    // 1) 先发服务端黑名单（fire-and-forget，失败也继续清前端）
+    if (token) {
+      try {
+        // 同步 fetch（保证后端 jti 写入黑名单后再清前端）
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/auth/logout', false);  // 同步
+        xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send('{}');
+        // 不管成功 200 / 已过期 / 网络失败，都继续清前端
+      } catch (e) {
+        // 静默吞掉：网络失败也要清前端，避免用户登不出去
+        console.warn('logout 后端调用失败（不影响前端清理）:', e);
+      }
+    }
+    // 2) 清前端状态
     localStorage.removeItem('lingyao_token');
     localStorage.removeItem('lingyao_user');
-    location.reload();
+    localStorage.removeItem('lingyao_company');
+    localStorage.removeItem('lingyao_products');
+    // 3) 跳转登录页（而非 reload，避免循环）
+    window.location.href = '/index.html';
   }
   window.lingyaoLogout = logout;
 
