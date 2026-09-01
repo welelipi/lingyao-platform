@@ -18,6 +18,10 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthFilter jwtAuthFilter;
 
+    // V2.0.23 P2.1 阶段 C：Security headers（X-Frame-Options / CSP / HSTS 等）
+    @Autowired
+    private SecurityHeadersFilter securityHeadersFilter;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -67,7 +71,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )
-            .headers(h -> h.frameOptions(f -> f.sameOrigin()))  // H2 console 需要
+            .headers(h -> h.disable())  // V2.0.23 P2.1：禁用 Spring Security 默认 headers，由 SecurityHeadersFilter 统一管理
             .exceptionHandling(eh -> eh
                 .authenticationEntryPoint((req, resp, ex) -> {
                     resp.setStatus(401);
@@ -80,6 +84,7 @@ public class SecurityConfig {
                     resp.getWriter().write("{\"code\":403,\"message\":\"无权访问该资源\",\"success\":false}");
                 })
             )
+            .addFilterBefore(securityHeadersFilter, org.springframework.web.filter.CorsFilter.class)  // V2.0.23 P2.1：安全响应头（CSP/HSTS/X-Frame-Options）
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

@@ -3,6 +3,55 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.23 (2026-09-02 07:45) — P2.1 阶段 C：Security headers（OWASP 6 响应头）
+
+主人 22:50 拍板「P2.1 Security headers（Recommended）」= 加 OWASP 推荐的 6 个安全响应头。7 个 E2E 场景全过，本地 commit 不 push。
+
+### 新增
+
+- **SecurityHeadersFilter**（V2.0.23 P2.1 核心）
+  - 6 个安全响应头：
+    1. **X-Frame-Options** — DENY（防 clickjacking），H2 console 例外 SAMEORIGIN
+    2. **X-Content-Type-Options** — nosniff（防 MIME sniffing）
+    3. **X-XSS-Protection** — 1; mode=block（老浏览器兼容）
+    4. **Strict-Transport-Security** — max-age=31536000（仅生产 + HTTPS）
+    5. **Content-Security-Policy** — 按 URL 类型差异化（API 不返 CSP）
+    6. **Referrer-Policy** — strict-origin-when-cross-origin
+    7. **Permissions-Policy** — 关闭 camera/microphone/geolocation 等敏感 API
+  - URL 类型差异化 CSP（关键：H2 console / Vite dev 不被卡）：
+    - HTML 页面（完整 CSP + frame-ancestors 'none' + object-src 'none'）
+    - 静态资源（/js /css /assets）：宽松 CSP（允许 unsafe-inline）
+    - H2 console：frame-ancestors 'self'（允许 console 自加载）
+    - API（/api/**）：不返 CSP（返 JSON，无需限制 inline script）
+
+### 修复
+
+- **Spring Security 默认 headers 覆盖自定义 DENY**（V2.0.23 关键修复）
+  - 旧：`.headers(h -> h.frameOptions(f -> f.sameOrigin()))` → 同源 frame 允许，clickjacking 防护失效
+  - 新：`.headers(h -> h.disable())` → 由 SecurityHeadersFilter 统一管理（DENY + SAMEORIGIN 按 URL 分流）
+
+### 变更
+
+- **app.version 2.0.22 → 2.0.23**
+- **SecurityConfig.headers()** 改为 disable（统一交给 SecurityHeadersFilter）
+- **application.yml** 加 `lingyao.security.headers.hsts.enabled` 配置（默认 false，dev 不返 HSTS）
+
+### 验收（7/7）
+
+- E1 HTML /index.html X-Frame-Options: DENY ✅
+- E2 portal.html DENY ✅
+- E3 H2 console SAMEORIGIN + 放宽 CSP ✅
+- E4 /api/version 不返 CSP ✅
+- E5 /js/script.js 宽松 CSP ✅
+- E6 dev 不返 HSTS ✅
+- E7 完整 6 个 headers 全在位 ✅
+
+### 待主人拍板
+
+- P2.2 限流（rate limit）· P2.3 CSRF · P2.4 审计日志强化 + 2FA 预设
+
+---
+
 ## V2.0.22 (2026-09-01 22:45) — P1 阶段 B：refresh_token 滑动续期 + forgot-password 邮件重置
 
 主人 22:30 拍板「A + B 一起做」= P1.4 refresh_token + P1.5 forgot-password 两个一起做。P1.4 8 个 E2E 全过 + P1.5 14 个 E2E 全过，本地 commit 不 push。
