@@ -3,6 +3,99 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.22 (2026-09-01 22:45) — P1 阶段 B：refresh_token 滑动续期 + forgot-password 邮件重置
+
+主人 22:30 拍板「A + B 一起做」= P1.4 refresh_token + P1.5 forgot-password 两个一起做。P1.4 8 个 E2E 全过 + P1.5 14 个 E2E 全过，本地 commit 不 push。
+
+### 新增
+
+#### P1.4 refresh_token 滑动续期
+- **refresh_token 表 + 实体 + Repository**（token_hash UNIQUE + 2 索引 + revoked_reason CHECK）
+  - 字段：user_id / token_hash (SHA-256) / expires_at / used_at / replaced_by_id / revoked_at / revoked_reason / ip / created_at
+  - 滑动续期：每次 refresh 旧 token 标 used_at + replaced_by_id 指向新 token
+  - 防重放：已 used 的 token 再次出现 → 整条链全部撤销（REFRESH_REPLAY_DETECTED）
+  - 失效场景：LOGOUT / PASSWORD_CHANGED / ADMIN_REVOKE / REFRESH_REPLAY_DETECTED
+- **JwtUtil 加 refresh_token 工具**
+  - `generateRefreshTokenPlain()` — SecureRandom 32B → URL-safe Base64
+  - `hashRefreshToken()` — SHA-256 hash（DB 存 hash，泄露不可重放）
+  - `getAccessTokenTtlSeconds()` — access 24h
+  - 常量 `REFRESH_TOKEN_TTL_SECONDS` = 30*24*3600（30 天）
+- **POST /api/auth/refresh**（公开端点，refresh_token 本身就是凭证）
+  - 入参 `{ refreshToken: "..." }` → 返回 LoginResponse（new access + new refresh）
+  - 重放检测命中 → REFRESH_REPLAY_DETECTED 撤销该用户所有 active refresh
+  - AuthService.refresh() @Transactional
+- **AuthService.logout()** 撤销该用户所有 active refresh_token
+- **AuthService.changePassword()** 撤销该用户所有 active refresh_token（防密改后旧设备续期）
+- **LoginResponse** 新增 `refreshToken` + `refreshTokenExpiresIn` 字段
+- **SecurityConfig** /api/auth/refresh 加 permitAll
+
+#### P1.5 forgot-password 邮件重置密码
+- **password_reset_token 表 + 实体 + Repository**（token_hash UNIQUE + 2 索引）
+  - 字段：user_id / token_hash / expires_at / used_at / ip_address / created_at
+  - 默认 TTL 1 小时（邮件场景够用）
+  - 一次性 token（used_at 标记）
+- **POST /api/auth/forgot-password**（公开）
+  - 入参 `{ email?: "...", username?: "..." }` → 200 + 始终同消息（防用户枚举）
+  - 防 spam：1 分钟内重复请求同一用户 → 不发新 token（防邮件轰炸）
+  - Dev mode：邮件通道未配置时返回 `devModeToken` + `resetUrl` 给前端直接用（生产环境邮件通道启用后删除）
+  - audit 记录 PASSWORD_RESET_REQUESTED（邮箱脱敏）
+- **POST /api/auth/reset-password**（公开，token 本身就是凭证）
+  - 入参 `{ token: "...", newPassword: "..." }` → 200 + 修改密码 + 撤销所有 refresh_token
+  - 校验：token hash 命中 + 未过期 + 未使用 + 新密码 ≥ 8 位 + 与 username 不同
+  - audit 记录 PASSWORD_RESET（带 revokedRefreshTokens 数量）
+- **SecurityConfig** /api/auth/forgot-password + /api/auth/reset-password 加 permitAll
+- **JwtUtil.REFRESH_TOKEN_TTL_SECONDS** 复用为 reset token 的 SecureRandom 来源
+
+### 前端
+
+- **script.js 加 silent refresh + 401 自动重试**
+  - login() 同时存 `lingyao_refresh_token` 到 localStorage
+  - logout() 清 refresh_token
+  - window.lingyaoSilentRefresh() 公开 API（供其他页面调用）
+  - 全局 fetch 拦截器：401 + 带 Bearer → 自动 silent refresh + 重发原请求
+  - 防并发：refreshingPromise 单例锁
+  - 跳过 /api/auth/login 和 /api/auth/refresh 自身（避免循环）
+
+### 修复
+
+- **HQL 用 entity name 而非表名**（RefreshTokenRepository @Query）
+  - 错误：`SELECT t FROM refresh_token t WHERE ...` → UnknownEntityException
+  - 正确：`SELECT t FROM RefreshToken t WHERE ...`
+
+### 变更
+
+- **app.version 2.0.21 → 2.0.22**
+
+### 验收
+
+**P1.4 E2E 8/8**:
+- E1 login → access + refresh ✅
+- E2 /me with access → 200 ✅
+- E3 /refresh with refresh → 200 + rotated ✅
+- E4 /me with new access → 200 ✅
+- E5 /refresh 旧 token（重放）→ 401 REFRESH_REPLAY_DETECTED ✅
+- E6 garbage token → 401 ✅
+- E7 空 refreshToken → 400 ✅
+- E8 logout 后旧 refresh 撤销 → 401 ✅
+
+**P1.5 E2E 14/14**:
+- E1 forgot by email → 200 + devModeToken + resetUrl ✅
+- E2 forgot by username → 200（同上）✅
+- E3 forgot 用户不存在 → 200（防枚举）✅
+- E4 forgot 1 分钟内重复 → 不发新 token（防 spam）✅
+- E5 forgot 空 email → 400 ✅
+- E6 reset 合法 token + 新密码 → 200 ✅
+- E7 旧 token 再用 → 401 已使用 ✅
+- E8 garbage token → 401 无效 ✅
+- E9 空 token → 400 ✅
+- E10 新密码 < 8 位 → 400 ✅
+- E11 新密码 login → 200 ✅
+- E12 旧密码 login → 401（被拒）✅
+- E13 重置回原密码 → 200 ✅
+- E14 原密码 login → 200 ✅
+
+---
+
 ## V2.0.21 (2026-09-01 22:20) — P1 阶段 A：登出黑名单 + /me 身份查询
 
 主人 22:13 拍板「继续 P1，但手机登录相关的可以先不做」= 先做 P1.1 (/me) + P1.2 (logout + blacklist) + P1.3 (前端 logout 同步)。8 个 E2E 场景全过，本地 commit 不 push。
