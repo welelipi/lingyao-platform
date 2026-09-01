@@ -43,6 +43,7 @@ public class SecurityConfig {
                     "/api/invitations/token/*",   // 公开：校验邀请 token
                     "/api/invitations/redeem",    // 公开：通过邀请注册
                     "/api/feedback",              // 公开：反馈提交（前端兜底本地存储）
+                    "/api/sub-product/*/verify-link",  // V2.0.19 W6 阶段 2：专属链接验签（子平台调用，员工可能还没账号）
                     // ── 静态资源（全部放行） ─────
                     "/",
                     "/index.html",

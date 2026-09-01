@@ -294,3 +294,6 @@ public class SubTaskController {
         return null;
     }
 }
+
+// V2.0.19 W6 阶段 2 注：本类级别前缀为 /api/sub，专门处理「子任务接入」相关接口
+//   专属链接生成/验签接口已拆分到 SubProductLinkController（独立 controller，避免路径冲突）

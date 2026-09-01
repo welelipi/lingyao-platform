@@ -244,4 +244,93 @@ public class JwtUtil {
     public boolean isNewFormat(Claims claims) {
         return claims.containsKey("tenant") && claims.containsKey("identity");
     }
+
+    // ═══════════════════════ V2.0.19 W6 阶段 2 新增：专属链接短时 JWT（5 分钟过期）═══════════════════════
+
+    /**
+     * 专属链接短时 JWT — 5 分钟过期（300 秒）
+     *
+     * 用途：公司超管在 portal.html 点"复制专属链接"按钮时，主平台后端生成一个 5 分钟过期的 JWT，
+     *       员工点链接 → 子平台 GET /api/sub-product/{code}/verify-link 验签 → 拿到完整身份信息
+     *
+     * 短时 JWT payload（最小化原则，仅传递跳转必需的字段）：
+     * - cid: 公司 ID
+     * - ccode: 公司 code
+     * - pcode: 目标子产品 code（GEOM / DINFO / MPDM / AIDD / PORM / MED-PPT）
+     * - rcode: 角色 code（COMPANY_ADMIN / OPERATOR / VIEWER）
+     * - uid: 发放人用户 ID（超管）
+     * - username: 发放人用户名
+     * - generated_at: 生成时间戳（ISO 8601）
+     * - nonce: 一次性随机数（防止链接被复用）
+     * - audience: "lingyao-sublink"（与主网站 JWT 区分）
+     *
+     * 安全性：
+     * - 5 分钟过期（主人拍板 5 分钟窗口）
+     * - nonce 防重放（子平台可记录已用的 nonce）
+     * - 验签需要 LINGYAO_JWT_SECRET_BASE64（与主网站其他 JWT 共享密钥）
+     *
+     * @since V2.0.19 W6 阶段 2 后端
+     */
+    private static final String SHORT_LINK_AUDIENCE = "lingyao-sublink";
+    private static final long SHORT_LINK_TTL_SECONDS = 300;   // 5 分钟
+
+    public String generateShortLinkToken(Long companyId, String companyCode,
+                                         String productCode, String roleCode,
+                                         Long issuedByUserId, String issuedByUsername) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("cid", companyId);
+        claims.put("ccode", companyCode);
+        claims.put("pcode", productCode);
+        claims.put("rcode", roleCode);
+        claims.put("uid", issuedByUserId);
+        claims.put("username", issuedByUsername);
+        claims.put("generated_at", new Date().toInstant().toString());
+        claims.put("nonce", java.util.UUID.randomUUID().toString());
+        // 明确标记为短时专属链接 token
+        claims.put("link_type", "SUB_PRODUCT_ENTRY");
+
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + SHORT_LINK_TTL_SECONDS * 1000);
+
+        return Jwts.builder()
+                .claims(claims)
+                .issuer(issuer)
+                .audience().add(SHORT_LINK_AUDIENCE).and()
+                .subject(String.valueOf(companyId) + ":" + productCode)
+                .issuedAt(now)
+                .expiration(exp)
+                .signWith(getKey())
+                .compact();
+    }
+
+    /**
+     * 解析并校验短时专属链接 token
+     *
+     * 校验项：
+     * - 签名（用 LINGYAO_JWT_SECRET_BASE64）
+     * - audience = "lingyao-sublink"（区分其他 JWT 类型）
+     * - link_type = "SUB_PRODUCT_ENTRY"（区分其他 JWT 类型）
+     * - 未过期（5 分钟内）
+     *
+     * @return Claims 包含 cid / ccode / pcode / rcode / uid / username / nonce
+     * @throws io.jsonwebtoken.JwtException 验签失败 / 过期 / audience 不匹配
+     */
+    public Claims parseShortLinkToken(String token) {
+        Claims claims = parse(token);   // 已做签名 + 过期校验
+        if (!SHORT_LINK_AUDIENCE.equals(claims.getAudience().stream()
+                .filter(a -> SHORT_LINK_AUDIENCE.equals(a)).findFirst().orElse(null))) {
+            throw new io.jsonwebtoken.JwtException("Token audience 不匹配（非专属链接 token）");
+        }
+        if (!"SUB_PRODUCT_ENTRY".equals(claims.get("link_type"))) {
+            throw new io.jsonwebtoken.JwtException("Token link_type 不匹配（非专属链接 token）");
+        }
+        return claims;
+    }
+
+    /**
+     * 短时专属链接的 TTL（秒）— 用于前端展示倒计时
+     */
+    public long getShortLinkTtlSeconds() {
+        return SHORT_LINK_TTL_SECONDS;
+    }
 }
