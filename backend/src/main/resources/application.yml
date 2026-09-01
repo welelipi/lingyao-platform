@@ -96,7 +96,7 @@ lingyao:
         health-url: ${LINGYAO_SUBTASK_DINFO_HEALTH_URL:http://localhost:8281/api/_diag/version}
         entry-path: ${LINGYAO_SUBTASK_DINFO_ENTRY_PATH:/subtask/dinfo}
       porm:
-        base-url: ${LINGYAO_SUBTASK_PORM_BASE_URL:http://localhost:3190}
+        base-url: ${LINGYAO_SUBTASK_PORM_BASE_URL:http://localhost:3190/auth/lingyao/callback}
         health-url: ${LINGYAO_SUBTASK_PORM_HEALTH_URL:http://localhost:8280/api/_diag/version}
         entry-path: ${LINGYAO_SUBTASK_PORM_ENTRY_PATH:/subtask/porm}
 

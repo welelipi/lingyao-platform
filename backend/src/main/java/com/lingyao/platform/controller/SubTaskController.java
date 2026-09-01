@@ -4,16 +4,23 @@ import com.lingyao.platform.config.LingyaoSubTaskProperties;
 import com.lingyao.platform.dto.ApiResponse;
 import com.lingyao.platform.entity.Product;
 import com.lingyao.platform.entity.SubTask;
+import com.lingyao.platform.entity.SubTaskApproval;
 import com.lingyao.platform.repository.ProductRepository;
 import com.lingyao.platform.repository.ProductUserGrantRepository;
+import com.lingyao.platform.repository.SubTaskApprovalRepository;
 import com.lingyao.platform.repository.SubTaskRepository;
 import com.lingyao.platform.security.CurrentUser;
+import com.lingyao.platform.security.TenantContext;
 import com.lingyao.platform.service.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,6 +31,9 @@ import java.util.Map;
  * - GET  /api/sub/{code}/info   — 子任务元数据 + 健康状态（需要登录 + 产品可见性）
  * - POST /api/sub/{code}/invoke — 调用子任务（代理或回执 — 本期实现回执，前端可继续跳转 entry_path）
  * - GET  /api/sub/list          — 列出当前公司可见的子任务
+ * - GET  /api/sub/pending       — 列出当前公司的待审批（V2.0.19 W6 阶段 2.5 B1）
+ * - POST /api/sub/{id}/approve  — 通过审批（V2.0.19 W6 阶段 2.5 B1）
+ * - POST /api/sub/{id}/reject   — 拒绝审批（V2.0.19 W6 阶段 2.5 B1）
  */
 @RestController
 @RequestMapping("/api/sub")
@@ -32,8 +42,10 @@ public class SubTaskController {
     @Autowired private ProductRepository productRepo;
     @Autowired private SubTaskRepository subTaskRepo;
     @Autowired private ProductUserGrantRepository productUserGrantRepo;
+    @Autowired private SubTaskApprovalRepository subTaskApprovalRepo;   // V2.0.19 W6 阶段 2.5 B1：集中审批
     @Autowired private AuditLogService auditLogService;
     @Autowired private LingyaoSubTaskProperties subTaskProperties;   // V2.0.11 D-1：路由配置外移
+    @Autowired private TenantContext tenantContext;                  // V2.0.19 W6 阶段 2.5 B1：公司超管判断
 
     /**
      * 子任务元信息 + 健康状态
@@ -292,6 +304,190 @@ public class SubTaskController {
         if (h == null) return null;
         if (h.startsWith("Bearer ")) return h.substring(7).trim();
         return null;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // V2.0.19 W6 阶段 2.5 B1 — 集中审批 3 接口
+    // 设计要点：
+    // 1) 只看本公司审批：公司超管看自己公司，平台超管看全部
+    // 2) 审批流通用化：type+payload_json 字段支持任意业务场景扩展
+    // 3) 与现有 audit_log 解耦：审批事件是业务流程，audit_log 是合规追溯，分开记录
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * GET /api/sub/pending — 列出当前公司的待审批（V2.0.19 W6 阶段 2.5 B1）
+     *
+     * 返回结构（前端字段兼容：
+     *   id / taskId | type | requester / applicant | productCode / targetProduct
+     *   reason / description | submittedAt / createdAt | status | action
+     * ）
+     */
+    @GetMapping("/pending")
+    public ApiResponse<?> pending() {
+        CurrentUser cu = CurrentUser.get();
+        if (cu == null) return ApiResponse.fail(401, "请先登录主网站");
+        // 权限校验：仅公司超管 + 平台超管可看审批
+        if (!canApprove(cu, null)) {
+            return ApiResponse.fail(403, "仅超管可查看审批列表");
+        }
+
+        List<SubTaskApproval> rows;
+        if (cu.isPlatformAdmin()) {
+            // 平台超管：看所有公司的待审批
+            rows = subTaskApprovalRepo.findByStatusOrderByCreatedAtDesc(SubTaskApproval.Status.PENDING);
+        } else {
+            // 公司超管：仅看本公司
+            if (cu.getCompanyId() == null) {
+                return ApiResponse.ok(new ArrayList<>());
+            }
+            rows = subTaskApprovalRepo.findByCompanyIdAndStatusOrderByCreatedAtDesc(
+                    cu.getCompanyId(), SubTaskApproval.Status.PENDING);
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (SubTaskApproval a : rows) {
+            result.add(toApprovalView(a));
+        }
+        return ApiResponse.ok(result);
+    }
+
+    /**
+     * POST /api/sub/{id}/approve — 通过审批（V2.0.19 W6 阶段 2.5 B1）
+     *
+     * Body: { type: "sub_task" }（type 字段保留兼容前端入参，本接口仅按 id 定位）
+     */
+    @PostMapping("/{id}/approve")
+    @Transactional
+    public ApiResponse<?> approve(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
+        CurrentUser cu = CurrentUser.get();
+        if (cu == null) return ApiResponse.fail(401, "请先登录主网站");
+        if (!canApprove(cu, null)) {
+            return ApiResponse.fail(403, "仅超管可审批");
+        }
+
+        SubTaskApproval approval = subTaskApprovalRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("审批不存在: id=" + id));
+
+        // 权限二次校验：公司超管只能审批本公司
+        if (!cu.isPlatformAdmin() && !approval.getCompanyId().equals(cu.getCompanyId())) {
+            return ApiResponse.fail(403, "无权审批其他公司的请求");
+        }
+
+        if (approval.getStatus() != SubTaskApproval.Status.PENDING) {
+            return ApiResponse.fail(400, "该审批已处理，当前状态: " + approval.getStatus());
+        }
+
+        approval.setStatus(SubTaskApproval.Status.APPROVED);
+        approval.setApproverId(cu.getUserId());
+        approval.setApproverUsername(cu.getUsername());
+        approval.setApproveTime(LocalDateTime.now());
+        SubTaskApproval saved = subTaskApprovalRepo.save(approval);
+
+        auditLogService.record("SUBTASK_APPROVAL_APPROVE", "APPROVAL",
+                String.valueOf(saved.getId()),
+                "通过审批 #" + saved.getId() + " type=" + saved.getType()
+                        + " requester=" + saved.getRequesterUsername());
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("id", saved.getId());
+        data.put("status", saved.getStatus());
+        data.put("approverUsername", saved.getApproverUsername());
+        data.put("approveTime", saved.getApproveTime());
+        return ApiResponse.ok("审批已通过", data);
+    }
+
+    /**
+     * POST /api/sub/{id}/reject — 拒绝审批（V2.0.19 W6 阶段 2.5 B1）
+     *
+     * Body: { type: "sub_task", reason: "拒绝理由" }
+     */
+    @PostMapping("/{id}/reject")
+    @Transactional
+    public ApiResponse<?> reject(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
+        CurrentUser cu = CurrentUser.get();
+        if (cu == null) return ApiResponse.fail(401, "请先登录主网站");
+        if (!canApprove(cu, null)) {
+            return ApiResponse.fail(403, "仅超管可审批");
+        }
+
+        SubTaskApproval approval = subTaskApprovalRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("审批不存在: id=" + id));
+
+        if (!cu.isPlatformAdmin() && !approval.getCompanyId().equals(cu.getCompanyId())) {
+            return ApiResponse.fail(403, "无权审批其他公司的请求");
+        }
+
+        if (approval.getStatus() != SubTaskApproval.Status.PENDING) {
+            return ApiResponse.fail(400, "该审批已处理，当前状态: " + approval.getStatus());
+        }
+
+        String reason = body == null ? null : (String) body.get("reason");
+
+        approval.setStatus(SubTaskApproval.Status.REJECTED);
+        approval.setApproverId(cu.getUserId());
+        approval.setApproverUsername(cu.getUsername());
+        approval.setApproveTime(LocalDateTime.now());
+        approval.setRejectReason(reason);
+        SubTaskApproval saved = subTaskApprovalRepo.save(approval);
+
+        auditLogService.record("SUBTASK_APPROVAL_REJECT", "APPROVAL",
+                String.valueOf(saved.getId()),
+                "拒绝审批 #" + saved.getId() + " type=" + saved.getType()
+                        + " requester=" + saved.getRequesterUsername()
+                        + " reason=" + (reason == null ? "(无)" : reason));
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("id", saved.getId());
+        data.put("status", saved.getStatus());
+        data.put("approverUsername", saved.getApproverUsername());
+        data.put("approveTime", saved.getApproveTime());
+        data.put("rejectReason", saved.getRejectReason());
+        return ApiResponse.ok("审批已拒绝", data);
+    }
+
+    /**
+     * 内部：判断当前用户是否可审批
+     *
+     * - 平台超管：✅ 任意公司
+     * - 公司超管：✅ 自己公司（用 cu.getCompanyId()）
+     * - 普通用户：❌
+     *
+     * @param targetCompanyId 目标审批所属公司（null=仅做"是否能审批"粗判，用于 pending 列表）
+     */
+    private boolean canApprove(CurrentUser cu, Long targetCompanyId) {
+        if (cu == null) return false;
+        if (cu.isPlatformAdmin()) return true;
+        if (cu.getCompanyId() == null) return false;
+        if (targetCompanyId != null && !targetCompanyId.equals(cu.getCompanyId())) {
+            return false; // 越权公司
+        }
+        return tenantContext.isTenantAdmin(cu.getUserId(), cu.getCompanyId());
+    }
+
+    /**
+     * 内部：审批行 → 前端视图
+     */
+    private Map<String, Object> toApprovalView(SubTaskApproval a) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", a.getId());
+        row.put("type", a.getType().name());
+        // 兼容字段：requester / applicant + productCode / targetProduct + submittedAt / createdAt
+        row.put("requester", a.getRequesterUsername());
+        row.put("applicant", a.getRequesterUsername());
+        if (a.getProductId() != null) {
+            Product p = productRepo.findById(a.getProductId()).orElse(null);
+            if (p != null) {
+                row.put("productCode", p.getCode());
+                row.put("targetProduct", p.getCode());
+                row.put("productName", p.getName());
+            }
+        }
+        row.put("reason", a.getReason());
+        row.put("description", a.getReason());
+        row.put("submittedAt", a.getCreatedAt());
+        row.put("createdAt", a.getCreatedAt());
+        row.put("status", a.getStatus().name());
+        return row;
     }
 }
 

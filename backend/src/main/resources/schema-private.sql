@@ -108,3 +108,44 @@ CREATE INDEX IF NOT EXISTS idx_sso_audit_company ON sso_login_audit(company_id);
 CREATE INDEX IF NOT EXISTS idx_sso_audit_provider ON sso_login_audit(provider);
 CREATE INDEX IF NOT EXISTS idx_sso_audit_status ON sso_login_audit(status);
 CREATE INDEX IF NOT EXISTS idx_sso_audit_created ON sso_login_audit(created_at);
+
+-- ══════════════════════════════════════════════════════════════════
+-- V2.0.19 W6 阶段 2.5 B1 — 子任务 / 产品授权集中审批表
+--
+-- 设计要点：
+-- 1) 公司超管审批流：员工调用子任务 / 申请产品访问权限 / 申请生成专属链接 等
+-- 2) type + payload_json 通用化：避免每种审批流单独建表
+-- 3) status 单层：PENDING → APPROVED / REJECTED（不支持嵌套多级审批）
+-- 4) Hibernate ddl-auto=update 在 H2 会自动建，PG 上手工建保证稳定
+-- ══════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS sub_task_approval (
+    id                    BIGSERIAL PRIMARY KEY,
+    company_id            BIGINT NOT NULL REFERENCES company(id) ON DELETE CASCADE,
+    product_id            BIGINT REFERENCES product(id) ON DELETE SET NULL,
+    type                  VARCHAR(32) NOT NULL DEFAULT 'OTHER',
+    requester_id          BIGINT NOT NULL REFERENCES sys_user(id) ON DELETE CASCADE,
+    requester_username    VARCHAR(64) NOT NULL,
+    reason                TEXT,
+    status                VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    approver_id           BIGINT REFERENCES sys_user(id) ON DELETE SET NULL,
+    approver_username     VARCHAR(64),
+    approve_time          TIMESTAMP,
+    reject_reason         TEXT,
+    payload_json          TEXT,
+    created_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_approval_status CHECK (status IN ('PENDING','APPROVED','REJECTED')),
+    CONSTRAINT chk_approval_type CHECK (type IN ('SUBTASK_INVOKE','PRODUCT_GRANT','SSO_LINK_REQUEST','OTHER'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_approval_company_status
+    ON sub_task_approval(company_id, status);
+CREATE INDEX IF NOT EXISTS idx_approval_product
+    ON sub_task_approval(product_id);
+CREATE INDEX IF NOT EXISTS idx_approval_type
+    ON sub_task_approval(type);
+CREATE INDEX IF NOT EXISTS idx_approval_requester
+    ON sub_task_approval(requester_id);
+CREATE INDEX IF NOT EXISTS idx_approval_created_at
+    ON sub_task_approval(created_at DESC);
