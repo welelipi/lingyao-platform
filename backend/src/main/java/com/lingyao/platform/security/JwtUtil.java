@@ -159,6 +159,81 @@ public class JwtUtil {
                 .getPayload();
     }
 
+    // ═══════════════════════ V2.0.19 新增：SSO Token 生成 ═══════════════════════
+
+    /**
+     * SSO callback 专用的 JWT 生成（飞书/钉钉/企微登录后用）
+     *
+     * 在标准 claims 基础上新增 6 个 SSO 专用 claim（子平台用于首次扫码自动建账号）：
+     * - department_id: 飞书部门 ID / 钉钉 dept_id / 企微 department
+     * - employee_id: 主平台员工唯一 ID（三方 employee_id / unionid / userid）
+     * - source: SSO 来源（FEISHU / DINGTALK / WECOM / GENERIC_OIDC）
+     * - sso_status: SSO 登录结果（PENDING_REVIEW / ACTIVE）
+     * - bu: 凌瑶 BU（按 dept_mapping 映射）
+     * - org_code: 凌瑶组织 code（预留）
+     */
+    public String generateSsoToken(String employeeId, Long companyId, String subProductCode,
+                                    String source, String departmentId, String bu) {
+        Map<String, Object> claims = new HashMap<>();
+        // uid 用 employeeId（飞书 open_id 等），子平台按此字段做员工匹配
+        claims.put("uid", employeeId);
+        claims.put("username", employeeId);
+        claims.put("cid", companyId);
+        claims.put("ccode", null);
+        claims.put("adm", false);
+
+        // V2.0.19 新增 6 个 SSO claim
+        claims.put("source", source);
+        claims.put("employee_id", employeeId);
+        claims.put("department_id", departmentId);
+        claims.put("sso_status", "PENDING_REVIEW");   // 默认 PENDING，超管分配后改 ACTIVE
+        claims.put("bu", bu);
+        claims.put("org_code", null);   // 预留
+
+        // 平铺字段（兼容 V2.0.16+ 子产品）
+        claims.put("tenant_name", null);
+        claims.put("is_tenant_admin", false);
+        claims.put("sub_product_grants", Collections.singletonList(subProductCode));
+
+        // 三段断言（子产品标准化解析）
+        Map<String, Object> tenant = new LinkedHashMap<>();
+        tenant.put("id", companyId == null ? null : String.valueOf(companyId));
+        tenant.put("code", null);
+        tenant.put("name", null);
+        claims.put("tenant", tenant);
+
+        Map<String, Object> identity = new LinkedHashMap<>();
+        identity.put("user_id", employeeId);
+        identity.put("username", employeeId);
+        identity.put("display_name", null);
+        identity.put("source", source);
+        identity.put("department_id", departmentId);
+        identity.put("bu", bu);
+        claims.put("identity", identity);
+
+        Map<String, Object> grants = new LinkedHashMap<>();
+        grants.put("product_code", subProductCode);
+        grants.put("authorized", true);
+        grants.put("authorized_at", new Date().toInstant().toString());
+        grants.put("authorized_by", "sso:" + source);
+        grants.put("via_sso", true);
+        claims.put("grants", grants);
+
+        Date now = new Date();
+        // SSO token 短期有效（2 小时），首次登录后子平台应该换发长 token
+        Date exp = new Date(now.getTime() + 2 * 3600 * 1000);
+
+        return Jwts.builder()
+                .claims(claims)
+                .issuer(issuer)
+                .audience().add(DEFAULT_AUDIENCE).and()
+                .subject(employeeId)
+                .issuedAt(now)
+                .expiration(exp)
+                .signWith(getKey())
+                .compact();
+    }
+
     public long getExpirationSeconds() {
         return expirationHours * 3600;
     }
