@@ -3,6 +3,61 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.24 (2026-09-02 07:55) — P2.2 阶段 C：限流 rate limit（防爆破 + spam + 滥用）
+
+主人 22:55 拍板「P2.2 限流（rate limit）」。4 个接口（login / refresh / forgot-password / change-password）按 IP 或 user 限流，E2E 8/8 全过，本地 commit 不 push。
+
+### 新增
+
+- **RateLimiterService**（V2.0.24 P2.2 核心）
+  - 纯 Java 滑动窗口计数器（无外部依赖，ConcurrentHashMap + AtomicInteger）
+  - 方法：`allow(endpoint, key, max, windowMs)` + `getRemaining` + `getResetMs` + `reset`
+  - V2.0.25+ 改进：替换为 token bucket + Redis 后端（支持分布式）
+- **RateLimitFilter**（OncePerRequestFilter @Order HIGHEST+20）
+  - 拦截 POST /api/auth/* 的 4 个状态变动接口
+  - 命中限流 → 429 Too Many Requests + X-RateLimit-* 头
+
+### 限流策略（默认）
+
+| 接口 | 维度 | 阈值 |
+|---|---|---|
+| **POST /api/auth/login** | IP | **5 次/分钟**（防爆破）|
+| **POST /api/auth/forgot-password** | IP | **3 次/小时**（防 spam，叠加 1 分钟 debounce）|
+| **POST /api/auth/refresh** | IP | **60 次/小时**（防滥用）|
+| **POST /api/auth/change-password** | userId | **3 次/小时**（防异常改密）|
+
+### 修复
+
+- **RateLimitFilter 拿不到 CurrentUser**（V2.0.24 关键修复）
+  - 问题：filter 在 JwtAuthFilter 之前执行，CurrentUser 还没设
+  - 方案：filter 自己解析 Authorization 头拿 userId（不依赖 JwtAuthFilter）
+  - 新增 `parseUserIdFromAuth(req)` 私有方法
+
+### 响应头
+
+- **X-RateLimit-Limit** — 窗口内最大请求数
+- **X-RateLimit-Remaining** — 剩余配额（0 = 已限流）
+- **X-RateLimit-Reset** — 窗口重置时间戳（秒）
+- **Retry-After** — 多少秒后可重试（HTTP 标准头）
+
+### 变更
+
+- **app.version 2.0.23 → 2.0.24**
+- **SecurityConfig** 新增 `addFilterAfter(rateLimitFilter, CorsFilter.class)`
+
+### 验收（8/8）
+
+- E1 login 5/分钟按 IP：第 6 次 429 + Remaining=0 ✅
+- E2 forgot 不同 IP（每个独立）✅
+- E3 forgot 同 IP：第 4 次 429 ✅
+- E4 refresh 60/小时：62 次 → 60 success + 2 limited ✅
+- E5 响应头 X-RateLimit-* 全部正确 ✅
+- E6 forgot-password 同 IP 第 4 次 429 ✅
+- E7 change-password 3/小时按 user：第 4 次 429 ✅
+- E8 不同接口限流独立计数 ✅
+
+---
+
 ## V2.0.23 (2026-09-02 07:45) — P2.1 阶段 C：Security headers（OWASP 6 响应头）
 
 主人 22:50 拍板「P2.1 Security headers（Recommended）」= 加 OWASP 推荐的 6 个安全响应头。7 个 E2E 场景全过，本地 commit 不 push。

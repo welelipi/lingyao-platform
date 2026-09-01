@@ -22,6 +22,10 @@ public class SecurityConfig {
     @Autowired
     private SecurityHeadersFilter securityHeadersFilter;
 
+    // V2.0.24 P2.2 阶段 C：限流（login/refresh/forgot-password/change-password）
+    @Autowired
+    private RateLimitFilter rateLimitFilter;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -85,6 +89,7 @@ public class SecurityConfig {
                 })
             )
             .addFilterBefore(securityHeadersFilter, org.springframework.web.filter.CorsFilter.class)  // V2.0.23 P2.1：安全响应头（CSP/HSTS/X-Frame-Options）
+            .addFilterAfter(rateLimitFilter, org.springframework.web.filter.CorsFilter.class)  // V2.0.24 P2.2：限流（login/refresh/forgot/change-password）
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

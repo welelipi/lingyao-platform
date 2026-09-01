@@ -1,0 +1,186 @@
+package com.lingyao.platform.security;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.Map;
+
+/**
+ * RateLimitFilter — V2.0.24 P2.2 阶段 C
+ *
+ * 拦截认证相关接口（POST /api/auth/*），按 endpoint + IP/user 限流
+ *
+ * 限流策略（默认）：
+ * - POST /api/auth/login             → 每 IP 5次/分钟（防爆破）
+ * - POST /api/auth/forgot-password  → 每 IP 3次/小时（防 spam）
+ * - POST /api/auth/refresh          → 每 user 60次/小时（防滥用）
+ * - POST /api/auth/change-password  → 每 user 3次/小时（防异常改密）
+ *
+ * 命中限流 → 429 Too Many Requests + X-RateLimit-* 头
+ */
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 20)  // 在 SecurityHeadersFilter 之后
+public class RateLimitFilter extends OncePerRequestFilter {
+
+    @Autowired
+    private RateLimiterService rateLimiterService;
+
+    // V2.0.24 P2.2 修复：自己解析 token 拿 userId（不依赖 JwtAuthFilter 设置 CurrentUser）
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // ─── 限流配置常量 ──────────────────────────────
+    private static final int LOGIN_MAX_PER_MIN = 5;
+    private static final long LOGIN_WINDOW_MS = 60 * 1000L;
+
+    private static final int FORGOT_MAX_PER_HOUR = 3;
+    private static final long FORGOT_WINDOW_MS = 60 * 60 * 1000L;
+
+    private static final int REFRESH_MAX_PER_HOUR = 60;
+    private static final long REFRESH_WINDOW_MS = 60 * 60 * 1000L;
+
+    private static final int CHANGE_PWD_MAX_PER_HOUR = 3;
+    private static final long CHANGE_PWD_WINDOW_MS = 60 * 60 * 1000L;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse resp, FilterChain chain)
+            throws ServletException, IOException {
+
+        String method = req.getMethod();
+        String path = req.getRequestURI();
+
+        // 仅拦截 POST /api/auth/* 的状态变动接口
+        if (!"POST".equalsIgnoreCase(method) || !path.startsWith("/api/auth/")) {
+            chain.doFilter(req, resp);
+            return;
+        }
+
+        // ─── 1) /api/auth/login（按 IP）───
+        if (path.equals("/api/auth/login")) {
+            String clientIp = getClientIp(req);
+            if (!rateLimiterService.allow("login", clientIp, LOGIN_MAX_PER_MIN, LOGIN_WINDOW_MS)) {
+                writeRateLimitResponse(resp, "login", clientIp, LOGIN_MAX_PER_MIN, LOGIN_WINDOW_MS);
+                return;
+            }
+        }
+
+        // ─── 2) /api/auth/forgot-password（按 IP）───
+        else if (path.equals("/api/auth/forgot-password")) {
+            String clientIp = getClientIp(req);
+            if (!rateLimiterService.allow("forgot-password", clientIp, FORGOT_MAX_PER_HOUR, FORGOT_WINDOW_MS)) {
+                writeRateLimitResponse(resp, "forgot-password", clientIp, FORGOT_MAX_PER_HOUR, FORGOT_WINDOW_MS);
+                return;
+            }
+        }
+
+        // ─── 3) /api/auth/refresh（按 user，body 含 refreshToken）───
+        // 注：refresh 端点本身是公开的，所以 user 信息需从 refreshToken hash 反查
+        // 简化：先用 IP 做粗粒度限流（防批量扫 token）
+        // V2.0.25+ 改进：解析 body 拿 refreshToken → 查 user_id
+        else if (path.equals("/api/auth/refresh")) {
+            String clientIp = getClientIp(req);
+            if (!rateLimiterService.allow("refresh", clientIp, REFRESH_MAX_PER_HOUR, REFRESH_WINDOW_MS)) {
+                writeRateLimitResponse(resp, "refresh", clientIp, REFRESH_MAX_PER_HOUR, REFRESH_WINDOW_MS);
+                return;
+            }
+        }
+
+        // ─── 4) /api/auth/change-password（按 user，从 Authorization 头解析）───
+        else if (path.equals("/api/auth/change-password")) {
+            Long userId = parseUserIdFromAuth(req);
+            if (userId == null) {
+                // 未登录或 token 无效 → 让后续 Spring Security 拦截（401），不限流
+                chain.doFilter(req, resp);
+                return;
+            }
+            String userKey = "user:" + userId;
+            if (!rateLimiterService.allow("change-password", userKey, CHANGE_PWD_MAX_PER_HOUR, CHANGE_PWD_WINDOW_MS)) {
+                writeRateLimitResponse(resp, "change-password", userKey, CHANGE_PWD_MAX_PER_HOUR, CHANGE_PWD_WINDOW_MS);
+                return;
+            }
+        }
+
+        chain.doFilter(req, resp);
+    }
+
+    /**
+     * 写 429 响应 + 标准 X-RateLimit-* 头
+     */
+    private void writeRateLimitResponse(HttpServletResponse resp, String endpoint, String key,
+                                         int maxRequests, long windowMs) throws IOException {
+        int remaining = rateLimiterService.getRemaining(endpoint, key, maxRequests, windowMs);
+        long resetMs = rateLimiterService.getResetMs(endpoint, key, windowMs);
+        long retryAfterSec = Math.max(1, (resetMs - System.currentTimeMillis()) / 1000);
+
+        resp.setStatus(429);
+        resp.setContentType("application/json;charset=UTF-8");
+        resp.setHeader("X-RateLimit-Limit", String.valueOf(maxRequests));
+        resp.setHeader("X-RateLimit-Remaining", String.valueOf(remaining));
+        resp.setHeader("X-RateLimit-Reset", String.valueOf(resetMs / 1000));
+        resp.setHeader("Retry-After", String.valueOf(retryAfterSec));
+
+        Map<String, Object> body = Map.of(
+            "code", 429,
+            "message", "请求过于频繁，请稍后再试",
+            "success", false,
+            "retryAfterSeconds", retryAfterSec
+        );
+        resp.getWriter().write(objectMapper.writeValueAsString(body));
+    }
+
+    /**
+     * 提取客户端 IP（优先 X-Forwarded-For，然后 X-Real-IP，最后 RemoteAddr）
+     */
+    private String getClientIp(HttpServletRequest req) {
+        String xff = req.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            // X-Forwarded-For 格式："client, proxy1, proxy2"，第一个是真 IP
+            return xff.split(",")[0].trim();
+        }
+        String xri = req.getHeader("X-Real-IP");
+        if (xri != null && !xri.isBlank()) {
+            return xri.trim();
+        }
+        return req.getRemoteAddr();
+    }
+
+    /**
+     * 从 Authorization 头解析 userId（不依赖 JwtAuthFilter 设置的 CurrentUser）
+     * @return userId，失败返回 null
+     */
+    private Long parseUserIdFromAuth(HttpServletRequest req) {
+        String authHeader = req.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        String token = authHeader.substring(7);
+        try {
+            Claims claims = jwtUtil.parse(token);
+            // V2.0.16 W1 JWT claims "uid" 或 subject
+            Object uidObj = claims.get("uid");
+            if (uidObj != null) {
+                return Long.parseLong(uidObj.toString());
+            }
+            // fallback: subject
+            String sub = claims.getSubject();
+            if (sub != null) {
+                return Long.parseLong(sub);
+            }
+        } catch (Exception e) {
+            // token 无效 → null
+        }
+        return null;
+    }
+}
