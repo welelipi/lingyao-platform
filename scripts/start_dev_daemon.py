@@ -99,6 +99,13 @@ def main() -> None:
     # 孙子进程 = 真正的 daemon
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
+    # 清掉可能从父 shell 继承的空字符串环境变量，否则 Spring ${VAR:default} 会用空而不是默认值
+    # 典型场景：父 shell `export LINGYAO_JWT_SECRET=''`（空），子 java 继承空 → JWT secret 0 bits 报错
+    for _k in ("LINGYAO_JWT_SECRET", "LINGYAO_DB_PASSWORD",
+               "APP_RELEASE", "APP_BUILD_TIME", "APP_GIT_COMMIT"):
+        if _k in os.environ and os.environ[_k] == "":
+            del os.environ[_k]
+
     with open(os.devnull, "rb", 0) as f:
         os.dup2(f.fileno(), sys.stdin.fileno())
     log_fd = os.open(LOG_FILE, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)

@@ -87,6 +87,40 @@ public class AdminController {
         }
     }
 
+    @PostMapping("/companies/{id}/suspend")
+    public ApiResponse<Company> suspendCompany(@PathVariable Long id) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        try {
+            return ApiResponse.ok("公司已禁用", tenantAdminService.suspendCompany(id));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(e.getMessage());
+        }
+    }
+
+    @PostMapping("/companies/{id}/activate")
+    public ApiResponse<Company> activateCompany(@PathVariable Long id) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        try {
+            return ApiResponse.ok("公司已激活", tenantAdminService.activateCompany(id));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(e.getMessage());
+        }
+    }
+
+    @PostMapping("/users/{userId}/reset-password")
+    public ApiResponse<TenantAdminService.ResetPasswordResult> resetUserPassword(@PathVariable Long userId) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        try {
+            TenantAdminService.ResetPasswordResult result = tenantAdminService.resetUserPassword(userId);
+            return ApiResponse.ok("密码已重置，请将新密码告知用户", result);
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(e.getMessage());
+        }
+    }
+
     @PostMapping("/users")
     public ApiResponse<SysUser> createUser(@Valid @RequestBody CreateUserRequest req) {
         ApiResponse<?> deny = requirePlatformAdmin();

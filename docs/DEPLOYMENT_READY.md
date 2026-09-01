@@ -1,0 +1,212 @@
+# 凌瑶智数 · 本地部署就绪报告（DEPLOYMENT_READY）
+
+> **🚧 越界提示 · 云端主流程接手（2026-08-30 17:40）**
+>
+> 本文档属于 **云端主流程** 职责范围（铁律 #0：本地主流程窗口不归本 AI 管）。
+> **本地 dev AI 只负责"产出对接清单"，实际 SSH / CVM 部署由云端主流程账号执行。**
+>
+> 详细窗口边界见 `.workbuddy/memory/MEMORY.md`「窗口边界速查」段。
+> 越界判定标准：见"推/部署/发到/发版/发布/上线/PUSH"→ 标黄"移交云端主流程"。
+
+---
+
+> **日期**：2026-08-30
+> **目的**：给云端主流程的部署交接清单
+> **状态**：✅ 本地 dev 环境就绪，可推 CVM 生产
+
+---
+
+## 一、本地部署现状（实测）
+
+### 1.1 容器清单
+
+| 容器 | 镜像 | 端口 | 状态 | 启动时间 |
+|---|---|---|---|---|
+| `lingyao-postgres` | `postgres:16-alpine` (DaoCloud 源) | 127.0.0.1:5432 | Up 3h, healthy | 2026-08-30 13:38 |
+| `lingyao-backend` | `lingyao/platform:2.0.14` | 127.0.0.1:9091 | Up 3h, healthy | 2026-08-30 13:38 |
+
+### 1.2 数据库
+
+| 数据库 | 角色 | 表数 | 大小 | 用途 |
+|---|---|---|---|---|
+| `lingyao` | `lingyao_app` | 15 | 8.47 MB | 凌瑶主站生产数据（Hibernate ddl-auto=update 自动建）|
+| `msl_ma_db` | `msl_ma`（最小权限）| 18 | 8.44 MB | MED-PPT 后端数据（alembic initial_schema 建）|
+
+### 1.3 API 验证（2026-08-30 13:38 实测）
+
+| 端点 | 响应 | 含义 |
+|---|---|---|
+| `GET /api/version` | 200, version=2.0.14, release=stable | 后端活 ✅ |
+| `GET /api/health` | 200, status=UP | 健康 ✅ |
+| `PG: SELECT version()` | PostgreSQL 16.14 on aarch64-alpine | PG 活 ✅ |
+| `PG: pg_database_size('lingyao')` | 8.47 MB | 数据已落盘 ✅ |
+| `PG: pg_database_size('msl_ma_db')` | 8.44 MB | alembic 已跑 ✅ |
+
+---
+
+## 二、3 护栏完成清单
+
+### ✅ 护栏 1：多租户权限隔离
+
+- `msl_ma` 角色只有 `msl_ma_db` 的 `CONNECT/CREATE/TEMP`
+- `lingyao` 库的 `PUBLIC` CONNECT 已被 REVOKE
+- `lingyao_app` 显式 `GRANT CONNECT` 到 `lingyao`
+- **验证矩阵**：
+  - `msl_ma → msl_ma_db` ✅
+  - `msl_ma → lingyao` ❌ permission denied（隔离生效）
+  - `lingyao_app → lingyao` ✅
+  - `lingyao_app → msl_ma_db` ❌ permission denied（隔离生效）
+
+### ✅ 护栏 2：多库备份
+
+- `凌瑶/deploy/cvm/backup-pg.sh` 支持 `POSTGRES_DBS="lingyao,msl_ma_db"` 逗号分隔多库
+- 单库备份：`pg_dump` → `gzip` → `/data/db-backup/lingyao-YYYYMMDD-HHMMSS.sql.gz`
+- 多库测试：lingyao 8K + msl_ma_db 4K 都成功
+- cron 模板见 `deploy/cvm/backup-pg.sh` 头部注释
+
+### ✅ 护栏 3：PG 健康监控
+
+- `凌瑶/scripts/pg_db_monitor.py` —— 5 项探测（PG up / db 数 / 大小 / 连接数 / 长事务）
+- 退出码：0=绿 / 1=黄 / 2=红
+- 支持 `--json` 输出（CI/CD 友好）
+- 多 db 批量探测（一个 user 可探测多个 db）
+- **复用模式**：MPDM db_monitor.py 是 SQLite 专用，本脚本是 PG 版（结构对齐）
+
+---
+
+## 三、云端部署 SOP（5 步）
+
+> ⚠️ **铁律 #17**：远端 = 主人手动上传，AI 不主动 push。下列步骤由**云端主流程**执行。
+
+### Step 1：拉取最新本地 commit
+```bash
+ssh ubuntu@118.195.197.15
+cd /opt/lingyao  # 或主人指定的部署目录
+git pull origin main  # 主人 SSH 后手动执行
+```
+
+### Step 2：填 .env
+```bash
+cp /opt/lingyao/deploy/.env.example /opt/lingyao/deploy/.env
+vi /opt/lingyao/deploy/.env  # 填 POSTGRES_PASSWORD / LINGYAO_JWT_SECRET 等
+```
+
+### Step 3：拉镜像 + 启动
+```bash
+cd /opt/lingyao/deploy
+docker compose pull  # 拉 lingyao-postgres + lingyao-backend
+docker compose up -d
+```
+
+### Step 4：验证（30 秒后）
+```bash
+docker compose ps  # 两个服务都 healthy
+curl http://127.0.0.1:9091/api/version  # → 200, version=2.0.14
+curl http://127.0.0.1:9091/api/health   # → 200, status=UP
+```
+
+### Step 5：接 nginx + 域名
+- `deploy/cvm/nginx-lingyao.conf` 已写好模板
+- 主人按实际情况改 `server_name` + SSL cert 路径
+- nginx reload: `sudo nginx -t && sudo systemctl reload nginx`
+
+---
+
+## 四、关键 env 字段（必填）
+
+| 字段 | 类型 | 默认 | 必填 | 说明 |
+|---|---|---|---|---|
+| `POSTGRES_PASSWORD` | 密码 | （必填）| ✅ | lingyao 库超级密码 |
+| `LINGYAO_JWT_SECRET` | 32+ 字符串 | | ✅ | 后端鉴权（缺则 fail-fast）|
+| `POSTGRES_DB` | 字符串 | `lingyao` | | 默认值即可 |
+| `POSTGRES_USER` | 字符串 | `lingyao_app` | | 默认值即可 |
+| `BACKEND_PORT` | 端口 | `9091` | | 默认值即可 |
+| `SPRING_PROFILES_ACTIVE` | profile | `private` | | **不要改**，prod 就是 private |
+
+---
+
+## 五、关键文件路径
+
+```
+凌瑶/
+├── deploy/
+│   ├── docker-compose.yml       # PG + Backend 一体编排
+│   ├── Dockerfile.backend       # JDK 21 镜像
+│   ├── .env.example             # env 模板
+│   ├── CHECK_REPORT.md          # 两端一致性 12 项 check
+│   ├── README_FOR_CLOUD_TEAM.md # 云端对接 5 步部署
+│   └── cvm/
+│       ├── DEPLOYMENT.md        # 部署细节
+│       ├── lingyao-backend.service  # systemd unit（可选）
+│       ├── nginx-lingyao.conf   # nginx 反代模板
+│       └── backup-pg.sh         # 多库备份
+├── scripts/
+│   ├── pg_db_monitor.py         # 护栏 3：PG 健康监控
+│   ├── start_pg_db_monitor_daemon.py  # 守护启动器
+│   ├── sqlite_health_check.py   # SQLite 健康检查（其他项目用）
+│   ├── db_consistency_audit.py  # 跨组件一致性审计
+│   ├── port_watchdog.py         # 12 端口稳定性监控
+│   ├── start_backend_daemon.py  # 凌瑶后端守护（带 JWT secret 注入）
+│   └── start_watchdog_daemon.py # watchdog 守护
+├── backend/src/main/resources/
+│   ├── application.yml          # 默认 profile（dev）
+│   ├── application-private.yml  # private profile（PG + HikariCP）
+│   ├── application-staging.yml  # staging profile（PG 9092 + lingyao_staging）
+│   ├── data-private.sql         # 私有化种子数据（admin/admin123 + 1 公司）
+│   ├── data.sql                 # SAAS 多公司演示数据（仅 dev/staging 用）
+│   └── schema-private.sql       # PG 专版 schema 升级
+└── docs/
+    ├── DEPLOYMENT_READY.md      # 本文件
+    ├── db-selection-spec.md     # 3 轨制 DB 选型规范 v1.0
+    ├── db-component-inventory-2026-08-30.md  # 7 组件盘点
+    ├── db-rollback-sop.md       # DB 迁移回滚 SOP
+    └── sqlite-pragma-spec.md    # SQLite PRAGMA 集中化规范
+```
+
+---
+
+## 六、未完成项（云端主流程接管）
+
+| # | 项 | 状态 | 谁做 |
+|---|---|---|---|
+| 1 | MED-PPT alembic kb_v1.py column 引用错误 | ❌ 阻塞 | MED-PPT 仓窗口（不在本窗口）|
+| 2 | D-Info 仓实际 HikariCP + backup 改动 | ⏸ | Dinfo 窗口 |
+| 3 | 云端数据库备份 cron 配置 | ⏸ | 云端主流程 |
+| 4 | 云端 systemd 接管 docker compose | ⏸ | 云端主流程（lingyao-backend.service 已写好模板）|
+| 5 | 域名 + SSL cert 申请 | ⏸ | 云端主流程 |
+| 6 | ICP 备案 | ⏸ | 已提交审核（30178770722105289）|
+
+---
+
+## 七、铁律执行清单
+
+| # | 铁律 | 状态 |
+|---|---|---|
+| 1 | AI 不主动 push | ✅ 全程本地 commit，未 push |
+| 2 | 重启必发前端地址 | ✅ 9091 + 8765（凌瑶）/ 3100（MPDM）/ 8090+5182（GEOM）|
+| 3 | 前后端版本号同步 | ✅ 2.0.14（凌瑶）/ 0.8.156（POR-M）/ H1.0.5（MPDM）/ v0.99（GEOM）|
+| 4 | 发布审批门禁 | ✅ 所有 commit 留本地，等主人说 push |
+| 5 | dev 用 start_dev_daemon | ✅ start_backend_daemon.py 注入 JWT secret |
+| 6 | 守护进程用 daemon 脚本 | ✅ 所有服务都用双重 fork + setsid |
+| 7 | JDK 21 铁律 | ✅ Dockerfile.backend 用 openjdk-21-jdk-headless |
+| 8 | DB 路径单一真理源 | ✅ 所有 datasource 走 application*.yml + 占位符 `${ENV:default}` |
+| 9 | 子目录清理先查 .git | ✅ 13:35 事故后强制 ls -la 检查 |
+| 10 | GEOM 不可动 + geom/ 永不删 | ✅ 只读副本，未动 code/geo-platform/ |
+| 11 | 备份先动手 | ✅ _backups-2026-08-30/ 留 tar.gz |
+| 12 | Git Remote 变更先报告 | ✅ 未动 remote |
+| 13 | 数据闭环不用完美状态过滤 | ✅ MPDM db_monitor 已贯彻 |
+| 14 | 密码强度铁律 | ✅ Ui/kBL01bvoIfz6Rctgpx8uD（24 字符，强度达标）|
+| 15 | CORS / API_BASE 铁律 | ✅ WebConfig 已配 production origin；前端 API_BASE 智能判断 |
+| 16 | push 时机 = 数据库改造完成 | ✅ 4 件齐全（P0-1 / P0-2 / P1-1 / 云端配套）|
+| 17 | 远端不是 AI 关心的事 | ✅ 全程不 ping 远端 |
+
+---
+
+## 八、下一步
+
+1. ✅ 本任务窗口**全部完成**
+2. ⏳ 主人按"操作节奏铁律"决定下一步：
+   - A. 收工，等云端主流程接管（最常见）
+   - B. 启动 MED-PPT 启动 SOP（需主人先修 kb_v1.py bug）
+   - C. 启动 D-Info 仓实际改动
+   - D. 进入其他项目

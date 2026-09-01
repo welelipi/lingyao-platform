@@ -600,6 +600,29 @@
     </div>
   </div>
 
+  <!-- 首次登录修改初始密码 -->
+  <div id="changePasswordView" class="login-container" style="display:none;">
+    <h2>请修改初始密码</h2>
+    <p class="hint">为了您的账号安全，请立即修改初始密码后再使用系统</p>
+    <form id="changePasswordForm">
+      <div class="form-group">
+        <label for="oldPassword">当前密码（初始密码）</label>
+        <input type="password" id="oldPassword" required autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label for="newPassword">新密码</label>
+        <input type="password" id="newPassword" required minlength="8" autocomplete="new-password">
+        <span class="help">≥ 8 位</span>
+      </div>
+      <div class="form-group">
+        <label for="confirmPassword">确认新密码</label>
+        <input type="password" id="confirmPassword" required minlength="8" autocomplete="new-password">
+      </div>
+      <button type="submit" class="login-btn" id="changePasswordBtn">修改密码并继续</button>
+      <div class="error-msg" id="changePasswordError"></div>
+    </form>
+  </div>
+
   <!-- 已登录：显示模块选择门户 -->
   <div id="portalView" class="portal-container" style="display:none;">
     <div class="portal-header">
@@ -624,6 +647,7 @@
         </div>
         <button class="logout" id="logoutBtn">退出</button>
         <button class="logout" id="adminBtn" style="display:none;border-color:var(--accent);color:var(--accent);">⚙ 管理后台</button>
+        <button class="logout" id="companyAdminBtn" style="display:none;border-color:#0F6E56;color:#0F6E56;">🏢 公司管理</button>
       </div>
     </div>
 
@@ -845,6 +869,12 @@
     function showLogin() {
       document.getElementById('loginView').style.display = 'block';
       document.getElementById('portalView').style.display = 'none';
+      document.getElementById('changePasswordView').style.display = 'none';
+    }
+    function showChangePassword() {
+      document.getElementById('loginView').style.display = 'none';
+      document.getElementById('portalView').style.display = 'none';
+      document.getElementById('changePasswordView').style.display = 'block';
     }
     function showPortal(user) {
       document.getElementById('loginView').style.display = 'none';
@@ -898,6 +928,11 @@
       const adminBtn = document.getElementById('adminBtn');
       if (adminBtn) {
         adminBtn.style.display = user.isPlatformAdmin ? 'inline-block' : 'none';
+      }
+      // 公司超管显示「公司管理」入口（仅对 SUPER_ADMIN 角色）
+      const caBtn = document.getElementById('companyAdminBtn');
+      if (caBtn) {
+        caBtn.style.display = user.isTenantAdmin ? 'inline-block' : 'none';
       }
 
       loadModules(user);
@@ -1107,7 +1142,12 @@
           return;
         }
         const data = await res.json();
-        // 后端响应: {code, success, message, data:{token, user, company, products}}
+        if (data.code !== 0 || !data.data) {
+          err.textContent = data.message || '登录失败';
+          btn.disabled = false;
+          btn.textContent = '登录控制台';
+          return;
+        }
         const payload = data.data || {};
         setToken(payload.token);
         // 适配后端字段 → 前端期望
@@ -1131,7 +1171,11 @@
           isTenantAdmin: !!(u.isTenantAdmin) // 来自 JWT 平铺字段
         };
         setUser(user);
-        showPortal(user);
+        if (payload.mustChangePassword === true) {
+          showChangePassword();
+        } else {
+          showPortal(user);
+        }
       } catch (e) {
         err.textContent = '网络错误：' + e.message;
         btn.disabled = false;
@@ -1141,8 +1185,62 @@
 
     document.getElementById('logoutBtn').addEventListener('click', logout);
 
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const oldPassword = document.getElementById('oldPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const err = document.getElementById('changePasswordError');
+      const btn = document.getElementById('changePasswordBtn');
+      err.textContent = '';
+      btn.disabled = true;
+      btn.textContent = '修改中...';
+      if (newPassword !== confirmPassword) {
+        err.textContent = '两次输入的新密码不一致';
+        btn.disabled = false;
+        btn.textContent = '修改密码并继续';
+        return;
+      }
+      if (newPassword === oldPassword) {
+        err.textContent = '新密码不能与当前密码相同';
+        btn.disabled = false;
+        btn.textContent = '修改密码并继续';
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getToken(),
+          },
+          body: JSON.stringify({ oldPassword, newPassword }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || (data.code !== undefined && data.code !== 0)) {
+          err.textContent = data.message || `HTTP ${res.status}`;
+          btn.disabled = false;
+          btn.textContent = '修改密码并继续';
+          return;
+        }
+        const user = getUser();
+        document.getElementById('changePasswordForm').reset();
+        if (user) {
+          showPortal(user);
+        } else {
+          logout();
+        }
+      } catch (e) {
+        err.textContent = '网络错误：' + e.message;
+        btn.disabled = false;
+        btn.textContent = '修改密码并继续';
+      }
+    });
+
     // 管理后台入口点击（显示与否由 showPortal(user) 根据 isPlatformAdmin 控制）
     document.getElementById('adminBtn').addEventListener('click', () => location.href = '/admin.html');
+    const caBtnEl = document.getElementById('companyAdminBtn');
+    if (caBtnEl) caBtnEl.addEventListener('click', () => location.href = '/company-admin.html');
 
     // ── 滚动进度条 ─────────────────────────
     window.addEventListener('scroll', () => {

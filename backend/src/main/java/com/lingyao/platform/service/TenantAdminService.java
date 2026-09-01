@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -371,5 +372,76 @@ public class TenantAdminService {
         auditLogService.record("COMPANY_GRANT_PRODUCT", "COMPANY", String.valueOf(req.getCompanyId()),
                 "为 " + company.getName() + " 开通 " + req.getProductIds().size() + " 个产品");
         return results;
+    }
+
+    @Transactional
+    public Company suspendCompany(Long companyId) {
+        Company company = companyRepo.findById(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("公司不存在: " + companyId));
+        if (company.getStatus() == Company.CompanyStatus.SUSPENDED) {
+            throw new IllegalArgumentException("公司已处于禁用状态");
+        }
+        if (company.getStatus() == Company.CompanyStatus.DELETED) {
+            throw new IllegalArgumentException("已删除的公司不可禁用");
+        }
+        company.setStatus(Company.CompanyStatus.SUSPENDED);
+        Company saved = companyRepo.save(company);
+        auditLogService.record("COMPANY_SUSPEND", "COMPANY", String.valueOf(companyId),
+                "禁用公司: " + company.getName());
+        return saved;
+    }
+
+    @Transactional
+    public Company activateCompany(Long companyId) {
+        Company company = companyRepo.findById(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("公司不存在: " + companyId));
+        if (company.getStatus() == Company.CompanyStatus.DELETED) {
+            throw new IllegalArgumentException("已删除的公司不可激活");
+        }
+        if (company.getStatus() == Company.CompanyStatus.ACTIVE) {
+            throw new IllegalArgumentException("公司已处于激活状态");
+        }
+        company.setStatus(Company.CompanyStatus.ACTIVE);
+        Company saved = companyRepo.save(company);
+        auditLogService.record("COMPANY_ACTIVATE", "COMPANY", String.valueOf(companyId),
+                "激活公司: " + company.getName());
+        return saved;
+    }
+
+    private static final String RESET_PWD_CHARS =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*";
+    private static final SecureRandom RESET_PWD_RANDOM = new SecureRandom();
+
+    @Transactional
+    public ResetPasswordResult resetUserPassword(Long userId) {
+        SysUser user = userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在: " + userId));
+        String newPassword = generateRandomPassword(12);
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setPasswordChanged(false);
+        user.setUpdatedAt(LocalDateTime.now());
+        SysUser saved = userRepo.save(user);
+        auditLogService.record("USER_RESET_PASSWORD", "USER", String.valueOf(userId),
+                "重置用户密码: " + saved.getUsername());
+        return new ResetPasswordResult(saved.getUsername(), newPassword);
+    }
+
+    private String generateRandomPassword(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(RESET_PWD_CHARS.charAt(RESET_PWD_RANDOM.nextInt(RESET_PWD_CHARS.length())));
+        }
+        return sb.toString();
+    }
+
+    public static class ResetPasswordResult {
+        private final String username;
+        private final String newPassword;
+        public ResetPasswordResult(String username, String newPassword) {
+            this.username = username;
+            this.newPassword = newPassword;
+        }
+        public String getUsername() { return username; }
+        public String getNewPassword() { return newPassword; }
     }
 }

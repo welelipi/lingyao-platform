@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="ngCTRdAMFLKpjX081xKhLQ">
+<head data-page-node-id="jFXXmGWS1A8HWYYkzrnM2K">
+  <meta charset="UTF-8" data-page-node-id="auiTgYX4IJxtECjjaDChxO">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="49XOtBPqD4wzFqIoRjfjGL">
+  <title>凌瑶智数 · 公司管理后台</title>
+  <link rel="stylesheet" href="/css/style.css" data-page-node-id="niMXLtvcDrCVI7MhTHu5BY">
+  <style>
+    .ca-shell { min-height: 100vh; padding: 96px 32px 64px; max-width: 1320px; margin: 0 auto; }
+    .ca-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
+    .ca-header h1 { font-size: 30px; font-weight: 700; background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 4px; }
+    .ca-header p { color: var(--text-dim); font-size: 14px; }
+    .ca-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; backdrop-filter: blur(24px); }
+    .ca-tab-bar { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .ca-tab { padding: 12px 20px; background: transparent; border: none; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; font-size: 14px; transition: all 0.2s; }
+    .ca-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .ca-tab-content { display: none; }
+    .ca-tab-content.active { display: block; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
+    .stat-card .stat-label { color: var(--text-dim); font-size: 13px; margin-bottom: 8px; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 600; }
+    .stat-card .stat-sub { color: var(--text-dim); font-size: 12px; margin-top: 4px; }
+    .stat-card.warning .stat-value { color: var(--warning); }
+    .stat-card.danger .stat-value { color: var(--danger); }
+    .stat-card.success .stat-value { color: var(--success); }
+
+    .progress-bar { height: 8px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; margin-top: 12px; }
+    .progress-fill { height: 100%; background: var(--gradient-primary); transition: width 0.3s; }
+    .progress-fill.warning { background: var(--warning); }
+    .progress-fill.danger { background: var(--danger); }
+
+    .role-tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+    .role-tag.SUPER_ADMIN { background: var(--accent-faint); color: var(--accent); border: 1px solid var(--accent); }
+    .role-tag.OPERATOR { background: rgba(99,153,34,0.15); color: var(--success); border: 1px solid var(--success); }
+    .role-tag.VIEWER { background: rgba(95,94,90,0.15); color: var(--text-dim); border: 1px solid var(--text-dim); }
+
+    .status-tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; }
+    .status-tag.ACTIVE { background: rgba(99,153,34,0.15); color: var(--success); }
+    .status-tag.REMOVED, .status-tag.SUSPENDED { background: rgba(226,75,74,0.15); color: var(--danger); }
+
+    .product-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; }
+    .product-card .product-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .product-card .product-icon { font-size: 22px; font-weight: 700; color: var(--accent); width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: var(--accent-faint); border-radius: 8px; }
+    .product-card .product-name { font-size: 15px; font-weight: 500; }
+    .product-card .product-code { font-size: 11px; color: var(--text-dim); }
+
+    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); }
+    .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+  </style>
+</head>
+<body data-page-node-id="aGtniHMGSFfj4HI8LYpZZB">
+  <div class="ca-shell" data-page-node-id="muadb5KkPQww9DWdBzcKHk">
+    <div class="ca-header" data-page-node-id="WujVgsuWz90HL77fbsGePY">
+      <div data-page-node-id="RteJ5KQl5G72QNHNSMd6wB">
+        <h1 id="companyName" data-page-node-id="mUeet4NTJzYE3v6W10WI9M">公司管理后台</h1>
+        <p id="companySub" data-page-node-id="QBt3BjlqjyXNnD5uYBw61B">公司超管视角 · 管理本公司用户、产品授权与 license</p>
+      </div>
+      <div class="right" style="display:flex;gap:12px;align-items:center;" data-page-node-id="fpGacR8Gzi9HkzjEYS1g5C">
+        <span class="user-badge" id="userBadge" style="font-size:13px;color:var(--text-dim);" data-page-node-id="vMQomvpvskqAF7o4l4zbjZ">-</span>
+        <button class="btn-ghost-sm" onclick="location.href='/portal.html'" data-page-node-id="5sauFpSrMhuFBrjOxwegqC">← 返回主门户</button>
+        <button class="btn-ghost-sm" onclick="logout()" data-page-node-id="Kdw4ifYOSHcQ9Q7H7ttifC">退出登录</button>
+      </div>
+    </div>
+
+    <div class="ca-tab-bar" data-page-node-id="bM6GkJvocAtx8ONAQYhLfB">
+      <button class="ca-tab active" data-tab="overview" data-page-node-id="8gaNnXSRUDt6dm8Z08hLyG">概览</button>
+      <button class="ca-tab" data-tab="users" data-page-node-id="R4ePYYPgkCC8KXPWj8cuLS">用户管理</button>
+      <button class="ca-tab" data-tab="products" data-page-node-id="a6BlGPEHsaCuHgaByWayL4">产品授权</button>
+    </div>
+
+    <!-- Tab 1: 概览 -->
+    <div class="ca-tab-content active" id="tab-overview" data-page-node-id="TSI7HznKwSn1NtHc3fHGi9">
+      <div class="stats-grid" data-page-node-id="XQcjpEoCkpobJd5lJOBjth">
+        <div class="stat-card" data-page-node-id="uCqTpdqxFLvofrXJORrVn6">
+          <div class="stat-label" data-page-node-id="cYEtAD3PjNnljup6EAhMRG">已用用户 / 最大用户</div>
+          <div class="stat-value" id="statUsers" data-page-node-id="4YMFlZde2trfkwNM5HIlH1">-</div>
+          <div class="progress-bar" data-page-node-id="Yqvoe8F3nloTWmTOjDIZql"><div class="progress-fill" id="usersProgress" style="width:0%" data-page-node-id="IjmDMdHOEVvmtGTvStT5J4"></div></div>
+        </div>
+        <div class="stat-card" id="licenseStatCard" data-page-node-id="AsD4wDghUV3momvp9hDicL">
+          <div class="stat-label" data-page-node-id="u7N3rda2Jj1ODy44qCDp66">license 剩余天数</div>
+          <div class="stat-value" id="statDays" data-page-node-id="TmIIdMK0nhQ14ymCY3xQUH">-</div>
+          <div class="stat-sub" id="licenseEnd" data-page-node-id="hc9ChMgaYzZ75Wd833aZuy">-</div>
+        </div>
+        <div class="stat-card success" data-page-node-id="RCfnUn3EEyatUrzNz9sQ2c">
+          <div class="stat-label" data-page-node-id="ZJHaGZNSz6T1CVB6W3nQYH">已开通产品</div>
+          <div class="stat-value" id="statProducts" data-page-node-id="WHmInZFbt7LV5Q9FiamEd0">-</div>
+          <div class="stat-sub" data-page-node-id="BaDY63UiW76IP33YNytLL1">本公司可授权的产品数</div>
+        </div>
+        <div class="stat-card" data-page-node-id="KdjMetVArlERZZtcUMSaDD">
+          <div class="stat-label" data-page-node-id="po11R6ghFC2QkC0sm2Xasz">license 计划</div>
+          <div class="stat-value" id="statPlan" style="font-size:18px;" data-page-node-id="OAsI2EI94DLlYUZqAzBbGt">-</div>
+          <div class="stat-sub" id="statCompanyStatus" data-page-node-id="HvItiraagoRTBkyky8P9MF">-</div>
+        </div>
+      </div>
+
+      <div class="ca-card" style="margin-top:24px;" data-page-node-id="WyMzGYkPUIZ0bQWCG5DWRj">
+        <h3 style="margin-bottom:16px;font-size:16px;" data-page-node-id="pPdIAA4OI38GzJ9dYUHXyC">已开通产品</h3>
+        <div class="products-grid" id="overviewProducts" data-page-node-id="UqrcNNHf9FI49F5qwD1UHP"></div>
+      </div>
+    </div>
+
+    <!-- Tab 2: 用户管理 -->
+    <div class="ca-tab-content" id="tab-users" data-page-node-id="cZ5FgF2ezFmntk4Tmeg4am">
+      <div style="display:flex;justify-content:space-between;margin-bottom:16px;" data-page-node-id="VPW0TCF9P9M2GtA5cEyJvN">
+        <p style="color:var(--text-dim);font-size:13px;" data-page-node-id="MnFTVbSv4gXyLvlOBHCljc">本公司所有成员的列表</p>
+        <button class="btn-primary-sm" onclick="openInviteModal()" data-page-node-id="YBU4cwL8n3t3CmrYhbf0us">+ 邀请新员工</button>
+      </div>
+      <div class="ca-card" data-page-node-id="D9aEWDP4D62ha9avHcDsjf">
+        <table class="data-table" id="usersTable" data-page-node-id="QIVCCaq38UV2eDLvMLAMlP">
+          <thead data-page-node-id="R3yeFisegNSKrJBUtV3BnP">
+            <tr data-page-node-id="d5kGLKAGGsZyH0WNo7CTTu">
+              <th data-page-node-id="EUGwuk0XCVtnOiCk0SCiJj">用户名</th>
+              <th data-page-node-id="CD4N0fQ0YIANZhIOV0b4EQ">显示名</th>
+              <th data-page-node-id="tayuPRLMg1kblZJzIfrHP2">角色</th>
+              <th data-page-node-id="1jzlu7uj3wW1nWx13M2GjS">状态</th>
+              <th data-page-node-id="IiANoaXiCz8obXO5zcIQCZ">加入时间</th>
+              <th data-page-node-id="g5K0iJwCPuIVCthi6g7Njj">最近登录</th>
+              <th data-page-node-id="UM1DLVewzfoWdyZ7dR6ZDd">操作</th>
+            </tr>
+          </thead>
+          <tbody id="usersTbody" data-page-node-id="SgBCKFDAECrcWrUP1JmruW"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 3: 产品授权 -->
+    <div class="ca-tab-content" id="tab-products" data-page-node-id="EsjAHvKRRFOQkScnqz8k6s">
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;" data-page-node-id="EbaEhjg0selcaH6PwUBOUq">本公司已开通的产品，可对员工进行授权/撤销</p>
+      <div class="products-grid" id="productsGrid" data-page-node-id="OnEUJHKuJ0aoa4TSY08ILR"></div>
+    </div>
+  </div>
+
+  <!-- 模态：邀请新员工 -->
+  <div class="modal" id="inviteModal" data-page-node-id="glmjRLwVLZilSF0063v49P">
+    <div class="modal-backdrop" onclick="closeModal('invite')" data-page-node-id="4sONqXo0XjsrGaezFKFLFE"></div>
+    <div class="modal-content modal-large" data-page-node-id="VTqeuu1kodvauQZ4N5iSUg">
+      <button class="modal-close" onclick="closeModal('invite')" data-page-node-id="csb3Gg2yPwyNcxvaLfdm9n">&times;</button>
+      <div class="modal-header" data-page-node-id="dPg2PyuwW1FsN27uDjyXSs">
+        <h3 id="inviteTitle" data-page-node-id="iwEWETFkXbf6XRboEGQLkc">邀请新员工</h3>
+        <p id="inviteSubtitle" data-page-node-id="2YTssSVlHWRHAgZMozSdsp">创建后立即绑定到本公司</p>
+      </div>
+      <form class="modal-form" id="inviteForm" data-page-node-id="9dhPPfXg6DrmdpAbppHG9y">
+        <div class="form-row" data-page-node-id="P05e4UTUabGisAbLuuDo2c">
+          <div class="form-field" data-page-node-id="OiCWtJx5NmJjQw3SGMsGuk">
+            <label data-page-node-id="Qzx6d2G15uImSQ5twEpgdc">用户名 *</label>
+            <input name="username" required pattern="^[a-zA-Z0-9._-]{3,32}$" placeholder="例：bob" data-page-node-id="vHFIk1brqqvWIe2Gf6y9NB">
+          </div>
+          <div class="form-field" data-page-node-id="B4ith6H8ezaEzoaSVFPKGi">
+            <label data-page-node-id="iqBqPKUfs2BVhLKTbgO0AS">显示名</label>
+            <input name="displayName" placeholder="例：张三" data-page-node-id="O02h4otml3nbiL0iKQV62j">
+          </div>
+        </div>
+        <div class="form-row" data-page-node-id="jlQ7oEluLj4IcwlUneLDy5">
+          <div class="form-field" data-page-node-id="CqOGVvAjavcJKy5TvdUnmr">
+            <label data-page-node-id="jHjqayE4XpxXeG1Zvy6jYa">初始密码</label>
+            <input name="initialPassword" placeholder="留空则自动生成 12 位随机密码" data-page-node-id="CGHAndCshtpu08A53Ewapk">
+          </div>
+          <div class="form-field" data-page-node-id="tW2SihK8HFXmNUEizRbB1S">
+            <label data-page-node-id="vjNQ8QGXrINgtX0avQ2Ddj">公司内角色 *</label>
+            <select name="role" data-page-node-id="cZY9f0y6ArdlupZFuYVwzm">
+              <option value="OPERATOR" selected data-page-node-id="kGOnaRjshnxG5FXBiUFLYl">OPERATOR（操作员）</option>
+              <option value="SUPER_ADMIN" data-page-node-id="FHi9fOOOvePTLI3AguJdZf">SUPER_ADMIN（公司超管）</option>
+              <option value="VIEWER" data-page-node-id="z3xacazHf0Q6JpHpRmb49V">VIEWER（查看者）</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-field" data-page-node-id="nibl86OULbFPsLuBDZHqu5">
+          <label data-page-node-id="Y0t53fYguvn4oTbYGRWbiH">授权产品（可多选）</label>
+          <div id="inviteProductCheckboxes" style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 0;" data-page-node-id="iPD8DSVujtYXwapIDvSH7Z"></div>
+        </div>
+        <div class="form-actions" data-page-node-id="0tKrJcu4A7exFhQqKzQNc2">
+          <button type="button" class="btn-ghost-sm" onclick="closeModal('invite')" data-page-node-id="QMKkTpieuPCZbr7A9CNfhL">取消</button>
+          <button type="submit" class="btn-primary-sm" data-page-node-id="o8aohrSFuPOVbBMoppjsOi">创建</button>
+        </div>
+      </form>
+
+      <div id="inviteSuccessView" style="display:none;" data-page-node-id="O0P6wAkQVvkZQsbYxfN8ZH">
+        <div style="background:rgba(99,153,34,0.1);border:1px solid var(--success);border-radius:8px;padding:20px;margin-bottom:16px;" data-page-node-id="rcANCCaDDxE3t56wgazEiP">
+          <h4 style="color:var(--success);margin-bottom:12px;font-size:15px;" data-page-node-id="eUCjUSd7sIBPsBlVb7LhqV">✓ 员工已加入</h4>
+          <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;" data-page-node-id="ji5c8qCnRvdzqfrzmaYu0n">请将以下账号信息<strong data-page-node-id="mgnAHsnWHA9Ir67VIaMdGt">复制给该员工</strong>，初始密码仅显示一次：</p>
+          <div style="margin-bottom:12px;" data-page-node-id="hQHT44oZphdKJiCJVUvYkw">
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;" data-page-node-id="6u4ltpfUHCpVUDsGUibt4F">用户名</label>
+            <div style="display:flex;gap:8px;align-items:center;" data-page-node-id="dJ0iKhRPP4ItlvSEEGB6ME">
+              <input type="text" id="createdUsername" readonly style="flex:1;font-family:monospace;" data-page-node-id="KSsMDuAmn1EJOyoglRJZSL">
+              <button type="button" class="btn-ghost-sm" onclick="copyText('createdUsername')" data-page-node-id="eMlPX4CeWnavz90rsBY9HV">复制</button>
+            </div>
+          </div>
+          <div data-page-node-id="mNf1Js45RYp4eeiKdtH7vg">
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;" data-page-node-id="LWurAqr4YiAuWL4qJJPxWc">初始密码</label>
+            <div style="display:flex;gap:8px;align-items:center;" data-page-node-id="OM0eHlFG1z5bCIPirMBM3g">
+              <input type="text" id="createdPassword" readonly style="flex:1;font-family:monospace;" data-page-node-id="8FwH8qDEhK7GaKKcpdpPsx">
+              <button type="button" class="btn-ghost-sm" onclick="copyText('createdPassword')" data-page-node-id="EhjD3HIC87bnX3VrVoXDpi">复制</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions" data-page-node-id="eimh9rgkQptmpVbwp3HTYy">
+          <button type="button" class="btn-primary-sm" onclick="closeInviteAndReset()" data-page-node-id="ExzNqZHeV3odToGtffHm2u">我已记录，关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态：授权产品给员工 -->
+  <div class="modal" id="grantProductModal" data-page-node-id="q3E3D3j2Gyk7bCE4pIj4Hl">
+    <div class="modal-backdrop" onclick="closeModal('grantProduct')" data-page-node-id="NDGrU90XCAsxToPGHXpvaE"></div>
+    <div class="modal-content" data-page-node-id="UEXxkf3NXSW1TKvZsGgwXO">
+      <button class="modal-close" onclick="closeModal('grantProduct')" data-page-node-id="imYqkS7iKGZyljrhGGEBK3">&times;</button>
+      <div class="modal-header" data-page-node-id="1HgWByg3kMpTPuBYt2JMSm">
+        <h3 data-page-node-id="j7yesUEbVSAlVGPzpcHWqF">管理产品授权</h3>
+        <p id="grantProductSubtitle" data-page-node-id="2jUYuK5LD3fua3zSUYewHu">-</p>
+      </div>
+      <div id="grantProductList" style="max-height:400px;overflow-y:auto;" data-page-node-id="SY31PzCdlrZ7Vbp4FsSA25"></div>
+      <div class="form-actions" data-page-node-id="E7BVGwksWALt7KKTjfk9Cw">
+        <button type="button" class="btn-ghost-sm" onclick="closeModal('grantProduct')" data-page-node-id="Ie5ITKdSQ004YbPGANjYZQ">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" data-page-node-id="yf3MZBaNVtQsVySef8AScq">
+    <span class="toast-icon" data-page-node-id="koveiOZwr7PmUEL2qEWJLI">ℹ️</span>
+    <div class="toast-msg" data-page-node-id="z380JVF4lu6tJdyT11eBqI">-</div>
+  </div>
+
+  <script>
+    const TOKEN_KEY = 'lingyao_token';
+    const USER_KEY = 'lingyao_user';
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://127.0.0.1:9091' : '';
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+    function getUser() {
+      const s = localStorage.getItem(USER_KEY);
+      return s ? JSON.parse(s) : null;
+    }
+    function logout() {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      location.href = '/portal.html';
+    }
+
+    async function api(method, path, body) {
+      const opts = {
+        method,
+        headers: {
+          'Authorization': 'Bearer ' + getToken(),
+          'Content-Type': 'application/json'
+        }
+      };
+      if (body !== undefined) opts.body = JSON.stringify(body);
+      const res = await fetch(API_BASE + path, opts);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || (json.code !== undefined && json.code !== 0)) {
+        const msg = json.message || `HTTP ${res.status}`;
+        showToast(msg, 'error');
+        throw new Error(msg);
+      }
+      return json.data;
+    }
+
+    function showToast(msg, type = 'success') {
+      const t = document.getElementById('toast');
+      const m = t.querySelector('.toast-msg');
+      const icon = t.querySelector('.toast-icon');
+      m.textContent = msg;
+      t.classList.remove('success', 'error', 'info');
+      t.classList.add(type);
+      icon.textContent = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ️';
+      t.classList.add('show');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function openModal(id) {
+      const m = document.getElementById(id + 'Modal');
+      if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; }
+    }
+    function closeModal(id) {
+      const m = document.getElementById(id + 'Modal');
+      if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function fmtDate(s) {
+      if (!s) return '-';
+      try { return new Date(s).toLocaleString('zh-CN', { hour12: false }); }
+      catch (_) { return s; }
+    }
+
+    function copyText(inputId) {
+      const el = document.getElementById(inputId);
+      el.select();
+      navigator.clipboard.writeText(el.value).then(() => {
+        showToast('已复制', 'success');
+      }).catch(() => {
+        document.execCommand('copy');
+        showToast('已复制', 'success');
+      });
+    }
+
+    let overviewCache = null;
+    let usersCache = [];
+    let productsCache = [];
+    let currentCompanyProducts = [];
+
+    async function loadAll() {
+      try {
+        overviewCache = await api('GET', '/api/company-admin/me');
+        usersCache = await api('GET', '/api/company-admin/users');
+        currentCompanyProducts = await api('GET', '/api/company-admin/products');
+        renderOverview();
+        renderUsers();
+        renderProducts();
+      } catch (e) {
+        if (e.message.includes('未登录') || e.message.includes('会话')) {
+          setTimeout(() => location.href = '/portal.html', 1500);
+        }
+      }
+    }
+
+    function renderOverview() {
+      const o = overviewCache;
+      document.getElementById('companyName').textContent = o.company.name;
+      document.getElementById('userBadge').textContent = `${getUser()?.username || '?'} · ${o.company.code}`;
+
+      const maxUsers = o.license.maxUsers;
+      const usedUsers = o.license.usedUsers;
+      document.getElementById('statUsers').textContent = `${usedUsers} / ${maxUsers}`;
+      const pct = Math.min(100, (usedUsers / maxUsers) * 100);
+      const fill = document.getElementById('usersProgress');
+      fill.style.width = pct + '%';
+      fill.classList.remove('warning', 'danger');
+      if (pct >= 90) fill.classList.add('danger');
+      else if (pct >= 70) fill.classList.add('warning');
+
+      const days = o.license.remainingDays;
+      const dayEl = document.getElementById('statDays');
+      const dayCard = document.getElementById('licenseStatCard');
+      dayCard.classList.remove('warning', 'danger');
+      if (days < 0) {
+        dayEl.textContent = '已过期';
+        dayCard.classList.add('danger');
+      } else if (days < 30) {
+        dayEl.textContent = `${days} 天`;
+        dayCard.classList.add('danger');
+      } else if (days < 90) {
+        dayEl.textContent = `${days} 天`;
+        dayCard.classList.add('warning');
+      } else {
+        dayEl.textContent = `${days} 天`;
+      }
+      document.getElementById('licenseEnd').textContent = o.companyProducts[0] ? `到期：${fmtDate(o.companyProducts[0].licenseEnd)}` : '';
+
+      document.getElementById('statProducts').textContent = o.license.activeProducts;
+      document.getElementById('statPlan').textContent = o.company.licensePlan;
+      document.getElementById('statCompanyStatus').textContent = `公司状态：${o.company.status}`;
+
+      const op = document.getElementById('overviewProducts');
+      op.innerHTML = (o.companyProducts || []).map(p => `
+        <div class="product-card">
+          <div class="product-head">
+            <div style="display:flex;gap:12px;align-items:center;">
+              <div class="product-icon">${escapeHtml(p.icon || p.code?.charAt(0) || '?')}</div>
+              <div>
+                <div class="product-name">${escapeHtml(p.name)}</div>
+                <div class="product-code">${escapeHtml(p.code)}</div>
+              </div>
+            </div>
+            <span class="status-tag ${p.status}">${p.status}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderUsers() {
+      const tb = document.getElementById('usersTbody');
+      const me = getUser();
+      tb.innerHTML = usersCache.map(u => {
+        const isMe = u.username === (me?.username);
+        const canModify = !isMe;
+        return `
+          <tr>
+            <td><strong>${escapeHtml(u.username)}</strong>${isMe ? ' <span style="color:var(--accent);font-size:11px;">（你）</span>' : ''}</td>
+            <td>${escapeHtml(u.displayName || '-')}</td>
+            <td><span class="role-tag ${u.role}">${u.role}</span></td>
+            <td><span class="status-tag ${u.status}">${u.status}</span></td>
+            <td style="font-size:12px;color:var(--text-dim);">${fmtDate(u.joinedAt)}</td>
+            <td style="font-size:12px;color:var(--text-dim);">${fmtDate(u.lastLoginAt)}</td>
+            <td>
+              ${canModify ? `
+                <button class="btn-ghost-sm" data-action="change-role" data-username="u="${escapeHtml(u.username)}" data-uid="${u.userId}" data-current-role="${u.role}">改角色</button>
+                <button class="btn-warn-sm" data-action="remove-user" data-username="u="${escapeHtml(u.username)}" data-uid="${u.userId}">移除</button>
+              ` : '<span style="color:var(--text-dim);font-size:12px;">不能改自己</span>'}
+            </td>
+          </tr>
+        `;
+      }).join('') || '<tr><td colspan="7" class="empty-state">暂无用户</td></tr>';
+
+      tb.querySelectorAll('[data-action="change-role"]').forEach(btn => {
+        btn.addEventListener('click', () => doChangeRole(btn.dataset.uid, btn.dataset.username, btn.dataset.currentRole));
+      });
+      tb.querySelectorAll('[data-action="remove-user"]').forEach(btn => {
+        btn.addEventListener('click', () => doRemoveUser(btn.dataset.uid, btn.dataset.username));
+      });
+    }
+
+    function renderProducts() {
+      const grid = document.getElementById('productsGrid');
+      grid.innerHTML = currentCompanyProducts.map(p => `
+        <div class="product-card">
+          <div class="product-head">
+            <div style="display:flex;gap:12px;align-items:center;">
+              <div class="product-icon">${escapeHtml(p.icon || p.code?.charAt(0) || '?')}</div>
+              <div>
+                <div class="product-name">${escapeHtml(p.name)}</div>
+                <div class="product-code">${escapeHtml(p.code)} · ${escapeHtml(p.status)}</div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:8px;">
+            已授权 <strong style="color:var(--text);">${p.grantedUsers}</strong> / ${p.maxUsers} 人
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100, p.grantedUsers / p.maxUsers * 100)}%"></div></div>
+          <div style="margin-top:12px;text-align:right;">
+            <button class="btn-primary-sm" data-action="manage-product" data-pid="${p.productId}" data-pname="u="${escapeHtml(p.name)}" data-pcode="${escapeHtml(p.code)}">管理授权人员</button>
+          </div>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('[data-action="manage-product"]').forEach(btn => {
+        btn.addEventListener('click', () => openGrantModal(parseInt(btn.dataset.pid), btn.dataset.pname, btn.dataset.pcode));
+      });
+    }
+
+    // ── 邀请新员工 ─────────────────
+    function openInviteModal() {
+      document.getElementById('inviteForm').style.display = '';
+      document.getElementById('inviteSuccessView').style.display = 'none';
+      document.getElementById('inviteForm').reset();
+      document.getElementById('inviteTitle').textContent = '邀请新员工';
+      document.getElementById('inviteSubtitle').textContent = '创建后立即绑定到本公司';
+      const box = document.getElementById('inviteProductCheckboxes');
+      box.innerHTML = currentCompanyProducts.map(p => `
+        <label class="product-row" style="padding:6px 12px;background:var(--glass);border:1px solid var(--border);border-radius:6px;cursor:pointer;">
+          <input type="checkbox" name="productIds" value="${p.productId}">
+          <span style="margin-left:6px;">${escapeHtml(p.code)}</span>
+        </label>
+      `).join('');
+      openModal('invite');
+    }
+
+    document.getElementById('inviteForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const productIds = Array.from(e.target.querySelectorAll('input[name="productIds"]:checked'))
+        .map(cb => parseInt(cb.value));
+      const body = {
+        username: fd.get('username').trim(),
+        displayName: fd.get('displayName') || null,
+        role: fd.get('role'),
+        productIds,
+      };
+      const pwd = fd.get('initialPassword');
+      if (pwd && pwd.trim()) body.initialPassword = pwd;
+      try {
+        const res = await api('POST', '/api/company-admin/users', body);
+        document.getElementById('inviteForm').style.display = 'none';
+        document.getElementById('inviteSuccessView').style.display = '';
+        document.getElementById('inviteTitle').textContent = '员工已加入';
+        document.getElementById('inviteSubtitle').textContent = '请记录并告知该员工';
+        document.getElementById('createdUsername').value = res.username;
+        document.getElementById('createdPassword').value = res.initialPassword;
+        await loadAll();
+      } catch (_) {}
+    });
+
+    function closeInviteAndReset() {
+      document.getElementById('inviteForm').style.display = '';
+      document.getElementById('inviteForm').reset();
+      document.getElementById('inviteSuccessView').style.display = 'none';
+      document.getElementById('inviteTitle').textContent = '邀请新员工';
+      document.getElementById('inviteSubtitle').textContent = '创建后立即绑定到本公司';
+      closeModal('invite');
+    }
+
+    // ── 改角色 ─────────────────
+    async function doChangeRole(userId, username, currentRole) {
+      const newRole = prompt(`修改「${username}」的角色\n当前：${currentRole}\n输入新角色：SUPER_ADMIN / OPERATOR / VIEWER`);
+      if (!newRole || !['SUPER_ADMIN', 'OPERATOR', 'VIEWER'].includes(newRole)) {
+        if (newRole) showToast('角色值无效', 'error');
+        return;
+      }
+      if (newRole === currentRole) { showToast('角色未变化', 'info'); return; }
+      if (!confirm(`确认将「${username}」改为 ${newRole} ?`)) return;
+      try {
+        await api('PUT', `/api/company-admin/users/${userId}/role`, { role: newRole });
+        showToast(`已改为 ${newRole}`, 'success');
+        await loadAll();
+      } catch (_) {}
+    }
+
+    // ── 移除用户 ─────────────────
+    async function doRemoveUser(userId, username) {
+      if (!confirm(`确认移除「${username}」？\n移除后该用户将无法登录本公司，且会撤销其所有产品授权。`)) return;
+      try {
+        await api('POST', `/api/company-admin/users/${userId}/remove`);
+        showToast('员工已移除', 'success');
+        await loadAll();
+      } catch (_) {}
+    }
+
+    // ── 管理产品授权 ─────────────────
+    function openGrantModal(productId, productName, productCode) {
+      const me = getUser();
+      const cp = currentCompanyProducts.find(p => p.productId === productId);
+      const grantedIds = new Set(cp?.grantedUserIds || []);
+      const companyUsers = usersCache.filter(u => u.status === 'ACTIVE');
+      document.getElementById('grantProductSubtitle').textContent = `${productName}（${productCode}） · 已授权 ${grantedIds.size} / ${cp?.maxUsers || 50}`;
+      const list = document.getElementById('grantProductList');
+      list.innerHTML = companyUsers.map(u => {
+        const isMe = u.username === me?.username;
+        const granted = grantedIds.has(u.userId);
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);">
+            <div>
+              <strong>${escapeHtml(u.username)}</strong>
+              ${isMe ? '<span style="color:var(--accent);font-size:11px;margin-left:6px;">（你）</span>' : ''}
+              <span class="role-tag ${u.role}" style="margin-left:8px;">${u.role}</span>
+              <span style="color:var(--text-dim);font-size:12px;margin-left:8px;">${escapeHtml(u.displayName || '')}</span>
+            </div>
+            <div>
+              ${granted
+                ? `<button class="btn-warn-sm" data-action="revoke-product" data-pid="${productId}" data-uid="${u.userId}" data-username="u="${escapeHtml(u.username)}">撤销</button>`
+                : `<button class="btn-success-sm" data-action="grant-product" data-pid="${productId}" data-uid="${u.userId}" data-username="u="${escapeHtml(u.username)}">授权</button>`
+              }
+            </div>
+          </div>
+        `;
+      }).join('') || '<div class="empty-state">暂无员工</div>';
+
+      list.querySelectorAll('[data-action="grant-product"]').forEach(btn => {
+        btn.addEventListener('click', () => doGrantProduct(productId, parseInt(btn.dataset.uid), btn.dataset.username));
+      });
+      list.querySelectorAll('[data-action="revoke-product"]').forEach(btn => {
+        btn.addEventListener('click', () => doRevokeProduct(productId, parseInt(btn.dataset.uid), btn.dataset.username));
+      });
+      openModal('grantProduct');
+    }
+
+    async function doGrantProduct(productId, userId, username) {
+      if (!confirm(`确认给「${username}」授权？`)) return;
+      try {
+        await api('POST', `/api/company-admin/products/${productId}/grant`, { userId });
+        showToast('授权成功', 'success');
+        await loadAll();
+        // 重新打开 modal 刷新状态
+        const cp = currentCompanyProducts.find(p => p.productId === productId);
+        if (cp) openGrantModal(productId, cp.name, cp.code);
+      } catch (_) {}
+    }
+
+    async function doRevokeProduct(productId, userId, username) {
+      if (!confirm(`确认撤销「${username}」的授权？`)) return;
+      try {
+        await api('POST', `/api/company-admin/products/${productId}/revoke`, { userId });
+        showToast('授权已撤销', 'success');
+        await loadAll();
+        const cp = currentCompanyProducts.find(p => p.productId === productId);
+        if (cp) openGrantModal(productId, cp.name, cp.code);
+      } catch (_) {}
+    }
+
+    // ── Tab 切换 ─────────────────
+    document.querySelectorAll('.ca-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.ca-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.ca-tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // ── 启动 ─────────────────
+    (async function init() {
+      if (!getToken()) {
+        showToast('请先登录', 'error');
+        setTimeout(() => location.href = '/portal.html', 1500);
+        return;
+      }
+      await loadAll();
+    })();
+  </script>
+</body>
+</html>
