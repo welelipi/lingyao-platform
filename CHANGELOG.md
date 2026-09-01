@@ -3,6 +3,67 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.21 (2026-09-01 22:20) — P1 阶段 A：登出黑名单 + /me 身份查询
+
+主人 22:13 拍板「继续 P1，但手机登录相关的可以先不做」= 先做 P1.1 (/me) + P1.2 (logout + blacklist) + P1.3 (前端 logout 同步)。8 个 E2E 场景全过，本地 commit 不 push。
+
+### 新增
+
+- **token_blacklist 表 + 实体 + Repository**（黑名单表，P1 安全核心）
+  - 字段：jti（UNIQUE）/ user_id / company_id / expires_at / reason / ip_address / created_at
+  - 5 索引：jti UNIQUE + (user_id, expires_at) + (expires_at)
+  - CHECK 约束：reason ∈ LOGOUT/ADMIN_REVOKE/PASSWORD_CHANGED/REFRESH_ROTATE/OTHER
+  - 提供 `existsByJti()` O(1) 校验 + `deleteExpired()` 定时清理（V2.0.22+ 接 Scheduler）
+- **JwtUtil 增加 jti 字段**（标准 JWT `jti` claim）
+  - `generate()` + `generateSsoToken()` 都注入 UUID v4 作为 jti
+  - 解析后 JwtAuthFilter 可通过 `claims.getId()` 读取
+- **JwtAuthFilter 增加黑名单校验**（V2.0.21 关键修复）
+  - 每次请求解析 Claims 后，先查 `tokenBlacklistRepository.existsByJti(jti)`
+  - 已撤销 → 清掉 SecurityContext + 跳过后续认证，返回 401
+- **GET /api/auth/me**（P1.1）
+  - 返回 user + company + products + mustChangePassword（同 login() 的 userView 结构）
+  - 不重发 token（前端继续用旧 token）
+  - 必须登录（401 跳登录页）
+- **POST /api/auth/logout**（P1.2）
+  - 解析当前 token 的 jti + exp，写入 token_blacklist
+  - 幂等：第二次调用返回 200 + alreadyLoggedOut=true
+  - 允许未登录调用（permitAll）— 前端清 token 兜底
+  - garbage/过期 token → catch 块返回 200 + 已退出
+  - audit_log 记录 LOGOUT
+- **AuthService.logout()**（@Transactional）
+  - jti 已存在 → 直接 return（避免重复插入）
+  - jti 为空（老 token 兼容）→ 静默放过
+- **AuthService.getMe()**
+  - 复用 buildProductView + memberships 计算
+  - 设置 expiresIn = jwtUtil.getExpirationSeconds()（不重发 token）
+
+### 修复
+
+- **前端 logout 仅清 localStorage 不通知后端**（V2.0.21 关键修复）
+  - 旧：用户点退出后 token 仍在 24h 内有效，被中间人截获可继续使用
+  - 新：先发 XMLHttpRequest 同步请求 `/api/auth/logout` 写入黑名单，再清前端 token/localStorage，最后跳 /index.html
+  - 失败兜底：网络失败也继续清前端，避免用户登不出去
+
+### 变更
+
+- **SecurityConfig 公开 /api/auth/logout**（idempotent）
+  - 旧：被 `/api/**` authenticated 拦截，未登录调用返回 401（用户体验差）
+  - 新：permitAll（与 `/api/auth/login` 同列）
+- **app.version 2.0.20 → 2.0.21**
+
+### 验收
+
+- E1 GET /me + token → 200 + 完整 user/company/products
+- E2 GET /me 无 token → 401
+- E3 POST /logout + token → 200 + jti
+- E4 GET /me + 已撤销 token → 401（黑名单生效）
+- E5 POST /logout 幂等（同 token 二次）→ 200 + alreadyLoggedOut=true
+- E6 POST /logout 无 token → 200 + alreadyLoggedOut=true
+- E7 POST /logout garbage token → 200 + 已退出
+- E8 完整链路 login → /me → logout → /me → 401
+
+---
+
 ## V2.0.20 (2026-09-01 17:05) — W6 阶段 2.5 修复：集中审批 3 接口后端 + POR-M callback 路径
 
 主人 16:49 拍板「1」= P0 立即修 B1 + B2。修完 9 个 E2E 场景全通过，本地 commit 不 push。
