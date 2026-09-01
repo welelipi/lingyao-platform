@@ -495,6 +495,10 @@
         const json = await resp.json();
         if (json.success) {
           localStorage.setItem('lingyao_token', json.data.token);
+          // V2.0.21 P1.4：保存 refresh_token（30 天有效，用于静默续期）
+          if (json.data.refreshToken) {
+            localStorage.setItem('lingyao_refresh_token', json.data.refreshToken);
+          }
           localStorage.setItem('lingyao_user', JSON.stringify(json.data.user));
           closeModal('login');
           showToast('登录成功！欢迎 ' + (json.data.user.displayName || json.data.user.username), 'success');
@@ -548,6 +552,7 @@
     }
     // 2) 清前端状态
     localStorage.removeItem('lingyao_token');
+    localStorage.removeItem('lingyao_refresh_token');
     localStorage.removeItem('lingyao_user');
     localStorage.removeItem('lingyao_company');
     localStorage.removeItem('lingyao_products');
@@ -555,6 +560,82 @@
     window.location.href = '/index.html';
   }
   window.lingyaoLogout = logout;
+
+  // ══════════════════════════════════════════════════════════════════
+  // V2.0.21 P1.4：refresh_token 静默续期
+  // - 在 token 即将过期时（或 API 返回 401 时）调 /api/auth/refresh
+  // - 成功后更新 localStorage 中的 token + refresh_token
+  // - 失败（refresh 也过期）→ 跳登录页
+  // ══════════════════════════════════════════════════════════════════
+
+  // 同步锁：避免并发 401 同时触发多次 refresh
+  let refreshingPromise = null;
+
+  async function silentRefresh() {
+    if (refreshingPromise) return refreshingPromise;
+    const refreshToken = localStorage.getItem('lingyao_refresh_token');
+    if (!refreshToken) {
+      // 无 refresh_token → 跳登录
+      window.location.href = '/index.html';
+      return null;
+    }
+    refreshingPromise = (async () => {
+      try {
+        const resp = await fetch(API_BASE + '/api/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: refreshToken })
+        });
+        const json = await resp.json();
+        if (json.success) {
+          localStorage.setItem('lingyao_token', json.data.token);
+          if (json.data.refreshToken) {
+            localStorage.setItem('lingyao_refresh_token', json.data.refreshToken);
+          }
+          return json.data.token;
+        } else {
+          // refresh 失败 → 清状态 + 跳登录
+          logout();
+          return null;
+        }
+      } catch (e) {
+        console.warn('silent refresh failed:', e);
+        logout();
+        return null;
+      } finally {
+        refreshingPromise = null;
+      }
+    })();
+    return refreshingPromise;
+  }
+  window.lingyaoSilentRefresh = silentRefresh;
+
+  // 包装 fetch：401 时自动 silent refresh + 重试一次
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async function(input, init) {
+    let resp = await originalFetch(input, init);
+
+    // 仅对带 Authorization 的请求做 401 自动续期
+    const auth = (init && init.headers && init.headers.Authorization) || '';
+    if (resp.status === 401 && auth.startsWith('Bearer ')) {
+      const url = typeof input === 'string' ? input : (input.url || '');
+      // 不对 /api/auth/login 和 /api/auth/refresh 自身做续期（避免循环）
+      if (url.includes('/api/auth/login') || url.includes('/api/auth/refresh')) {
+        return resp;
+      }
+      // 尝试续期
+      const newToken = await silentRefresh();
+      if (!newToken) return resp;
+
+      // 重发原请求（替换 token）
+      const newInit = { ...init };
+      newInit.headers = { ...(init.headers || {}) };
+      // 替换 Authorization 头中的 Bearer xxx
+      newInit.headers.Authorization = 'Bearer ' + newToken;
+      resp = await originalFetch(input, newInit);
+    }
+    return resp;
+  };
 
   // ==========================================
   // 11. 平滑滚动锚点
