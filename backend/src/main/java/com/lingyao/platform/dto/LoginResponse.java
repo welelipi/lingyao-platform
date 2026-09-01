@@ -18,6 +18,14 @@ import java.util.List;
 public class LoginResponse {
     private String token;
     private long expiresIn;
+    /**
+     * V2.0.21 P1.4 阶段 B：refresh_token（30 天有效，用于换新 access_token）
+     * - access_token 过期时前端静默调 /api/auth/refresh 换新
+     * - 旧 refresh_token 用一次即失效（滑动续期）
+     */
+    private String refreshToken;
+    /** refresh_token 有效期（秒）— 默认 30*24*3600 = 2592000 */
+    private long refreshTokenExpiresIn;
     private UserView user;
     private CompanyView company;
     private List<ProductView> products;
