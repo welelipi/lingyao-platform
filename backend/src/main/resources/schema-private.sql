@@ -149,3 +149,97 @@ CREATE INDEX IF NOT EXISTS idx_approval_requester
     ON sub_task_approval(requester_id);
 CREATE INDEX IF NOT EXISTS idx_approval_created_at
     ON sub_task_approval(created_at DESC);
+-- ══════════════════════════════════════════════════════════════════
+-- V2.0.20 P1 阶段 A — JWT 黑名单表
+--
+-- 用途：
+-- 1) logout 后将当前 jti 写入黑名单，JwtAuthFilter 校验时拒绝
+-- 2) 密码修改 / 管理员撤销会话时整批写入
+-- 3) expires_at = JWT 原始 exp（过期后无需清理，依靠定时清理或自然过期）
+--
+-- 设计要点：
+-- - jti 唯一约束（JWT ID = UUID，防止重复黑名单）
+-- - 复合索引 (user_id, expires_at) 加快用户级查询
+-- - 暂不引入定期清理任务，黑名单表自然累积（V2.0.21+ 补）
+-- ══════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS token_blacklist (
+    id                    BIGSERIAL PRIMARY KEY,
+    jti                   VARCHAR(64) NOT NULL UNIQUE,
+    user_id               BIGINT NOT NULL,
+    company_id            BIGINT,
+    expires_at            TIMESTAMP NOT NULL,
+    reason                VARCHAR(32) NOT NULL DEFAULT 'LOGOUT',
+    ip_address            VARCHAR(64),
+    created_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_blacklist_reason CHECK (reason IN ('LOGOUT','ADMIN_REVOKE','PASSWORD_CHANGED','REFRESH_ROTATE','OTHER'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_blacklist_user_expires
+    ON token_blacklist(user_id, expires_at);
+CREATE INDEX IF NOT EXISTS idx_blacklist_expires
+    ON token_blacklist(expires_at);
+
+-- ══════════════════════════════════════════════════════════════════
+-- V2.0.21 P1.4 阶段 B — refresh_token 滑动续期表
+--
+-- 用途：
+-- 1) 登录时颁发 refresh_token（30 天），存 SHA-256 hash
+-- 2) 每次 refresh 滑动一次：旧 used_at + replaced_by_id 指向新 token
+-- 3) 防重放：已 used 的 token 再次出现 → 整条链全部撤销
+-- 4) 用户 logout / 改密 / 管理员撤销 → revoke_at 标时间 + revoke_reason
+--
+-- 设计要点：
+-- - token_hash 唯一（hash 撞库风险可忽略）
+-- - 复合索引 (user_id, used_at, expires_at) 加快按用户查 active
+-- - 不存明文 token（数据库泄露也不可重放）
+-- ══════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS refresh_token (
+    id                BIGSERIAL PRIMARY KEY,
+    user_id           BIGINT NOT NULL,
+    token_hash        VARCHAR(64) NOT NULL UNIQUE,
+    expires_at        TIMESTAMP NOT NULL,
+    used_at           TIMESTAMP,
+    replaced_by_id    BIGINT,
+    revoked_at        TIMESTAMP,
+    revoked_reason    VARCHAR(32),
+    ip_address        VARCHAR(64),
+    user_agent        VARCHAR(256),
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_refresh_revoked_reason CHECK (revoked_reason IS NULL OR revoked_reason IN
+        ('LOGOUT','PASSWORD_CHANGED','ADMIN_REVOKE','REFRESH_REPLAY_DETECTED','OTHER'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_refresh_user_active
+    ON refresh_token(user_id, used_at, expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_expires
+    ON refresh_token(expires_at);
+
+-- ══════════════════════════════════════════════════════════════════
+-- V2.0.21 P1.5 阶段 B — password_reset_token 邮件重置密码表
+--
+-- 用途：
+-- 1) forgot-password → 生成 token + 发邮件
+-- 2) reset-password 校验 token → 重置密码 + 撤销 refresh_token
+--
+-- 设计要点：
+-- - token_hash 唯一 + 存 SHA-256（明文仅邮件一次传输）
+-- - 一次性 token（used_at 标记）
+-- - 短 TTL（默认 1 小时，邮件场景够用）
+-- ══════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS password_reset_token (
+    id                BIGSERIAL PRIMARY KEY,
+    user_id           BIGINT NOT NULL,
+    token_hash        VARCHAR(64) NOT NULL UNIQUE,
+    expires_at        TIMESTAMP NOT NULL,
+    used_at           TIMESTAMP,
+    ip_address        VARCHAR(64),
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reset_user_active
+    ON password_reset_token(user_id, used_at, expires_at);
+CREATE INDEX IF NOT EXISTS idx_reset_expires
+    ON password_reset_token(expires_at);

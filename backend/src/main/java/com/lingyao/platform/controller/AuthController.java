@@ -123,4 +123,87 @@ public class AuthController {
             return ApiResponse.ok("会话已失效，无需注销", Map.of("loggedOut", true, "alreadyExpired", true));
         }
     }
+
+    // ═══════════════════════ V2.0.21 P1.4 阶段 B：refresh 端点 ═══════════════════════
+
+    /**
+     * P1.4 POST /api/auth/refresh
+     * 用 refresh_token 换新 access_token + 新 refresh_token（滑动续期）
+     *
+     * 请求体：{ "refreshToken": "..." }
+     * 返回：LoginResponse（含新 token + 新 refreshToken）
+     *
+     * 必须未鉴权（refresh_token 本身就是凭证）
+     * 失败场景：
+     * - refresh_token 为空 → 400
+     * - refresh_token 不存在 → 401
+     * - refresh_token 已过期/已撤销/已使用 → 401（重放检测会撤销该用户所有会话）
+     */
+    @PostMapping("/refresh")
+    public ApiResponse<LoginResponse> refresh(@RequestBody Map<String, String> body, HttpServletRequest httpReq) {
+        String refreshToken = body.get("refreshToken");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return ApiResponse.fail(400, "refreshToken 不能为空");
+        }
+        try {
+            LoginResponse resp = authService.refresh(refreshToken, httpReq.getRemoteAddr());
+            return ApiResponse.ok("续期成功", resp);
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(401, e.getMessage());
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // V2.0.21 P1.5 阶段 B：forgot-password + reset-password
+    // ══════════════════════════════════════════════════════════════════
+
+    /**
+     * P1.5 POST /api/auth/forgot-password
+     * 提交 email/username，返回 ok（无论用户是否存在都返回 200，防枚举）
+     *
+     * 请求体：{ "email": "admin@lingyao.cn" } 或 { "username": "admin" }
+     * 返回：{ success, message, devModeToken?, resetUrl?, expiresIn? }
+     *        devModeToken 仅 dev 模式返回（邮件通道未配置时前端能直接用）
+     */
+    @PostMapping("/forgot-password")
+    public ApiResponse<Map<String, Object>> forgotPassword(@RequestBody Map<String, String> body,
+                                                            HttpServletRequest httpReq) {
+        String emailOrUsername = body.get("email");
+        if (emailOrUsername == null || emailOrUsername.isBlank()) {
+            emailOrUsername = body.get("username");
+        }
+        if (emailOrUsername == null || emailOrUsername.isBlank()) {
+            return ApiResponse.fail(400, "请提供 email 或 username");
+        }
+        try {
+            Map<String, Object> data = authService.forgotPassword(emailOrUsername, httpReq.getRemoteAddr());
+            return ApiResponse.ok(data.getOrDefault("message", "已处理").toString(), data);
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(e.getMessage());
+        }
+    }
+
+    /**
+     * P1.5 POST /api/auth/reset-password
+     * 用 reset_token 重置密码（无需登录，token 本身就是凭证）
+     *
+     * 请求体：{ "token": "...", "newPassword": "newpwd123" }
+     */
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@RequestBody Map<String, String> body, HttpServletRequest httpReq) {
+        String token = body.get("token");
+        String newPassword = body.get("newPassword");
+        if (token == null || token.isBlank()) {
+            return ApiResponse.fail(400, "token 不能为空");
+        }
+        if (newPassword == null || newPassword.isBlank()) {
+            return ApiResponse.fail(400, "newPassword 不能为空");
+        }
+        try {
+            authService.resetPassword(token, newPassword, httpReq.getRemoteAddr());
+            return ApiResponse.ok("密码重置成功，请使用新密码登录", null);
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(e.getMessage());
+        }
+    }
 }

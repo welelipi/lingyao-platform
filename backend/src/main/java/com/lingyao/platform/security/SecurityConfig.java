@@ -38,6 +38,9 @@ public class SecurityConfig {
                     "/api/public/**",
                     "/api/auth/login",
                     "/api/auth/logout",           // V2.0.20 P1 阶段 A：logout 幂等，允许未登录调用（前端清 token）
+                    "/api/auth/refresh",          // V2.0.21 P1.4 阶段 B：refresh 本身用 refresh_token 鉴权（不需 access_token）
+                    "/api/auth/forgot-password",  // V2.0.21 P1.5 阶段 B：忘记密码（公开）
+                    "/api/auth/reset-password",   // V2.0.21 P1.5 阶段 B：重置密码（公开，token 鉴权）
                     "/api/auth/register",
                     "/api/registrations",         // 公开报名提交
                     "/api/registrations/stats",   // 公开统计（仅数量）
