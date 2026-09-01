@@ -3,6 +3,68 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.19 (2026-09-01 16:18) — W6 阶段 2 后端 · 子产品专属链接生成/验签（短时 5 分钟 JWT）
+
+### 背景
+- 主站阶段 1（V2.0.14）`/api/sub/{code}/enter` 用 8h 长期 JWT，但**生产中易被滥用**（链接一旦外泄长期有效）
+- 公司超管/平台超管需要**随时生成一次性专属链接**，给临时用户（含未登录代表、外部审计员）用
+- 链接必须**短时过期**（5 分钟）、**验签失败有明确错误码**、**产品必须匹配**
+
+### 改动
+- ✅ **新增** `backend/src/main/java/.../controller/SubProductLinkController.java`（247 行）
+  - `POST /api/admin/sub-product/{code}/generate-link`：超管鉴权 → 生成 5 分钟短时 JWT → 拼接 URL（含 fragment 处理）→ 返回 `{url, expires_at, ttl_seconds}`
+  - `POST /api/sub-product/{code}/verify-link`：白名单（无需登录）→ 解析 token → 校验产品匹配 → 返回 `{valid, user, claims}`
+- ✅ **修改** `backend/src/main/java/.../security/JwtUtil.java`
+  - 新增 `generateShortLinkToken()` · `parseShortLinkToken()` · `getShortLinkTtlSeconds()`（3 个方法，TTL=300s）
+  - 新增 claim 字段 `link_type="company_sub_product_link"`（白名单用此区分）
+- ✅ **修改** `backend/src/main/java/.../security/SecurityConfig.java`
+  - 白名单加 `/api/sub-product/*/verify-link`（验签接口免登录）
+- ✅ **修改** `backend/src/main/java/.../controller/SubTaskController.java`
+  - 撤回原计划加的 2 个方法（避免 `/api/sub` 类级别路径冲突）→ 改由独立 `SubProductLinkController` 处理
+  - 末尾加注释指向新 Controller
+- ✅ **版本号** `backend/src/main/resources/application.yml` · `app.version` 2.0.18 → **2.0.19**
+
+### 业务价值
+- ✅ 公司超管可在 admin 后端给临时用户（含未注册）生成 **5 分钟有效期** 的专属登录链接
+- ✅ 防滥用：链接过期/产品不匹配/伪造 token 全部走明确错误码（401 LINK_EXPIRED / 400 PRODUCT_MISMATCH / 401 INVALID_TOKEN）
+- ✅ 解锁 GEOM 集成 P0：GEOM 子产品的临时代表可通过此链接直达 GEOM（无需在主站注册）
+- ✅ 为阶段 2 前端 3 个页面（company-admin SSO 配置 Tab + 集中审批 Tab + portal 复制链接按钮）提供后端支撑
+
+### URL 拼接修复（关键 Bug）
+- ❌ 原始：`http://localhost:5180/#/auth/...` + `?token=...` → 把 token 拼进 fragment（Vue hash 路由吃掉 query）
+- ✅ 修复：先拆 fragment → query 在前 → fragment 拼回 → `http://localhost:5180/?token=...#/auth/lingyao/sso-callback`
+
+### 路径冲突修复（架构决策）
+- ❌ 原始：往 SubTaskController 加方法 → 类级别 `@RequestMapping("/api/sub")` 拼出 `/api/sub/admin/...` 错路径
+- ✅ 决策：拆到独立 `SubProductLinkController`，类级别**不写** `@RequestMapping`，方法用**完整路径** `/api/admin/sub-product/...` 和 `/api/sub-product/...`
+
+### E2E 验证（7 场景全通过）
+| # | 场景 | 输入 | 期望 | 实际 |
+|---|---|---|---|---|
+| 1 | 超管生成链接 | admin@lingyao.cn + GEO | 200 + URL | ✅ TTL=300s |
+| 2 | 验签成功 | valid token + GEO | 200 + cid=1 pcode=GEO | ✅ |
+| 3 | 产品不匹配 | valid token + 错产品 code | 400 PRODUCT_MISMATCH | ✅ |
+| 4 | 伪造 token | "fake.token.here" + GEO | 401 INVALID_TOKEN | ✅ |
+| 5 | 未带 token | 空 + GEO | 400 MISSING_TOKEN | ✅ |
+| 6 | 过期 token | 已过期 JWT | 401 LINK_EXPIRED | ✅ |
+| 7 | 错误 JWT 类型 | 8h 长期 JWT | 401 INVALID_TOKEN | ✅（link_type claim 校验）|
+
+### 配套文档
+- 📄 `/tmp/MainSite_to_GEOM_progress_sync.md`（251 行）· 主平台 ↔ GEOM 双向进度同步
+- 📄 `/tmp/geom-prd/GEOM_Progress_Report_2026-09-01.md` · GEOM 进度
+- 📄 `/tmp/geom-prd/GEOM_Unresolved_Disagreements.md` · 待决分歧
+
+### 待前端（阶段 2 前端 W7）
+- ⏳ company-admin.html SSO 配置 Tab
+- ⏳ company-admin.html 集中审批 Tab
+- ⏳ portal.html 复制链接按钮
+- ⏳ 等主人下达下一指令后开发
+
+### 暂不推送
+- 按主人 15:25 V3.2 SOP 软化拍板：本轮 commit 保留本地（不 push）
+
+---
+
 ## V2.0.18 (2026-08-31 19:55) — W5 CORS 白名单扩展 5 家子产品本地域（配合 DINFO 登录 P0 阻塞解除）
 
 ### 改动
