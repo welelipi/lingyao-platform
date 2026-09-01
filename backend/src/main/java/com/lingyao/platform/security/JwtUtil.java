@@ -341,4 +341,41 @@ public class JwtUtil {
     public long getShortLinkTtlSeconds() {
         return SHORT_LINK_TTL_SECONDS;
     }
+
+    // ═══════════════════════ V2.0.21 P1.4 阶段 B：refresh_token + access_token 辅助 ═══════════════════════
+
+    /**
+     * access_token 有效期（秒）— LoginResponse.expiresIn 用
+     */
+    public long getAccessTokenTtlSeconds() {
+        return expirationHours * 3600;
+    }
+
+    /**
+     * refresh_token 有效期（秒）— 默认 30 天
+     * 注意：refresh_token 不存 JWT，纯随机字符串 + DB 存 hash
+     */
+    public static final long REFRESH_TOKEN_TTL_SECONDS = 30L * 24 * 3600;
+
+    /**
+     * 生成 refresh_token 字符串（URL-safe Base64，256 位随机）
+     */
+    public static String generateRefreshTokenPlain() {
+        byte[] random = new byte[32];
+        new java.security.SecureRandom().nextBytes(random);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+    }
+
+    /**
+     * 计算 refresh_token 的 SHA-256 hash（入库用）
+     */
+    public static String hashRefreshToken(String plainToken) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(plainToken.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(hash);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 不可用", e);
+        }
+    }
 }
