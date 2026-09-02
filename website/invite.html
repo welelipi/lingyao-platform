@@ -98,6 +98,36 @@
     padding: 16px 18px;
     margin-bottom: 24px;
   }
+  /* V2.0.44：产品特点摘要 */
+  .product-intro {
+    background: var(--glass-light);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 24px;
+  }
+  .product-intro-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .product-intro-desc {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    margin: 0 0 8px;
+  }
+  .product-intro-how {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    margin: 0;
+  }
+  .product-intro-how::before {
+    content: "💡 ";
+  }
   .invite-banner-row {
     display: flex; align-items: center; gap: 8px;
     font-size: 13px;
@@ -199,6 +229,27 @@
     color: var(--accent);
     text-decoration: none;
   }
+  /* ═══════════ V2.0.44：手机适配 ═══════════ */
+  @media (max-width: 480px) {
+    body { padding: 16px 10px; }
+    .invite-card {
+      padding: 24px 18px;
+      border-radius: 14px;
+    }
+    .logo-title { font-size: 20px; }
+    .invite-banner { padding: 12px 14px; }
+    .invite-banner-row { font-size: 12px; }
+    .product-intro { padding: 12px 14px; }
+    .form-field input {
+      font-size: 16px;  /* ≥16px 防 iOS 聚焦自动放大 */
+    }
+    .btn-submit {
+      width: 100%;
+      padding: 13px 16px;
+      font-size: 15px;
+    }
+    .status-error .icon, .status-success .icon, .status-loading .icon { font-size: 44px; }
+  }
 </style>
 </head>
 <body>
@@ -230,6 +281,13 @@
       <div class="invite-banner-row">🚀 产品：<strong id="bannerProduct">-</strong></div>
       <div class="invite-banner-row">👤 角色：<strong id="bannerRole">-</strong></div>
       <div class="invite-banner-row">⏰ 到期：<strong id="bannerExpiry">-</strong></div>
+    </div>
+
+    <!-- V2.0.44：产品特点摘要（对照 PRODUCT_CATALOG 对外口径，不出现产品代号） -->
+    <div id="productIntro" class="product-intro" style="display:none;">
+      <div class="product-intro-title" id="productIntroName">-</div>
+      <p class="product-intro-desc" id="productIntroDesc">-</p>
+      <p class="product-intro-how" id="productIntroHow">-</p>
     </div>
 
     <form id="redeemForm">
@@ -274,7 +332,12 @@
 </div>
 
 <script>
-  const API_BASE = window.location.origin;
+  // V2.0.43 Fix：API_BASE 不能用 location.origin——本页面常以 8765 静态服务打开（邀请链接指向它），
+  // origin=8765 会把 /api/* 打到静态服务器上返回 404 HTML（报"<!DOCTYPE is not valid JSON"）。
+  // 与 portal/admin/company-admin 对齐：本地环境直连 9091，生产走相对路径（Nginx 反代）。
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? window.location.protocol + '//' + window.location.hostname + ':9091'
+    : '';
   const params = new URLSearchParams(window.location.search);
   const TOKEN = params.get('token');
 
@@ -301,6 +364,8 @@
       document.getElementById('bannerRole').textContent = data.roleCode;
       const exp = new Date(data.expiresAt);
       document.getElementById('bannerExpiry').textContent = exp.toLocaleString('zh-CN');
+      // V2.0.44：产品特点摘要（对外正式名，不出现产品代号）
+      renderProductIntro(data.productCode);
       // 如果邀请带邮箱，预填（只读）
       if (data.invitedEmail) {
         const emailEl = document.getElementById('email');
@@ -313,6 +378,23 @@
     } catch (e) {
       showInvalid(e.message);
     }
+  }
+
+  // V2.0.44：产品特点摘要（与主站对外口径一致；key 为内部 code 但页面只渲染正式名）
+  const PRODUCT_INTRO = {
+    'GEO':  { name: '智能 GEO 监测平台', desc: '监测品牌与关键词在各大 AI 平台回答中的表现，提升品牌可见度，并提供关键词优化方向与可落地的优化建议。', how: '第一步：添加您的品牌关键词并发起一次监测任务，几分钟后即可查看可见度报告。' },
+    'HPD':  { name: '智能医院潜力预测平台', desc: '基于医院数据模型预测医院销售潜力，快速识别高价值医院、合理分配市场资源。', how: '第一步：上传或选择目标医院清单，系统自动生成潜力分级与预测报告。' },
+    'AIDD': { name: 'AI 立项智能辅助平台', desc: '面向药物研发立项场景，提供研发方向的智能检索、数据分析与立项评估辅助。', how: '第一步：输入目标疾病领域或分子方向，即可获得研发情报与立项参考。' },
+    'DINFO':{ name: '智能信息填报系统', desc: '高效完成各类繁杂的信息填报工作，支持智能填写与多任务管理，大幅减少重复劳动。', how: '第一步：创建一个填报任务，系统辅助您智能完成填写与汇总导出。' },
+    'PORM': { name: '智能协作平台', desc: '为团队提供透明可追溯的协作中枢，工单、审批与任务进展全程可见。', how: '第一步：创建一张工单或发起一次审批，体验全流程可追溯的协作管理。' }
+  };
+  function renderProductIntro(code) {
+    const p = PRODUCT_INTRO[String(code || '').toUpperCase()];
+    if (!p) { document.getElementById('productIntro').style.display = 'none'; return; }
+    document.getElementById('productIntroName').textContent = p.name;
+    document.getElementById('productIntroDesc').textContent = p.desc;
+    document.getElementById('productIntroHow').textContent = p.how;
+    document.getElementById('productIntro').style.display = 'block';
   }
 
   function showInvalid(reason) {

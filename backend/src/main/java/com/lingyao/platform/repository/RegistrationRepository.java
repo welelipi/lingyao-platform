@@ -9,8 +9,8 @@ import java.time.LocalDateTime;
 
 public interface RegistrationRepository extends JpaRepository<Registration, Long> {
     Page<Registration> findAllByOrderByCreatedAtDesc(Pageable pageable);
-    Page<Registration> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
-    long countByStatus(String status);
+    Page<Registration> findByStatusOrderByCreatedAtDesc(Registration.Status status, Pageable pageable);
+    long countByStatus(Registration.Status status);
     boolean existsByPhoneAndCreatedAtAfter(String phone, LocalDateTime after);
     boolean existsByEmailAndCreatedAtAfter(String email, LocalDateTime after);
 }

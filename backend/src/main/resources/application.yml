@@ -13,6 +13,22 @@ spring:
   application:
     name: lingyao-platform
 
+  # V2.0.27：报名邮件推送 SMTP（主人 09-02 明确指令：授权码硬编码 188407408@qq.com）
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: 188407408@qq.com
+    password: rseuwrmvzcetcaig
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 10000
+          writetimeout: 10000
+
   profiles:
     active: dev
 
@@ -37,15 +53,28 @@ spring:
 
 # ---------- 业务配置（所有 profile 共享）----------
 app:
-  version: 2.0.26
+  version: 2.0.44
   release: ${APP_RELEASE:stable}
   build-time: ${APP_BUILD_TIME:}
   git-commit: ${APP_GIT_COMMIT:dev}
+  # V2.0.30：报名 30 天重复检测开关——主人 09:59 指令测试期暂时关闭；恢复改 true 重启即可
+  registration:
+    duplicate-check-enabled: false
   jwt:
     secret: ${LINGYAO_JWT_SECRET:DMZiAxUx0rtt3s72qAcdntXa0fWgw93LBrpDfCs7RpT4o-ZC611ditS0k4cnePDNrbJGNc8lQ1zkPfqq6vvllA==}
     expiration-seconds: 86400
 
 lingyao:
+  # V2.0.27 Bug-21：报名邮件推送 SMTP 配置（enabled=false 时不发真邮件，仅记日志）
+  notify:
+    email:
+      enabled: true
+      host: smtp.qq.com
+      port: 465
+      username: 188407408@qq.com
+      password: rseuwrmvzcetcaig
+      from: 188407408@qq.com
+      ssl: true
   jwt:
     secret: ${LINGYAO_JWT_SECRET:DMZiAxUx0rtt3s72qAcdntXa0fWgw93LBrpDfCs7RpT4o-ZC611ditS0k4cnePDNrbJGNc8lQ1zkPfqq6vvllA==}
     expiration-hours: 24

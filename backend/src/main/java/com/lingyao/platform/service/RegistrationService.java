@@ -5,9 +5,11 @@ import com.lingyao.platform.entity.Registration;
 import com.lingyao.platform.repository.RegistrationRepository;
 import com.lingyao.platform.util.SanitizeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -34,6 +36,14 @@ public class RegistrationService {
     @Autowired
     private AuditLogService auditLogService;
 
+    /**
+     * V2.0.30：报名重复检测开关（主人 2026-09-02 09:59 指令：测试期暂时关闭）。
+     * true = 恢复 30 天手机号/邮箱去重；false = 完全跳过（测试期默认）。
+     * 恢复方式：application.yml 置 true 并重启，无需改代码。
+     */
+    @Value("${app.registration.duplicate-check-enabled:false}")
+    private boolean duplicateCheckEnabled;
+
     public Registration create(RegistrationRequest req) {
         // Bug-08：产品 code 必须在合法枚举内
         for (String code : req.getInterestedProducts()) {
@@ -42,13 +52,15 @@ public class RegistrationService {
             }
         }
 
-        // Bug-05：手机号/邮箱去重（30 天内）
-        LocalDateTime since = LocalDateTime.now().minusDays(30);
-        if (repo.existsByPhoneAndCreatedAtAfter(req.getPhone(), since)) {
-            throw new IllegalArgumentException("该手机号 30 天内已提交过报名，请勿重复提交");
-        }
-        if (repo.existsByEmailAndCreatedAtAfter(req.getEmail(), since)) {
-            throw new IllegalArgumentException("该邮箱 30 天内已提交过报名，请勿重复提交");
+        // Bug-05：手机号/邮箱去重（30 天内）—— V2.0.30 测试期暂时关闭（开关见上方字段注释）
+        if (duplicateCheckEnabled) {
+            LocalDateTime since = LocalDateTime.now().minusDays(30);
+            if (repo.existsByPhoneAndCreatedAtAfter(req.getPhone(), since)) {
+                throw new IllegalArgumentException("该手机号 30 天内已提交过报名，请勿重复提交");
+            }
+            if (repo.existsByEmailAndCreatedAtAfter(req.getEmail(), since)) {
+                throw new IllegalArgumentException("该邮箱 30 天内已提交过报名，请勿重复提交");
+            }
         }
 
         Registration reg = new Registration();
@@ -78,7 +90,28 @@ public class RegistrationService {
         if (status == null || status.isEmpty() || "ALL".equalsIgnoreCase(status)) {
             return repo.findAllByOrderByCreatedAtDesc(pageable);
         }
-        return repo.findByStatusOrderByCreatedAtDesc(status, pageable);
+        // Bug-20 修复：String → Status 枚举转换
+        return repo.findByStatusOrderByCreatedAtDesc(Registration.Status.valueOf(status), pageable);
+    }
+
+    /**
+     * V2.0.28 方案B：报名转开通（超管在组合创建公司+管理员成功后调用）。
+     * PENDING/CONTACTED/QUALIFIED 均可转入 CONVERTED；CONVERTED/CLOSED 为终态不可再转。
+     */
+    @Transactional
+    public Registration convertToClosed(Long id) {
+        Registration reg = repo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("报名记录不存在: " + id));
+        String cur = reg.getStatus().name();
+        if (!Arrays.asList("PENDING", "CONTACTED", "QUALIFIED").contains(cur)) {
+            throw new IllegalArgumentException("当前状态 " + cur + " 不可转化（终态）");
+        }
+        reg.setStatus(Registration.Status.CONVERTED);
+        reg.setUpdatedAt(LocalDateTime.now());
+        Registration saved = repo.save(reg);
+        auditLogService.record("REGISTRATION_CONVERT", "REGISTRATION", String.valueOf(saved.getId()),
+                "报名转开通: " + cur + " → CONVERTED");
+        return saved;
     }
 
     public Registration updateStatus(Long id, String newStatus) {
@@ -110,7 +143,8 @@ public class RegistrationService {
     }
 
     public long countByStatus(String status) {
-        return repo.countByStatus(status);
+        // Bug-20 修复：String → Status 枚举转换（否则 Spring Data 参数类型不匹配抛 500）
+        return repo.countByStatus(Registration.Status.valueOf(status));
     }
 
     public Registration findById(Long id) {

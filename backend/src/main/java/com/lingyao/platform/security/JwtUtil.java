@@ -256,12 +256,16 @@ public class JwtUtil {
     // ═══════════════════════ V2.0.19 W6 阶段 2 新增：专属链接短时 JWT（5 分钟过期）═══════════════════════
 
     /**
-     * 专属链接短时 JWT — 5 分钟过期（300 秒）
+     * 专属链接 JWT — V2.0.31 起为长期链接（默认 365 天）
      *
-     * 用途：公司超管在 portal.html 点"复制专属链接"按钮时，主平台后端生成一个 5 分钟过期的 JWT，
-     *       员工点链接 → 子平台 GET /api/sub-product/{code}/verify-link 验签 → 拿到完整身份信息
+     * 用途：公司超管在 portal.html 点"复制专属链接"按钮时，主平台后端生成一个长期 JWT，
+     *       超管把链接分享到公司群 → 员工点链接 → 子平台 GET /api/sub-product/{code}/verify-link
+     *       验签 → 拿到完整身份信息。这是公司级的长期产品入口，不是一次性邀请。
      *
-     * 短时 JWT payload（最小化原则，仅传递跳转必需的字段）：
+     * 历史：V2.0.19 设计为 5 分钟一次性链接；主人 2026-09-02 拍板改为长期链接
+     *      （链接分享后即公司全员日常入口，5 分钟会立即失效，不符合使用场景）
+     *
+     * payload（最小化原则，仅传递跳转必需的字段）：
      * - cid: 公司 ID
      * - ccode: 公司 code
      * - pcode: 目标子产品 code（GEOM / DINFO / MPDM / AIDD / PORM / MED-PPT）
@@ -269,18 +273,27 @@ public class JwtUtil {
      * - uid: 发放人用户 ID（超管）
      * - username: 发放人用户名
      * - generated_at: 生成时间戳（ISO 8601）
-     * - nonce: 一次性随机数（防止链接被复用）
+     * - nonce: 随机数（审计标识）
      * - audience: "lingyao-sublink"（与主网站 JWT 区分）
      *
      * 安全性：
-     * - 5 分钟过期（主人拍板 5 分钟窗口）
-     * - nonce 防重放（子平台可记录已用的 nonce）
+     * - TTL 可配置（lingyao.security.sub-link-ttl-seconds，默认 365 天）
      * - 验签需要 LINGYAO_JWT_SECRET_BASE64（与主网站其他 JWT 共享密钥）
+     * - 泄露风险处置：主站可随时下线该用户/公司授权，verify 侧鉴权即时失效
      *
-     * @since V2.0.19 W6 阶段 2 后端
+     * @since V2.0.19 W6 阶段 2 后端；V2.0.31 改长期
      */
     private static final String SHORT_LINK_AUDIENCE = "lingyao-sublink";
-    private static final long SHORT_LINK_TTL_SECONDS = 300;   // 5 分钟
+
+    @Value("${lingyao.security.sub-link-ttl-seconds:31536000}")   // 默认 365 天
+    private long subLinkTtlSeconds;
+
+    /**
+     * 专属链接 TTL（秒）— 前端展示过期时间用
+     */
+    public long getShortLinkTtlSeconds() {
+        return subLinkTtlSeconds;
+    }
 
     public String generateShortLinkToken(Long companyId, String companyCode,
                                          String productCode, String roleCode,
@@ -294,11 +307,11 @@ public class JwtUtil {
         claims.put("username", issuedByUsername);
         claims.put("generated_at", new Date().toInstant().toString());
         claims.put("nonce", java.util.UUID.randomUUID().toString());
-        // 明确标记为短时专属链接 token
+        // 明确标记为专属链接 token
         claims.put("link_type", "SUB_PRODUCT_ENTRY");
 
         Date now = new Date();
-        Date exp = new Date(now.getTime() + SHORT_LINK_TTL_SECONDS * 1000);
+        Date exp = new Date(now.getTime() + subLinkTtlSeconds * 1000);
 
         return Jwts.builder()
                 .claims(claims)
@@ -335,11 +348,53 @@ public class JwtUtil {
         return claims;
     }
 
+    // ═══════════════════════ V2.0.39：服务间（子平台 → 主站）token ═══════════════════════
+
+    /** 服务间调用 audience（与用户 token / 专属链接 token 区分） */
+    private static final String SERVICE_AUDIENCE = "lingyao-service";
+
     /**
-     * 短时专属链接的 TTL（秒）— 用于前端展示倒计时
+     * 签发服务间调用 token（V2.0.39 grants sync）
+     *
+     * 用途：子平台审批通过员工的开通申请后，服务端间调主站 /api/internal/grants/sync 写回授权。
+     * 鉴权模型：子平台持有与主站相同的 LINGYAO_JWT_SECRET（现有部署即满足，无需新发密钥），
+     * 用本方法签短时效 token（默认 5 分钟），audience=lingyao-service。
+     *
+     * @param callerService 调用方标识（如 GEO / HPD / AIDD / DINFO / PORM）
      */
-    public long getShortLinkTtlSeconds() {
-        return SHORT_LINK_TTL_SECONDS;
+    public String generateServiceToken(String callerService) {
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + 5 * 60 * 1000L);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("svc", callerService);
+        return Jwts.builder()
+                .claims(claims)
+                .issuer(issuer)
+                .audience().add(SERVICE_AUDIENCE).and()
+                .subject("service:" + callerService)
+                .id(java.util.UUID.randomUUID().toString())
+                .issuedAt(now)
+                .expiration(exp)
+                .signWith(getKey())
+                .compact();
+    }
+
+    /**
+     * 验签服务间 token（V2.0.39）
+     * 校验：签名 + 未过期 + audience=lingyao-service；返回调用方服务标识（svc claim）
+     */
+    public String parseServiceToken(String token) {
+        Claims claims = parse(token);
+        boolean audMatch = claims.getAudience() != null
+                && claims.getAudience().contains(SERVICE_AUDIENCE);
+        if (!audMatch) {
+            throw new io.jsonwebtoken.JwtException("Token audience 不匹配（非服务间 token）");
+        }
+        Object svc = claims.get("svc");
+        if (svc == null || svc.toString().isBlank()) {
+            throw new io.jsonwebtoken.JwtException("服务间 token 缺少 svc 标识");
+        }
+        return svc.toString();
     }
 
     // ═══════════════════════ V2.0.21 P1.4 阶段 B：refresh_token + access_token 辅助 ═══════════════════════

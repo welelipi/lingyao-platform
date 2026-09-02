@@ -43,6 +43,8 @@ public class AuthService {
     @Autowired private RefreshTokenRepository refreshTokenRepository;
     // V2.0.21 P1.5 阶段 B：forgot-password
     @Autowired private PasswordResetTokenRepository passwordResetTokenRepository;
+    // V2.0.42：2FA 登录 challenge
+    @Autowired private TwoFactorService twoFactorService;
 
     public LoginResponse login(LoginRequest req, String ip) {
         // Bug-09：登录前先检查是否锁定
@@ -84,6 +86,33 @@ public class AuthService {
                     "/api/auth/login", "POST",
                     "ACCOUNT_DISABLED", "账号已停用，无法登录");
             throw new IllegalArgumentException("账号已停用");
+        }
+
+        // ═══ V2.0.42：2FA 登录 challenge（密码正确后、会话建立前校验 TOTP）═══
+        // 设计：不暴露"是否启用了 2FA"给未认证方——challenge 失败与密码错误统一 401 文案不同码
+        if (twoFactorService.isEnabled(user.getId())) {
+            String totpCode = req.getTotpCode();
+            boolean totpOk = false;
+            String failReason = null;
+            if (totpCode == null || totpCode.isBlank()) {
+                failReason = "MFA_REQUIRED";
+            } else {
+                totpOk = twoFactorService.verifyLoginCode(user.getId(), totpCode.trim());
+                if (!totpOk) failReason = "MFA_INVALID";
+            }
+            if (!totpOk) {
+                // 密码已对但 2FA 未过：不计入 Bug-09 失败锁定（防锁死），但记安全审计
+                authAuditService.recordFailure(
+                        AuthAuditEvent.EventType.LOGIN_FAIL,
+                        user.getId(), user.getUsername(), ip,
+                        "/api/auth/login", "POST",
+                        failReason,
+                        "MFA_REQUIRED".equals(failReason) ? "已启用 2FA，请携带验证码登录" : "2FA 验证码错误");
+                LoginResponse challenge = new LoginResponse();
+                challenge.setMfaRequired(true);
+                challenge.setMfaReason(failReason);
+                return challenge;   // HTTP 200 + mfa_required=true（前端弹验证码输入）
+            }
         }
 
         // 成功清零

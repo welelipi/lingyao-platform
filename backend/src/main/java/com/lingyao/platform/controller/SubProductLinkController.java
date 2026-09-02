@@ -35,7 +35,7 @@ import java.util.Map;
  * - 所以拆出来单独注册
  *
  * 接口清单：
- * - POST api/admin/sub-product/CODE/generate-link — 公司超管/平台超管 生成 5 分钟过期专属链接
+ * - POST api/admin/sub-product/CODE/generate-link — 公司超管/平台超管生成长期专属链接（默认 365 天，V2.0.31）
  * - POST api/sub-product/CODE/verify-link       — 子平台 验签（白名单，无需主平台登录）
  *
  * 鉴权策略：
@@ -56,7 +56,7 @@ public class SubProductLinkController {
     @Autowired private TenantContext tenantContext;
 
     /**
-     * 专属链接生成（公司超管/平台超管 调用）
+     * 专属链接生成（公司超管/平台超管 调用）— V2.0.31 起为长期链接
      *
      * 路径：POST /api/admin/sub-product/{code}/generate-link
      * 鉴权：需要登录 + 平台超管 OR 公司超管（手动校验）
@@ -64,7 +64,7 @@ public class SubProductLinkController {
      * 输出（成功）：
      * {
      *   "success": true,
-     *   "message": "专属链接生成成功，5 分钟内有效",
+     *   "message": "专属链接生成成功，长期有效（如泄露请联系平台管理员重置）",
      *   "data": {
      *     "link": "http://localhost:5180/?token=<5min-jwt>&product=GEOM&issued_by=admin",
      *     "expires_at": "2026-09-01T15:58:30Z",
@@ -123,7 +123,7 @@ public class SubProductLinkController {
             return ApiResponse.fail(503, "子任务尚未部署，无法生成专属链接");
         }
 
-        // 生成 5 分钟过期 JWT
+        // 生成长期专属链接 JWT（V2.0.31：默认 365 天，公司级长期入口）
         Long companyId = cu.getCompanyId();
         String companyCode = cu.getCompanyCode();
         String companyName = cu.getTenantName();
@@ -151,7 +151,7 @@ public class SubProductLinkController {
         // 审计
         auditLogService.record("COMPANY_SUB_PRODUCT_LINK_GENERATED", "SUBTASK",
                 String.valueOf(task.getId()),
-                "公司超管 " + cu.getUsername() + " 生成 " + code + " 专属链接，过期 5 分钟");
+                "公司超管 " + cu.getUsername() + " 生成 " + code + " 长期专属链接 (V2.0.31)");
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("link", url);
@@ -164,7 +164,7 @@ public class SubProductLinkController {
         data.put("issued_by", cu.getUsername());
         data.put("generated_at", Instant.now().toString());
 
-        return ApiResponse.ok("专属链接生成成功，5 分钟内有效", data);
+        return ApiResponse.ok("专属链接生成成功，长期有效（如泄露请联系平台管理员重置）", data);
     }
 
     /**

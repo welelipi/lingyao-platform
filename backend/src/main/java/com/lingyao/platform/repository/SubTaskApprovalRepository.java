@@ -14,4 +14,11 @@ public interface SubTaskApprovalRepository extends JpaRepository<SubTaskApproval
 
     /** 平台超管用：按状态过滤所有公司的审批 */
     List<SubTaskApproval> findByStatusOrderByCreatedAtDesc(SubTaskApproval.Status status);
+
+    /** V2.0.36：幂等查重 — 同公司同人同产品的待审批申请 */
+    java.util.Optional<SubTaskApproval> findByCompanyIdAndRequesterIdAndProductIdAndStatus(
+            Long companyId, Long requesterId, Long productId, SubTaskApproval.Status status);
+
+    /** V2.0.36：我的申请列表 */
+    List<SubTaskApproval> findByRequesterIdOrderByCreatedAtDesc(Long requesterId);
 }

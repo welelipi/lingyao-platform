@@ -88,5 +88,5 @@ public class Registration {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public enum Status { PENDING, CONTACTED, QUALIFIED, CLOSED }
+    public enum Status { PENDING, CONTACTED, QUALIFIED, CLOSED, CONVERTED }
 }

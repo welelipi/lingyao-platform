@@ -404,7 +404,7 @@
   // 10. 表单提交（对接后端 API）
   // ==========================================
   const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://127.0.0.1:9091'
+    ? window.location.protocol + '//' + window.location.hostname + ':9091'
     : '';
 
   function showToast(message, type = 'success') {
@@ -424,6 +424,8 @@
     const fd = new FormData(form);
     const interested = [];
     form.querySelectorAll('input[name="product"]:checked').forEach(cb => interested.push(cb.value));
+    const sel = form.querySelector('select[name="product"]');
+    if (sel && sel.value && !interested.includes(sel.value)) interested.push(sel.value);
     return {
       name: (fd.get('name') || '').toString().trim(),
       company: (fd.get('company') || '').toString().trim(),

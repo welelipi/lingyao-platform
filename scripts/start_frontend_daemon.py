@@ -32,9 +32,26 @@ os.dup2(log_fd, sys.stdout.fileno())
 os.dup2(log_fd, sys.stderr.fileno())
 
 os.chdir(PROJECT_DIR)
+
+# V2.0.43：HTML 不缓存 handler——浏览器对无 Cache-Control 的 HTML 用启发式缓存（按 Last-Modified 猜），
+# 改版后常拿到旧 JS（本次「创建邀请 403」即是旧 admin.html 无 CSRF 凭证）。HTML 一律 no-cache，静态资源保留启发式缓存。
+HEADER_FIX = '''
+import http.server
+class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        if self.path in ("/", "") or self.path.endswith((".html", "/")):
+            self.send_header("Cache-Control", "no-cache, must-revalidate")
+        super().end_headers()
+handler_class = NoCacheHandler
+'''
+
+# 用 -c 注入 handler 后再启动 http.server（保持 stdlib 零依赖）
 os.execv(PYTHON_BIN, [
     PYTHON_BIN,
-    "-m", "http.server", "8765",
-    "--bind", "0.0.0.0",
-    "--directory", WEBSITE_DIR,
+    "-c",
+    HEADER_FIX + '''
+import functools, http.server
+handler = functools.partial(handler_class, directory=%r)
+http.server.test(HandlerClass=handler, port=8765, bind="0.0.0.0")
+''' % WEBSITE_DIR,
 ])

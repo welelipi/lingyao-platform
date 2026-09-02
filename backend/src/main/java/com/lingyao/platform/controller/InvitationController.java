@@ -120,9 +120,6 @@ public class InvitationController {
         if (req.getPassword().length() < 6) {
             throw new IllegalArgumentException("密码长度需 ≥ 6");
         }
-        if (userRepo.findByUsername(req.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("该用户名已被占用，请更换");
-        }
         Invitation inv = invRepo.findByToken(req.getToken())
                 .orElseThrow(() -> new IllegalArgumentException("邀请不存在"));
         if (!inv.isUsable()) {
@@ -133,36 +130,70 @@ public class InvitationController {
             throw new IllegalArgumentException("邮箱与邀请指定邮箱不一致");
         }
 
-        SysUser user = new SysUser();
-        user.setUsername(req.getUsername());
-        user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
-        user.setEmail(req.getEmail() != null ? req.getEmail() : inv.getInvitedEmail());
-        user.setDisplayName(req.getDisplayName() != null ? req.getDisplayName() : req.getUsername());
-        user.setStatus(SysUser.UserStatus.ACTIVE);
-        user.setIsPlatformAdmin(false);
-        user.setLoginMethods("PASSWORD+INVITATION");
-        user = userRepo.save(user);
+        // V2.0.44：同公司已有账号 → 追加授权到同一账号（不新建）
+        // 安全：用户名已存在必须验密码，防冒名顶替把他人的账号挂进自己公司
+        java.util.Optional<SysUser> existingOpt = userRepo.findByUsername(req.getUsername());
+        final boolean appending;
+        final SysUser user;
+        if (existingOpt.isPresent()) {
+            user = existingOpt.get();
+            if (!passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
+                throw new IllegalArgumentException("该用户名已存在，密码不匹配；请用本人账号密码完成本次邀请核销");
+            }
+            appending = true;
+        } else {
+            SysUser nu = new SysUser();
+            nu.setUsername(req.getUsername());
+            nu.setPasswordHash(passwordEncoder.encode(req.getPassword()));
+            nu.setEmail(req.getEmail() != null ? req.getEmail() : inv.getInvitedEmail());
+            nu.setDisplayName(req.getDisplayName() != null ? req.getDisplayName() : req.getUsername());
+            nu.setStatus(SysUser.UserStatus.ACTIVE);
+            nu.setIsPlatformAdmin(false);
+            nu.setLoginMethods("PASSWORD+INVITATION");
+            user = userRepo.save(nu);
+            appending = false;
+        }
 
-        // 加入公司
-        CompanyUser cu = new CompanyUser();
-        cu.setCompanyId(inv.getCompanyId());
-        cu.setUserId(user.getId());
-        cu.setRole(CompanyUser.CompanyRole.OPERATOR);  // 默认 OPERATOR，平台内具体权限由 product_user_role 决定
+        // 加入公司（V2.0.44：已有账号可能已是该公司成员 → 不重复建）
+        // V2.0.44：邀请角色映射到公司级角色（原硬编码 OPERATOR 导致下拉三选项无实际差异）
+        // ADMIN → SUPER_ADMIN（is_tenant_admin=true，进子平台自动获超管·契约六A）；OPERATOR → OPERATOR；VIEWER → VIEWER
+        CompanyUser.CompanyRole targetRole = mapCompanyRole(inv.getRoleCode());
+        java.util.Optional<CompanyUser> cuOpt = companyUserRepo.findByCompanyIdAndUserId(inv.getCompanyId(), user.getId());
+        CompanyUser cu;
+        if (cuOpt.isPresent()) {
+            cu = cuOpt.get();
+            cu.setStatus(CompanyUser.Status.ACTIVE);  // 曾被 remove 的成员重新激活
+            // ADMIN 只升不降：已有 SUPER_ADMIN 不因 OPERATOR/VIEWER 邀请被降级
+            if (targetRole == CompanyUser.CompanyRole.SUPER_ADMIN || cu.getRole() != CompanyUser.CompanyRole.SUPER_ADMIN) {
+                cu.setRole(targetRole);
+            }
+        } else {
+            cu = new CompanyUser();
+            cu.setCompanyId(inv.getCompanyId());
+            cu.setUserId(user.getId());
+            cu.setRole(targetRole);
+        }
         cu.setStatus(CompanyUser.Status.ACTIVE);
         companyUserRepo.save(cu);
 
-        // 授权产品
+        // 授权产品（V2.0.44：幂等——已有 ACTIVE grant 不重复插；曾被 REVOKED 则复活）
         Product product = productRepo.findByCode(inv.getProductCode()).orElseThrow();
-        ProductUserGrant grant = new ProductUserGrant();
-        grant.setCompanyId(inv.getCompanyId());
-        grant.setProductId(product.getId());
-        grant.setUserId(user.getId());
-        grant.setGrantedBy(inv.getInvitedByUserId());
-        grant.setStatus(ProductUserGrant.Status.ACTIVE);
-        productGrantRepo.save(grant);
+        ProductUserGrant grant = productGrantRepo
+                .findByCompanyIdAndProductIdAndUserId(inv.getCompanyId(), product.getId(), user.getId())
+                .orElseGet(() -> {
+                    ProductUserGrant g = new ProductUserGrant();
+                    g.setCompanyId(inv.getCompanyId());
+                    g.setProductId(product.getId());
+                    g.setUserId(user.getId());
+                    g.setGrantedBy(inv.getInvitedByUserId());
+                    return g;
+                });
+        grant.setStatus(ProductUserGrant.Status.ACTIVE);        productGrantRepo.save(grant);
 
-        // 角色（ProductUserRole.entity 已有，多对多）
-        com.lingyao.platform.entity.ProductUserRole role = new com.lingyao.platform.entity.ProductUserRole();
+        // 产品内角色（V2.0.44：幂等——已存在则更新 roleCode，不重复插）
+        com.lingyao.platform.entity.ProductUserRole role = productUserRoleRepo
+                .findByCompanyIdAndProductIdAndUserId(inv.getCompanyId(), product.getId(), user.getId())
+                .orElseGet(com.lingyao.platform.entity.ProductUserRole::new);
         role.setCompanyId(inv.getCompanyId());
         role.setProductId(product.getId());
         role.setUserId(user.getId());
@@ -177,7 +208,9 @@ public class InvitationController {
 
         auditLogService.record("INV_REDEEM", "INVITATION",
                 String.valueOf(inv.getId()),
-                "用户 " + user.getUsername() + " 通过邀请注册，加入公司 " + inv.getCompanyId()
+                (appending ? "已有账号追加授权" : "新用户通过邀请注册")
+                        + "：用户 " + user.getUsername()
+                        + (cuOpt.isPresent() ? "（公司成员角色保持/升级为 " + cu.getRole() + "）" : "，加入公司 " + inv.getCompanyId() + " 角色 " + cu.getRole())
                         + "，授权 " + inv.getProductCode() + "/" + inv.getRoleCode());
 
         Map<String, Object> data = new LinkedHashMap<>();
@@ -186,8 +219,9 @@ public class InvitationController {
         data.put("companyId", inv.getCompanyId());
         data.put("productCode", inv.getProductCode());
         data.put("roleCode", inv.getRoleCode());
-        data.put("hint", "请使用用户名密码登录");
-        return ApiResponse.ok("邀请核销完成，用户已开通", data);
+        data.put("appended", appending);
+        data.put("hint", appending ? "已将产品授权追加到您的既有账号" : "请使用用户名密码登录");
+        return ApiResponse.ok(appending ? "授权已追加到既有账号" : "邀请核销完成，用户已开通", data);
     }
 
     @GetMapping
@@ -237,6 +271,20 @@ public class InvitationController {
             origin = "http://127.0.0.1:9091";
         }
         return origin + "/invite.html?token=" + token;
+    }
+
+    /**
+     * V2.0.44：邀请角色 → 公司级角色映射
+     * ADMIN（管理员）→ SUPER_ADMIN：公司超管（JWT is_tenant_admin=true，SSO 进子平台自动获超管·契约六A）
+     * OPERATOR（运营）→ OPERATOR；VIEWER（只读）→ VIEWER；未知值兜底 OPERATOR
+     */
+    private CompanyUser.CompanyRole mapCompanyRole(String roleCode) {
+        if (roleCode == null) return CompanyUser.CompanyRole.OPERATOR;
+        return switch (roleCode.toUpperCase()) {
+            case "ADMIN" -> CompanyUser.CompanyRole.SUPER_ADMIN;
+            case "VIEWER" -> CompanyUser.CompanyRole.VIEWER;
+            default -> CompanyUser.CompanyRole.OPERATOR;
+        };
     }
 
     private String generateToken() {

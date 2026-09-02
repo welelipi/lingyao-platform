@@ -37,6 +37,12 @@ public class LoginResponse {
      */
     private boolean mustChangePassword;
 
+    /** V2.0.42：true = 密码正确但需要 2FA 验证码（前端弹 TOTP 输入框，随下次登录带 totpCode 重试） */
+    private boolean mfaRequired;
+
+    /** V2.0.42：MFA_REQUIRED（未携带验证码）/ MFA_INVALID（验证码错误） */
+    private String mfaReason;
+
     @Data
     @Builder
     @NoArgsConstructor

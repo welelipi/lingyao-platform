@@ -4,6 +4,8 @@ import com.lingyao.platform.config.PageableValidator;
 import com.lingyao.platform.dto.ApiResponse;
 import com.lingyao.platform.dto.admin.BindUserToCompanyRequest;
 import com.lingyao.platform.dto.admin.CreateCompanyRequest;
+import com.lingyao.platform.dto.admin.CreateCompanyWithAdminRequest;
+import com.lingyao.platform.service.RegistrationService;
 import com.lingyao.platform.dto.admin.CreateUserRequest;
 import com.lingyao.platform.dto.admin.GrantCompanyProductsRequest;
 import com.lingyao.platform.dto.admin.GrantProductRequest;
@@ -42,6 +44,7 @@ public class AdminController {
     @Autowired private NotificationChannelRepository channelRepo;
     @Autowired private AuditLogService auditLogService;
     @Autowired private TenantAdminService tenantAdminService;
+    @Autowired private RegistrationService registrationService;
     @Autowired private CompanyUserRepository companyUserRepo;
     @Autowired private ProductUserGrantRepository grantRepo;
 
@@ -65,6 +68,38 @@ public class AdminController {
         if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         try {
             return ApiResponse.ok("公司创建成功", tenantAdminService.createCompany(req));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(e.getMessage());
+        }
+    }
+
+    /**
+     * V2.0.28 方案A：一步创建公司 + 公司管理员（主人 2026-09-02 拍板 A+B）。
+     * admin 区块为 null 时行为同 POST /companies（仅建 PENDING 公司）。
+     * 返回 initialPassword 明文仅此一次。
+     */
+    @PostMapping("/companies/with-admin")
+    public ApiResponse<Map<String, Object>> createCompanyWithAdmin(
+            @Valid @RequestBody CreateCompanyWithAdminRequest req) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        try {
+            return ApiResponse.ok("公司开通成功", tenantAdminService.createCompanyWithAdmin(req));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(e.getMessage());
+        }
+    }
+
+    /**
+     * V2.0.28 方案B：报名转开通——报名状态改 CONVERTED（宽于白名单：从 PENDING/CONTACTED/QUALIFIED 均可转入）。
+     * 具体开通动作由前端「转开通」按钮引导到组合创建表单完成，本端点只负责关单。
+     */
+    @PutMapping("/registrations/{id}/convert")
+    public ApiResponse<Registration> convertRegistration(@PathVariable Long id) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        try {
+            return ApiResponse.ok("报名已转化", registrationService.convertToClosed(id));
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());
         }

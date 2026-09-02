@@ -969,43 +969,43 @@
             <div class="form-row">
               <div class="form-field">
                 <label>姓名 <span>*</span></label>
-                <input type="text" placeholder="请输入您的姓名" required>
+                <input type="text" name="name" placeholder="请输入您的姓名" required>
               </div>
               <div class="form-field">
                 <label>职位 <span>*</span></label>
-                <input type="text" placeholder="如：市场总监" required>
+                <input type="text" name="position" placeholder="如：市场总监" required>
               </div>
             </div>
 
             <div class="form-field">
               <label>公司名称 <span>*</span></label>
-              <input type="text" placeholder="请输入公司全称" required>
+              <input type="text" name="company" placeholder="请输入公司全称" required>
             </div>
 
             <div class="form-row">
               <div class="form-field">
                 <label>手机 <span>*</span></label>
-                <input type="tel" placeholder="请输入手机号" required>
+                <input type="tel" name="phone" placeholder="请输入手机号" required>
               </div>
               <div class="form-field">
                 <label>企业邮箱 <span>*</span></label>
-                <input type="email" placeholder="name@company.com" required>
+                <input type="email" name="email" placeholder="name@company.com" required>
               </div>
             </div>
 
             <div class="form-field">
               <label>感兴趣的产品</label>
               <div class="checkbox-group">
-                <label class="checkbox-item"><input type="checkbox" checked><span>GEO 智策平台</span></label>
-                <label class="checkbox-item"><input type="checkbox" checked><span>医院潜力预测</span></label>
-                <label class="checkbox-item"><input type="checkbox"><span>AIDD 系统</span></label>
-                <label class="checkbox-item"><input type="checkbox"><span>药企协作辅助智能体</span></label>
+                <label class="checkbox-item"><input type="checkbox" name="product" value="GEO" checked><span>GEO 智策平台</span></label>
+                <label class="checkbox-item"><input type="checkbox" name="product" value="HPD" checked><span>医院潜力预测</span></label>
+                <label class="checkbox-item"><input type="checkbox" name="product" value="AIDD"><span>AIDD 系统</span></label>
+                <label class="checkbox-item"><input type="checkbox" name="product" value="POR"><span>药企协作辅助智能体</span></label>
               </div>
             </div>
 
             <div class="form-field">
               <label>补充说明</label>
-              <textarea placeholder="可填写您的具体需求或问题（选填）" rows="3"></textarea>
+              <textarea name="message" placeholder="可填写您的具体需求或问题（选填）" rows="3"></textarea>
             </div>
 
             <div class="form-check">
@@ -1227,36 +1227,36 @@
       <div class="form-row">
         <div class="form-field">
           <label>姓名 <span>*</span></label>
-          <input type="text" placeholder="请输入您的姓名" required>
+          <input type="text" name="name" placeholder="请输入您的姓名" required>
         </div>
         <div class="form-field">
           <label>公司 <span>*</span></label>
-          <input type="text" placeholder="公司名称" required>
+          <input type="text" name="company" placeholder="公司名称" required>
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label>手机 <span>*</span></label>
-          <input type="tel" placeholder="手机号" required>
+          <input type="tel" name="phone" placeholder="手机号" required>
         </div>
         <div class="form-field">
           <label>邮箱 <span>*</span></label>
-          <input type="email" placeholder="企业邮箱" required>
+          <input type="email" name="email" placeholder="企业邮箱" required>
         </div>
       </div>
       <div class="form-field">
         <label>感兴趣的产品</label>
-        <select>
-          <option>GEO 智策平台（品牌优化）</option>
-          <option>医院销售潜力模型预测</option>
-          <option>AIDD 系统（研发反馈）</option>
-          <option>药企协作辅助智能体（项目管理）</option>
-          <option>全产品矩阵</option>
+        <select name="product">
+          <option value="GEO">GEO 智策平台（品牌优化）</option>
+          <option value="HPD">医院销售潜力模型预测</option>
+          <option value="AIDD">AIDD 系统（研发反馈）</option>
+          <option value="POR">药企协作辅助智能体（项目管理）</option>
+          <option value="GEO">全产品矩阵</option>
         </select>
       </div>
       <div class="form-field">
         <label>需求说明</label>
-        <textarea placeholder="请简要描述您的需求（选填）" rows="3"></textarea>
+        <textarea name="message" placeholder="请简要描述您的需求（选填）" rows="3"></textarea>
       </div>
       <div class="form-check">
         <input type="checkbox" id="modalAgree" required>

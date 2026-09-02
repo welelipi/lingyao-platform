@@ -63,4 +63,20 @@ public interface AuthAuditEventRepository extends JpaRepository<AuthAuditEvent, 
         AuthAuditEvent.EventType getEventType();
         Long getCount();
     }
+
+    // ═══════════════════════ V2.0.42 审计归档 + 告警 ═══════════════════════
+
+    /** 归档：取 N 天前的全部事件（分批搬运用） */
+    List<AuthAuditEvent> findByCreatedAtBefore(LocalDateTime cutoff);
+
+    /** 删除已归档事件（归档 job 第二步） */
+    long deleteByCreatedAtBefore(LocalDateTime cutoff);
+
+    /** 告警扫描：最近 N 分钟内某类型失败事件（LOGIN_FAIL/LOCKED 等暴增检测） */
+    long countByEventTypeAndCreatedAtAfterAndSuccessFalse(
+            AuthAuditEvent.EventType eventType, LocalDateTime since);
+
+    /** 告警扫描：最近 N 分钟内 TOKEN_REFRESH_REPLAY（重放攻击检测，不看 success） */
+    long countByEventTypeAndCreatedAtAfter(
+            AuthAuditEvent.EventType eventType, LocalDateTime since);
 }

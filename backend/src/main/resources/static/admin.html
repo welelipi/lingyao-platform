@@ -83,38 +83,6 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* ── V2.0.8：发布管理卡 ───────────── */
-    .release-env-card {
-      background: var(--glass-light);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-      transition: var(--transition);
-    }
-    .release-env-card:hover {
-      border-color: var(--accent);
-      transform: translateY(-2px);
-    }
-    .release-env-card[data-env="prod"] {
-      border-color: rgba(255, 165, 0, 0.3);
-    }
-    .release-env-card[data-env="prod"]:hover {
-      border-color: #ff6b6b;
-    }
-    .btn-warn-sm {
-      background: linear-gradient(135deg, #ff9800, #f57c00);
-      color: #fff;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      transition: var(--transition);
-    }
-    .btn-warn-sm:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3); }
-    .btn-warn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
-
     /* ── 工具条 ───────────── */
     .toolbar {
       display: flex;
@@ -214,6 +182,8 @@
       color: var(--text-dim);
       font-weight: 500;
     }
+    .modal-form .product-row:hover { background: var(--glass-light); }
+    .modal-form .product-row input[type="checkbox"] { flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; margin: 0; }
     .modal-form input,
     .modal-form select,
     .modal-form textarea {
@@ -240,60 +210,6 @@
       gap: 8px;
       margin-top: 16px;
     }
-
-    /* ── 产品多选列表（紧凑对齐） ───────── */
-    .product-checkboxes {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      padding: 4px 0;
-    }
-    .product-checkboxes label {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      width: auto;
-      padding: 8px 12px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      color: var(--text-bright);
-    }
-    .product-checkboxes label:hover {
-      background: rgba(0, 212, 255, 0.08);
-      border-color: var(--accent);
-    }
-    .product-checkboxes input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-      accent-color: var(--accent);
-    }
-    .product-checkboxes .product-code {
-      font-weight: 600;
-      color: var(--accent);
-      min-width: 50px;
-    }
-    .product-checkboxes .product-name {
-      color: var(--text-dim);
-      font-size: 12px;
-    }
-
-    /* ── 公司状态徽章 ───────── */
-    .status-badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    .status-badge.pending { background: #6b7280; color: #fff; }     /* 开通中 - 灰 */
-    .status-badge.active { background: #10b981; color: #fff; }       /* 已开通 - 绿 */
-    .status-badge.expired { background: #ef4444; color: #fff; }      /* 已过期 - 红 */
-    .status-badge.suspended { background: #f59e0b; color: #fff; }   /* 已暂停 - 黄 */
-    .status-badge.deleted { background: #374151; color: #9ca3af; }   /* 已删除 - 暗 */
 
     /* ── 通知条 ───────────── */
     .toast {
@@ -377,6 +293,11 @@
         <div class="kpi-value" id="kpiInvitations">-</div>
         <div class="kpi-hint">PENDING 状态</div>
       </div>
+      <div class="kpi-card">
+        <div class="kpi-label">待处理报名</div>
+        <div class="kpi-value" id="kpiRegistrations">-</div>
+        <div class="kpi-hint">官网试用申请 PENDING</div>
+      </div>
     </div>
 
     <!-- 非超管拒绝提示 -->
@@ -393,7 +314,7 @@
         <button class="tab-btn" data-tab="users">用户管理</button>
         <button class="tab-btn" data-tab="grants">产品授权</button>
         <button class="tab-btn" data-tab="invitations">邀请管理</button>
-        <button class="tab-btn" data-tab="release">🚀 发布管理 <span style="background:var(--gradient-primary);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:4px;">NEW</span></button>
+        <button class="tab-btn" data-tab="registrations">报名管理</button>
       </div>
 
       <!-- Tab 1：公司 -->
@@ -496,75 +417,37 @@
         </table>
       </div>
 
-      <!-- Tab 5：发布管理 — V2.0.8 -->
-      <div class="tab-content" data-pane="release">
-        <div style="margin-bottom:16px;padding:12px 16px;background:rgba(0,212,255,0.06);border-left:3px solid var(--accent);border-radius:6px;font-size:13px;color:var(--text-dim);">
-          💡 <strong>端到端发布流程</strong>：研发改完代码 → Mac 本地 build jar →
-          点下方「发布 staging」推到预发布（9092）→ 验证通过后点「晋升生产」推到生产（9091）。
-          部署完成后会自动推送到飞书群（如已配置 Webhook）。
-        </div>
-
-        <!-- 版本对比卡 -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
-          <div class="release-env-card" data-env="staging">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <h3 style="font-size:18px;font-weight:600;color:var(--text-bright);">🧪 Staging (9092)</h3>
-              <span style="font-size:11px;color:var(--text-dim);background:var(--glass-light);padding:3px 8px;border-radius:10px;">预发布</span>
-            </div>
-            <div class="release-version-info" id="stagingVersionInfo">
-              <div style="color:var(--text-dim);font-size:13px;">加载中...</div>
-            </div>
-            <div style="margin-top:16px;display:flex;gap:8px;">
-              <button class="btn-primary-sm" data-action="deploy-staging">📦 发布 staging</button>
-            </div>
-          </div>
-
-          <div class="release-env-card" data-env="prod">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <h3 style="font-size:18px;font-weight:600;color:var(--text-bright);">🚀 Prod (9091)</h3>
-              <span style="font-size:11px;color:var(--text-dim);background:var(--glass-light);padding:3px 8px;border-radius:10px;">生产</span>
-            </div>
-            <div class="release-version-info" id="prodVersionInfo">
-              <div style="color:var(--text-dim);font-size:13px;">加载中...</div>
-            </div>
-            <div style="margin-top:16px;display:flex;gap:8px;">
-              <button class="btn-warn-sm" data-action="deploy-prod">⬆ 晋升生产</button>
-            </div>
+      <!-- Tab 5：报名管理（V2.0.27 Bug-22 新增） -->
+      <div class="tab-content" data-pane="registrations">
+        <div class="toolbar">
+          <div class="left">共 <span id="registrationCount">0</span> 条报名</div>
+          <div class="right">
+            <select id="regStatusFilter" style="background:var(--bg-secondary);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px;">
+              <option value="">全部状态</option>
+              <option value="PENDING">待处理</option>
+              <option value="CONTACTED">已联系</option>
+              <option value="QUALIFIED">已转化</option>
+              <option value="CONVERTED">已开通</option>
+              <option value="CLOSED">已关闭</option>
+            </select>
           </div>
         </div>
-
-        <!-- 历史记录 -->
-        <div>
-          <div class="toolbar">
-            <div class="left">
-              部署历史
-              <select id="releaseHistoryEnvFilter" style="margin-left:12px;padding:4px 8px;background:var(--glass-light);border:1px solid var(--border);border-radius:6px;color:var(--text-bright);font-size:13px;">
-                <option value="">全部环境</option>
-                <option value="STAGING">仅 Staging</option>
-                <option value="PROD">仅 Prod</option>
-              </select>
-            </div>
-            <div class="right">
-              <button class="btn-ghost-sm" data-action="refresh-release-history">🔄 刷新</button>
-            </div>
-          </div>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>环境</th>
-                <th>版本</th>
-                <th>部署人</th>
-                <th>状态</th>
-                <th>开始</th>
-                <th>耗时</th>
-                <th>Webhook</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="releaseHistoryTableBody"></tbody>
-          </table>
-        </div>
+        <table class="data-table" id="registrationTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>姓名</th>
+              <th>公司</th>
+              <th>手机</th>
+              <th>邮箱</th>
+              <th>意向产品</th>
+              <th>状态</th>
+              <th>提交时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="registrationTableBody"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -574,9 +457,29 @@
     <div class="modal-backdrop" onclick="closeModal('company')"></div>
     <div class="modal-content modal-large">
       <button class="modal-close" onclick="closeModal('company')">&times;</button>
-      <div class="modal-header">
+      <div class="modal-header" id="companyModalHead">
         <h3>新建公司</h3>
         <p>创建一个新的 SaaS 客户租户</p>
+      </div>
+      <div id="companyModalSuccess" style="display:none;padding:8px 0;">
+        <div style="background:rgba(74,222,128,0.08);border:1px solid #4ADE80;border-radius:8px;padding:20px;margin-bottom:16px;">
+          <h4 style="color:#4ADE80;margin-bottom:12px;">✓ 公司开通成功</h4>
+          <p style="color:var(--text-dim);font-size:13px;margin-bottom:20px;line-height:1.6;">
+            请将以下管理员账号信息<strong style="color:var(--text);">复制给客户</strong>。初始密码仅显示一次，关闭后无法再次查看（可在用户管理中重置）。
+          </p>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:6px;">管理员用户名</label>
+            <input type="text" id="createdAdminUsername" readonly style="width:100%;font-family:'SF Mono',Monaco,monospace;background:var(--glass);padding:10px 14px;border-radius:6px;border:1px solid var(--glass-light);">
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:6px;">初始密码</label>
+            <input type="text" id="createdAdminPassword" readonly style="width:100%;font-family:'SF Mono',Monaco,monospace;background:var(--glass);padding:10px 14px;border-radius:6px;border:1px solid var(--glass-light);">
+          </div>
+          <p style="color:var(--text-dim);font-size:12px;" id="createdAdminMeta"></p>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-primary-sm" onclick="closeModal('company')">我已记录，关闭</button>
+        </div>
       </div>
       <form class="modal-form" id="companyForm">
         <div class="form-row">
@@ -635,9 +538,54 @@
             自动开通全部产品（GEO/HPD/AIDD/POR）
           </label>
         </div>
+        <!-- V2.0.29：试用邀请邮件（按实际开通的产品生成介绍） -->
+        <div class="form-field" style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.35);border-radius:8px;padding:12px 14px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" name="trialInvite" id="trialInviteToggle">
+            <strong style="font-size:13px;">📧 发送试用邀请邮件（默认 30 天）</strong>
+          </label>
+          <span class="help" style="margin-top:6px;display:block;">
+            勾选后：许可证设为 TRIAL，创建成功后自动向管理员邮箱发送试用邀请邮件（含账号密码、试用期、开通产品的介绍与使用指引）
+          </span>
+          <div id="trialDaysFields" style="display:none;margin-top:10px;">
+            <label style="font-size:12px;color:var(--text-dim);">试用天数</label>
+            <input name="trialDays" type="number" min="1" max="365" value="30" style="width:120px;margin-top:4px;">
+          </div>
+        </div>
+        <!-- V2.0.28 方案A：公司管理员（可选区块） -->
+        <div style="border-top:1px solid var(--border);margin:14px 0 10px;padding-top:12px;">
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;">
+            <input type="checkbox" id="withAdminToggle" checked>
+            <strong style="font-size:13px;">同时创建公司管理员（推荐）</strong>
+          </label>
+          <div id="adminFields">
+            <div class="form-row">
+              <div class="form-field">
+                <label>管理员用户名 *</label>
+                <input name="adminUsername" placeholder="例：a_admin">
+                <span class="help">字母/数字/点/下划线/连字符，3-32 位</span>
+              </div>
+              <div class="form-field">
+                <label>显示名</label>
+                <input name="adminDisplayName" placeholder="可选，默认同用户名">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label>管理员邮箱</label>
+                <input name="adminEmail" type="email" placeholder="可选">
+              </div>
+              <div class="form-field">
+                <label>初始密码</label>
+                <input name="adminPassword" type="text" placeholder="留空自动生成 12 位强密码">
+                <span class="help">生成/自设的密码仅在创建成功后显示一次</span>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="form-actions">
           <button type="button" class="btn-ghost-sm" onclick="closeModal('company')">取消</button>
-          <button type="submit" class="btn-primary-sm">创建</button>
+          <button type="submit" class="btn-primary-sm" id="companySubmitBtn">创建</button>
         </div>
       </form>
     </div>
@@ -649,8 +597,8 @@
     <div class="modal-content modal-large">
       <button class="modal-close" onclick="closeModal('user')">&times;</button>
       <div class="modal-header">
-        <h3>新建用户</h3>
-        <p>创建后立即绑定到指定公司</p>
+        <h3 id="userModalTitle">新建用户</h3>
+        <p id="userModalSubtitle">创建后立即绑定到指定公司</p>
       </div>
       <form class="modal-form" id="userForm">
         <div class="form-row">
@@ -712,6 +660,31 @@
           <button type="submit" class="btn-primary-sm">创建</button>
         </div>
       </form>
+      <div id="userModalSuccess" style="display:none;padding:8px 0;">
+        <div style="background:rgba(74,222,128,0.08);border:1px solid #4ADE80;border-radius:8px;padding:20px;margin-bottom:16px;">
+          <h4 style="color:#4ADE80;margin-bottom:12px;">✓ 账号已生成</h4>
+          <p style="color:var(--text-dim);font-size:13px;margin-bottom:20px;line-height:1.6;">
+            请将以下账号信息<strong style="color:var(--text);">复制给该用户</strong>。初始密码仅显示一次，关闭后无法再次查看。
+          </p>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:6px;">用户名</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="createdUsername" readonly style="flex:1;font-family:'SF Mono',Monaco,monospace;background:var(--glass);padding:10px 14px;border-radius:6px;border:1px solid var(--glass-light);">
+              <button type="button" class="btn-ghost-sm" data-copy-target="createdUsername" data-copy-label="用户名">复制</button>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:6px;">初始密码</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="createdPassword" readonly style="flex:1;font-family:'SF Mono',Monaco,monospace;background:var(--glass);padding:10px 14px;border-radius:6px;border:1px solid var(--glass-light);">
+              <button type="button" class="btn-ghost-sm" data-copy-target="createdPassword" data-copy-label="初始密码">复制</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-primary-sm" onclick="closeUserModalAndReset()">我已记录，关闭</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -728,95 +701,11 @@
         <input type="hidden" name="companyId" id="grantCompanyId">
         <div class="form-field">
           <label>选择产品（可多选）</label>
-          <div id="grantProductCheckboxes" class="product-checkboxes"></div>
+          <div id="grantProductCheckboxes" style="display:flex;flex-direction:column;gap:4px;padding:4px 0;"></div>
         </div>
         <div class="form-actions">
           <button type="button" class="btn-ghost-sm" onclick="closeModal('grantProduct')">取消</button>
           <button type="submit" class="btn-primary-sm">开通</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-<!-- 模态：编辑公司信息 — V2.0.10 -->
-  <div class="modal modal-large" id="editCompanyModal">
-    <div class="modal-backdrop" onclick="closeModal('editCompany')"></div>
-    <div class="modal-content">
-      <button class="modal-close" onclick="closeModal('editCompany')">&times;</button>
-      <div class="modal-header">
-        <h3>编辑公司信息</h3>
-        <p id="editCompanyContext">-</p>
-      </div>
-      <form class="modal-form" id="editCompanyForm">
-        <input type="hidden" name="id" id="editCompanyId">
-        <div class="form-field">
-          <label>公司名称 <span style="color:var(--text-dim);">（code 不可改）</span></label>
-          <input type="text" name="name" id="editCompanyName" required minlength="2" maxlength="128">
-        </div>
-        <div class="form-row">
-          <div class="form-field">
-            <label>部署模式</label>
-            <select name="deploymentMode" id="editCompanyDeploymentMode" required>
-              <option value="SAAS">共享云（SaaS）</option>
-              <option value="PRIVATE">私有化部署</option>
-            </select>
-          </div>
-          <div class="form-field">
-            <label>许可证等级</label>
-            <select name="licensePlan" id="editCompanyLicensePlan" required>
-              <option value="TRIAL">试用</option>
-              <option value="STANDARD">标准</option>
-              <option value="ENTERPRISE">企业</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-field">
-            <label>许可证起始</label>
-            <input type="datetime-local" name="licenseStart" id="editCompanyLicenseStart">
-          </div>
-          <div class="form-field">
-            <label>许可证截止 <span style="color:var(--text-dim);">（必填）</span></label>
-            <input type="datetime-local" name="licenseEnd" id="editCompanyLicenseEnd" required>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-field">
-            <label>公司状态</label>
-            <select name="status" id="editCompanyStatus" required>
-              <option value="PENDING">开通中</option>
-              <option value="ACTIVE">已开通</option>
-              <option value="EXPIRED">已过期</option>
-              <option value="SUSPENDED">已暂停</option>
-              <option value="DELETED">已删除</option>
-            </select>
-          </div>
-          <div class="form-field">
-            <label>最大用户数</label>
-            <input type="number" name="maxUsers" id="editCompanyMaxUsers" min="1" max="10000">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-field">
-            <label>联系邮箱</label>
-            <input type="email" name="contactEmail" id="editCompanyContactEmail" maxlength="128">
-          </div>
-          <div class="form-field">
-            <label>联系电话</label>
-            <input type="text" name="contactPhone" id="editCompanyContactPhone" maxlength="32">
-          </div>
-        </div>
-        <div class="form-field">
-          <label>地址</label>
-          <input type="text" name="address" id="editCompanyAddress" maxlength="256">
-        </div>
-        <div class="form-field">
-          <label>备注</label>
-          <textarea name="remark" id="editCompanyRemark" maxlength="512" rows="2"></textarea>
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn-ghost-sm" onclick="closeModal('editCompany')">取消</button>
-          <button type="submit" class="btn-primary-sm">保存修改</button>
         </div>
       </form>
     </div>
@@ -836,7 +725,7 @@
         <input type="hidden" name="companyId" id="grantUserCompanyId">
         <div class="form-field">
           <label>选择产品（可多选）</label>
-          <div id="grantUserProductCheckboxes" class="product-checkboxes"></div>
+          <div id="grantUserProductCheckboxes" style="display:flex;flex-direction:column;gap:4px;padding:4px 0;"></div>
         </div>
         <div class="form-actions">
           <button type="button" class="btn-ghost-sm" onclick="closeModal('grantUserProduct')">取消</button>
@@ -874,8 +763,8 @@
           <div class="form-field">
             <label>角色 *</label>
             <select name="roleCode" required>
-              <option value="ADMIN">ADMIN（管理员）</option>
-              <option value="OPERATOR" selected>OPERATOR（运营）</option>
+              <option value="ADMIN">ADMIN（公司超管·进子平台自动获管理员）</option>
+              <option value="OPERATOR" selected>OPERATOR（运营·普通成员）</option>
               <option value="VIEWER">VIEWER（只读）</option>
             </select>
           </div>
@@ -917,79 +806,6 @@
     </div>
   </div>
 
-  <!-- 模态：发布 staging — V2.0.8 -->
-  <div class="modal" id="deployStagingModal">
-    <div class="modal-backdrop" onclick="closeModal('deployStaging')"></div>
-    <div class="modal-content">
-      <button class="modal-close" onclick="closeModal('deployStaging')">&times;</button>
-      <div class="modal-header">
-        <h3>📦 发布到 Staging</h3>
-        <p>把 jar 部署到预发布环境（118.195.197.15:9092）</p>
-      </div>
-      <form class="modal-form" id="deployStagingForm">
-        <div class="form-field">
-          <label>jar 绝对路径 *</label>
-          <input name="jarPath" required placeholder="如 /Users/hua/Documents/myself/凌瑶/backend/target/lingyao-platform.jar">
-          <span class="help">本机已构建好的 jar 文件绝对路径，部署脚本会 scp 到 CVM staging 目录</span>
-        </div>
-        <div style="padding:12px;background:rgba(0,212,255,0.06);border-left:3px solid var(--accent);border-radius:6px;font-size:13px;color:var(--text-dim);margin-bottom:12px;">
-          ⚠️ 请确认已经 <code style="color:var(--accent);">mvn clean package -DskipTests</code> 构建出新版本 jar
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn-ghost-sm" onclick="closeModal('deployStaging')">取消</button>
-          <button type="submit" class="btn-primary-sm">确认发布</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 模态：晋升生产（二次确认 — 必须输入 "prod"） — V2.0.8 -->
-  <div class="modal" id="deployProdModal">
-    <div class="modal-backdrop" onclick="closeModal('deployProd')"></div>
-    <div class="modal-content">
-      <button class="modal-close" onclick="closeModal('deployProd')">&times;</button>
-      <div class="modal-header">
-        <h3 style="color:#ff6b6b;">⚠️ 晋升生产</h3>
-        <p>此操作将直接影响生产服务（118.195.197.15:9091）！</p>
-      </div>
-      <div style="padding:14px;background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.3);border-radius:8px;margin-bottom:16px;">
-        <p style="margin-bottom:8px;color:#ff6b6b;font-weight:600;">🚨 请仔细确认：</p>
-        <ul style="font-size:13px;color:var(--text-dim);padding-left:20px;line-height:1.8;">
-          <li>Staging 已经过完整测试和验证</li>
-          <li>当前 prod 用户不会感知到服务中断（health check 30s 启动）</li>
-          <li>本操作不可回滚（需手动从备份恢复 jar）</li>
-        </ul>
-      </div>
-      <form class="modal-form" id="deployProdForm">
-        <div class="form-field">
-          <label>请输入 <code style="color:#ff6b6b;background:rgba(255,107,107,0.15);padding:2px 8px;border-radius:4px;">prod</code> 确认晋升</label>
-          <input name="confirmText" required pattern="^prod$" placeholder="输入 prod（小写）">
-          <span class="help" style="color:#ff6b6b;">必须输入 prod 才能点确认按钮，防止误操作</span>
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn-ghost-sm" onclick="closeModal('deployProd')">取消</button>
-          <button type="submit" class="btn-warn-sm" style="background:linear-gradient(135deg,#ff6b6b,#ee5a52);">⬆ 确认晋升生产</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 模态：查看部署日志 — V2.0.8 -->
-  <div class="modal" id="releaseLogModal">
-    <div class="modal-backdrop" onclick="closeModal('releaseLog')"></div>
-    <div class="modal-content modal-large">
-      <button class="modal-close" onclick="closeModal('releaseLog')">&times;</button>
-      <div class="modal-header">
-        <h3 id="releaseLogTitle">部署日志</h3>
-        <p id="releaseLogMeta">-</p>
-      </div>
-      <pre id="releaseLogContent" style="background:#0d0d14;color:#00d4ff;padding:16px;border-radius:8px;font-family:monospace;font-size:12px;line-height:1.6;max-height:500px;overflow:auto;white-space:pre-wrap;word-break:break-all;">加载中...</pre>
-      <div class="form-actions">
-        <button type="button" class="btn-ghost-sm" onclick="closeModal('releaseLog')">关闭</button>
-      </div>
-    </div>
-  </div>
-
   <!-- 通知 toast -->
   <div class="toast" id="toast">
     <span class="toast-icon">ℹ️</span>
@@ -997,31 +813,14 @@
   </div>
 
   <script>
+    console.log("%c V2.0.44 · 邀请角色真实化 + 同账号追加授权", 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');
     // ── 数据层 ─────────────────────────
     const TOKEN_KEY = 'lingyao_token';
     const USER_KEY = 'lingyao_user';
-    // V2.0.3: 老 key fallback 列表（ly_token / geo_token 是对外版历史 key，老用户 localStorage 兼容）
-    const TOKEN_KEYS_LEGACY = ['ly_token', 'geo_token'];
     const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? 'http://127.0.0.1:9091'
-      : '';  // 空字符串 = 相对路径，走 Nginx 反代（生产 IP / 域名都适用）
+      ? window.location.protocol + '//' + window.location.hostname + ':9091' : '';
 
-    function getToken() {
-      // 优先读新 key
-      const t = localStorage.getItem(TOKEN_KEY);
-      if (t) return t;
-      // V2.0.3: 老 key fallback（读到了自动迁移到新 key，老 key 清除）
-      for (const k of TOKEN_KEYS_LEGACY) {
-        const v = localStorage.getItem(k);
-        if (v) {
-          localStorage.setItem(TOKEN_KEY, v);
-          localStorage.removeItem(k);
-          console.info('[V2.0.3 token migration]', k, '→', TOKEN_KEY);
-          return v;
-        }
-      }
-      return null;
-    }
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
     function getUser() {
       const s = localStorage.getItem(USER_KEY);
       return s ? JSON.parse(s) : null;
@@ -1033,15 +832,23 @@
     }
 
     async function api(method, path, body) {
-      const opts = {
-        method,
-        headers: {
-          'Authorization': 'Bearer ' + getToken(),
-          'Content-Type': 'application/json'
-        }
+      // V2.0.43：跨源请求（8765→9091）必须 credentials:'include' 才能携带/落盘 XSRF-TOKEN cookie；
+      // 非 GET 需带 X-XSRF-TOKEN 头（CsrfFilter Double-Submit：cookie + header 双凭证比对）
+      const headers = {
+        'Authorization': 'Bearer ' + getToken(),
+        'Content-Type': 'application/json'
       };
-      if (body !== undefined) opts.body = JSON.stringify(body);
-      const res = await fetch(API_BASE + path, opts);
+      if (method.toUpperCase() !== 'GET') {
+        const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+        if (m) headers['X-XSRF-TOKEN'] = decodeURIComponent(m[1]);
+      }
+      const opts2 = {
+        method,
+        credentials: 'include',
+        headers
+      };
+      if (body !== undefined) opts2.body = JSON.stringify(body);
+      const res = await fetch(API_BASE + path, opts2);
       const json = await res.json().catch(() => ({}));
       if (!res.ok || (json.code !== undefined && json.code !== 0)) {
         const msg = json.message || `HTTP ${res.status}`;
@@ -1067,6 +874,15 @@
     }
 
     function openModal(id) {
+      // V2.0.28：company 弹窗打开时恢复表单态（隐藏成功面板）
+      if (id === 'company') {
+        const succ = document.getElementById('companyModalSuccess');
+        if (succ) succ.style.display = 'none';
+        const head = document.getElementById('companyModalHead');
+        if (head) head.style.display = '';
+        const form = document.getElementById('companyForm');
+        if (form) form.style.display = '';
+      }
       const m = document.getElementById(id + 'Modal');
       if (m) { m.classList.add('show'); document.body.style.overflow = 'hidden'; }
     }
@@ -1079,6 +895,7 @@
     let companiesCache = [];
     let usersCache = [];
     let productsCache = [];
+    let registrationsCache = [];
 
     function fmtDate(s) {
       if (!s) return '-';
@@ -1110,6 +927,7 @@
         renderGrants();
         populateUserFormOptions();
         await loadInvitations();
+        await loadRegistrations();
         await updateKpi();
       } catch (e) {
         console.error('加载失败:', e);
@@ -1131,130 +949,9 @@
       // PENDING 邀请数
       const pendingCount = invitationsCache.filter(i => i.status === 'PENDING').length;
       document.getElementById('kpiInvitations').textContent = pendingCount;
-    }
-
-    // ── 发布管理（V2.0.8）─────────────────────
-    let releaseHistoryCache = [];
-
-    async function loadReleaseStatus() {
-      try {
-        const data = await api('GET', '/api/admin/release/status');
-        renderReleaseStatus(data);
-      } catch (e) {
-        document.getElementById('stagingVersionInfo').innerHTML = '<div style="color:#ff6b6b;font-size:13px;">加载失败：' + escapeHtml(e.message) + '</div>';
-        document.getElementById('prodVersionInfo').innerHTML = '<div style="color:#ff6b6b;font-size:13px;">加载失败：' + escapeHtml(e.message) + '</div>';
-      }
-    }
-
-    function renderReleaseStatus(data) {
-      const fmt = t => t ? new Date(t).toLocaleString('zh-CN') : '-';
-      const renderEnv = (env) => {
-        const v = data[env];
-        if (!v) return '<div style="color:var(--text-dim);font-size:13px;">尚无部署记录</div>';
-        return `
-          <div style="font-size:13px;color:var(--text-dim);line-height:1.8;">
-            <div><strong style="color:var(--text-bright);font-size:22px;">V${escapeHtml(v.version)}</strong></div>
-            <div>👤 ${escapeHtml(v.deployed_by)}</div>
-            <div>🕒 ${fmt(v.finished_at)}</div>
-          </div>
-        `;
-      };
-      document.getElementById('stagingVersionInfo').innerHTML = renderEnv('staging');
-      document.getElementById('prodVersionInfo').innerHTML = renderEnv('prod');
-
-      // 部署中按钮禁用 + 文案切换
-      const isRunning = !!data.running;
-      const stagingBtn = document.querySelector('[data-action="deploy-staging"]');
-      const prodBtn = document.querySelector('[data-action="deploy-prod"]');
-      if (stagingBtn) {
-        stagingBtn.disabled = isRunning;
-        stagingBtn.textContent = isRunning ? '⏳ 部署中...' : '📦 发布 staging';
-      }
-      if (prodBtn) {
-        prodBtn.disabled = isRunning;
-        prodBtn.textContent = isRunning ? '⏳ 部署中...' : '⬆ 晋升生产';
-      }
-    }
-
-    async function loadReleaseHistory() {
-      const env = document.getElementById('releaseHistoryEnvFilter').value;
-      try {
-        const q = env ? `?env=${env}` : '';
-        const page = await api('GET', '/api/admin/release/history' + q);
-        releaseHistoryCache = page.content || [];
-        renderReleaseHistory();
-      } catch (e) {
-        console.error('加载部署历史失败:', e);
-      }
-    }
-
-    function renderReleaseHistory() {
-      const body = document.getElementById('releaseHistoryTableBody');
-      if (releaseHistoryCache.length === 0) {
-        body.innerHTML = '<tr><td colspan="9" class="table-empty">暂无部署记录</td></tr>';
-        return;
-      }
-      const fmt = t => t ? new Date(t).toLocaleString('zh-CN') : '-';
-      const statusBadge = s => {
-        const map = {
-          RUNNING: ['⏳ 运行中', 'var(--accent)'],
-          SUCCESS: ['✅ 成功', '#10b981'],
-          FAILED: ['❌ 失败', '#ff6b6b'],
-          CANCELLED: ['⚪ 取消', 'var(--text-dim)']
-        };
-        const pair = map[s] || [s, 'var(--text-dim)'];
-        return '<span style="color:' + pair[1] + ';font-weight:600;">' + pair[0] + '</span>';
-      };
-      body.innerHTML = releaseHistoryCache.map(r => `
-        <tr>
-          <td>${r.id}</td>
-          <td>${r.env === 'STAGING' ? '🧪 Staging' : '🚀 Prod'}</td>
-          <td><strong>V${escapeHtml(r.version)}</strong></td>
-          <td>${escapeHtml(r.deployedBy)}</td>
-          <td>${statusBadge(r.status)}</td>
-          <td>${fmt(r.startedAt)}</td>
-          <td>${r.durationSec || '-'} 秒</td>
-          <td style="font-size:11px;color:var(--text-dim);">${escapeHtml(r.webhookStatus || '-')}</td>
-          <td>
-            <button class="btn-ghost-sm" data-action="view-release-log" data-hid="${r.id}">📜 日志</button>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    async function viewReleaseLog(hid) {
-      try {
-        const hist = await api('GET', '/api/admin/release/' + hid);
-        document.getElementById('releaseLogTitle').textContent =
-          '#' + hist.id + ' · ' + (hist.env === 'STAGING' ? '🧪 Staging' : '🚀 Prod') +
-          ' · V' + hist.version + ' · ' + hist.status;
-        document.getElementById('releaseLogMeta').textContent =
-          '部署人：' + hist.deployedBy +
-          ' · 开始：' + fmtTs(hist.startedAt) +
-          ' · 耗时：' + (hist.durationSec || '-') + ' 秒';
-        document.getElementById('releaseLogContent').textContent = hist.log || '(无日志输出)';
-        openModal('releaseLog');
-      } catch (e) {
-        showToast('加载日志失败：' + e.message, 'error');
-      }
-    }
-
-    function openDeployStagingModal() {
-      openModal('deployStaging');
-    }
-
-    function openDeployProdModal() {
-      // 二次确认前先检查 staging 状态
-      const stagingOk = !!document.querySelector('#stagingVersionInfo strong');
-      if (!stagingOk) {
-        showToast('尚无 staging 成功部署，无法晋升生产', 'error');
-        return;
-      }
-      openModal('deployProd');
-    }
-
-    function fmtTs(t) {
-      return t ? new Date(t).toLocaleString('zh-CN') : '-';
+      // V2.0.27：待处理报名数
+      const pendingRegs = registrationsCache.filter(r => r.status === 'PENDING').length;
+      document.getElementById('kpiRegistrations').textContent = pendingRegs;
     }
 
     // ── 邀请管理 ─────────────────────────
@@ -1269,6 +966,68 @@
       } catch (e) {
         console.error('加载邀请失败:', e);
       }
+    }
+
+    async function loadRegistrations() {
+      try {
+        const filter = document.getElementById('regStatusFilter');
+        const status = filter ? filter.value : '';
+        const qs = status ? ('?page=0&size=200&status=' + status) : '?page=0&size=200';
+        const page = await api('GET', '/api/registrations' + qs);
+        registrationsCache = (page && page.content) || [];
+        renderRegistrations();
+      } catch (e) {
+        console.error('加载报名失败:', e);
+      }
+    }
+
+    function renderRegistrations() {
+      const countEl = document.getElementById('registrationCount');
+      if (countEl) countEl.textContent = registrationsCache.length;
+      const body = document.getElementById('registrationTableBody');
+      if (!body) return;
+      if (registrationsCache.length === 0) {
+        body.innerHTML = '<tr><td colspan="9" class="table-empty">暂无报名记录</td></tr>';
+        return;
+      }
+      body.innerHTML = registrationsCache.map(reg => {
+        const status = reg.status;
+        const statusClass = status === 'PENDING' ? 'suspended' : (status === 'QUALIFIED' || status === 'CONVERTED') ? 'active' : 'saas';
+        const statusLabel = {PENDING:'待处理', CONTACTED:'已联系', QUALIFIED:'已转化', CLOSED:'已关闭', CONVERTED:'✓ 已开通'}[status] || status;
+        return `
+        <tr>
+          <td>${reg.id}</td>
+          <td><strong>${escapeHtml(reg.name || '-')}</strong></td>
+          <td>${escapeHtml(reg.company || '-')}</td>
+          <td>${escapeHtml(reg.phone || '-')}</td>
+          <td>${escapeHtml(reg.email || '-')}</td>
+          <td>${escapeHtml(reg.interestedProducts || '-')}</td>
+          <td><span class="badge ${statusClass}">${escapeHtml(statusLabel)}</span></td>
+          <td>${fmtDate(reg.createdAt)}</td>
+          <td>
+            ${status === 'PENDING' ? `
+              <button class="btn-ghost-sm" data-action="reg-contact" data-id="${reg.id}">标记联系</button>
+              <button class="btn-ghost-sm" style="color:#4ADE80;border-color:#4ADE80;" data-action="reg-convert" data-id="${reg.id}" data-company="${escapeHtml(reg.company || '')}" data-email="${escapeHtml(reg.email || '')}" data-regname="${escapeHtml(reg.name || '')}">转开通</button>
+              <button class="btn-ghost-sm" style="color:var(--text-dim);" data-action="reg-close" data-id="${reg.id}">关闭</button>`
+            : status === 'CONTACTED' ? `
+              <button class="btn-ghost-sm" style="color:#4ADE80;border-color:#4ADE80;" data-action="reg-convert" data-id="${reg.id}" data-company="${escapeHtml(reg.company || '')}" data-email="${escapeHtml(reg.email || '')}" data-regname="${escapeHtml(reg.name || '')}">转开通</button>
+              <button class="btn-ghost-sm" style="color:var(--text-dim);" data-action="reg-close" data-id="${reg.id}">关闭</button>`
+            : status === 'QUALIFIED' ? `
+              <button class="btn-ghost-sm" style="color:#4ADE80;border-color:#4ADE80;" data-action="reg-convert" data-id="${reg.id}" data-company="${escapeHtml(reg.company || '')}" data-email="${escapeHtml(reg.email || '')}" data-regname="${escapeHtml(reg.name || '')}">转开通</button>`
+            : '-'}
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // 报名状态变更
+    async function updateRegistrationStatus(id, newStatus) {
+      try {
+        await api('PUT', '/api/registrations/' + id + '/status', { status: newStatus });
+        showToast('报名状态已更新');
+        await loadRegistrations();
+        await updateKpi();
+      } catch (e) { /* api() 已 toast */ }
     }
 
     function renderInvitations() {
@@ -1320,27 +1079,6 @@
       ).join('');
     }
 
-    // ── 公司状态/部署模式/许可证等级 → 中文显示 ─────────
-    function formatDeploymentMode(dm) {
-      const map = { SAAS: '共享云', PRIVATE: '私有化部署' };
-      return map[dm] || dm;
-    }
-    function formatLicensePlan(lp) {
-      const map = { TRIAL: '试用', STANDARD: '标准', ENTERPRISE: '企业' };
-      return map[lp] || lp;
-    }
-    function formatCompanyStatus(st) {
-      const map = {
-        PENDING: '开通中', ACTIVE: '已开通', EXPIRED: '已过期',
-        SUSPENDED: '已暂停', DELETED: '已删除'
-      };
-      return map[st] || st;
-    }
-    function formatDateTime(dt) {
-      if (!dt) return '-';
-      return new Date(dt).toLocaleString('zh-CN', { hour12: false });
-    }
-
     function renderCompanies() {
       document.getElementById('companyCount').textContent = companiesCache.length;
       const body = document.getElementById('companyTableBody');
@@ -1352,21 +1090,21 @@
         const dm = c.deploymentMode || 'SAAS';
         const lp = c.licensePlan || 'STANDARD';
         const st = c.status || 'ACTIVE';
-        const statusClass = st.toLowerCase();
         return `
         <tr>
           <td>${c.id}</td>
           <td><strong>${escapeHtml(c.name)}</strong></td>
           <td><code>${escapeHtml(c.code)}</code></td>
-          <td><span class="badge ${dm.toLowerCase()}">${formatDeploymentMode(dm)}</span></td>
-          <td><span title="${lp}">${formatLicensePlan(lp)}</span>
-              <br><small style="color:var(--text-dim);">到期 ${formatDateTime(c.licenseEnd)}</small></td>
-          <td><span class="status-badge ${statusClass}">${formatCompanyStatus(st)}</span></td>
+          <td><span class="badge ${dm.toLowerCase()}">${dm}</span></td>
+          <td>${lp}</td>
+          <td><span class="badge ${st.toLowerCase()}">${st}</span></td>
           <td><span class="badge-pill" data-cp-cid="${c.id}">加载中…</span></td>
           <td>${escapeHtml(c.contactEmail || '-')}</td>
           <td>
-            <button class="btn-ghost-sm" data-action="edit-company" data-cid="${c.id}">✏ 编辑</button>
             <button class="btn-ghost-sm" data-action="grant-company" data-cid="${c.id}">开通产品</button>
+            ${st === 'SUSPENDED' || st === 'EXPIRED'
+              ? `<button class="btn-ghost-sm" data-action="activate-company" data-cid="${c.id}" style="border-color:#4ADE80;color:#4ADE80;">激活</button>`
+              : `<button class="btn-ghost-sm" data-action="suspend-company" data-cid="${c.id}" style="border-color:#FF8C42;color:#FF8C42;">禁用</button>`}
           </td>
         </tr>`;
       }).join('');
@@ -1414,6 +1152,7 @@
           <td><span class="badge ${(u.status||'ACTIVE').toLowerCase()}">${u.status||'ACTIVE'}</span></td>
           <td>
             <button class="btn-ghost-sm" data-action="grant-user" data-uid="${u.id}" data-uname="${escapeHtml(u.username)}">授权产品</button>
+            <button class="btn-ghost-sm" data-action="reset-password" data-uid="${u.id}" data-uname="${escapeHtml(u.username)}" style="border-color:#FF8C42;color:#FF8C42;">重置密码</button>
           </td>
         </tr>
       `).join('');
@@ -1522,16 +1261,55 @@
         document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('active'));
         const pane = document.querySelector(`[data-pane="${btn.dataset.tab}"]`);
         if (pane) pane.classList.add('active');
-        // 进入邀请 Tab 时刷新
+        // 进入邀请/报名 Tab 时刷新
         if (btn.dataset.tab === 'invitations') {
           loadInvitations();
         }
-        // V2.0.8：进入发布管理 Tab 时加载
-        if (btn.dataset.tab === 'release') {
-          loadReleaseStatus();
-          loadReleaseHistory();
+        if (btn.dataset.tab === 'registrations') {
+          loadRegistrations();
         }
       });
+    });
+
+    // 报名状态筛选
+    const regFilter = document.getElementById('regStatusFilter');
+    if (regFilter) regFilter.addEventListener('change', () => loadRegistrations());
+
+    // 报名表格操作（事件委托）
+    const regBody = document.getElementById('registrationTableBody');
+    if (regBody) regBody.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      if (action === 'reg-convert') {
+        // V2.0.28 方案B：转开通——打开新建公司弹窗，预填报名信息，记住报名 ID
+        window.__convertingRegId = id;
+        openModal('company');
+        const form = document.getElementById('companyForm');
+        // 预填公司名 + code
+        const companyName = btn.dataset.company || '';
+        form.querySelector('[name="name"]').value = companyName;
+        const codeGen = (companyName || '')
+          .replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 20) || 'COMPANY';
+        form.querySelector('[name="code"]').value = codeGen;
+        // 预填管理员邮箱（用报名邮箱）+ 用户名建议
+        const email = btn.dataset.email || '';
+        form.querySelector('[name="adminEmail"]').value = email;
+        const unameSuggest = codeGen.toLowerCase().slice(0, 20) + '_admin';
+        form.querySelector('[name="adminUsername"]').value = unameSuggest;
+        form.querySelector('[name="adminDisplayName"]').value = btn.dataset.regname || '';
+        // 勾选全部产品（报名即有意向，默认全开，可手动调整）
+        if (!form.querySelector('[name="grantAllProducts"]').checked) {
+          form.querySelector('[name="grantAllProducts"]').checked = true;
+        }
+        document.getElementById('withAdminToggle').checked = true;
+        document.getElementById('adminFields').style.display = '';
+        showToast('已预填报名信息，确认后点「创建」完成开通', 'success');
+        return;
+      }
+      const map = { 'reg-contact': 'CONTACTED', 'reg-qualify': 'QUALIFIED', 'reg-close': 'CLOSED' };
+      if (map[action]) updateRegistrationStatus(id, map[action]);
     });
 
     // ── 打开创建邀请模态 ──────────────────────
@@ -1595,44 +1373,51 @@
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const action = btn.dataset.action;
-      if (action === 'edit-company') {
-        const companyId = parseInt(btn.dataset.cid);
-        const company = companiesCache.find(c => c.id === companyId);
-        if (!company) { showToast('公司不存在', 'error'); return; }
-        document.getElementById('editCompanyId').value = companyId;
-        document.getElementById('editCompanyContext').textContent =
-          `公司 code: ${company.code}（code 不可改）`;
-        document.getElementById('editCompanyName').value = company.name || '';
-        document.getElementById('editCompanyDeploymentMode').value = company.deploymentMode || 'SAAS';
-        document.getElementById('editCompanyLicensePlan').value = company.licensePlan || 'STANDARD';
-        document.getElementById('editCompanyStatus').value = company.status || 'PENDING';
-        document.getElementById('editCompanyMaxUsers').value = company.maxUsers || 10;
-        document.getElementById('editCompanyContactEmail').value = company.contactEmail || '';
-        document.getElementById('editCompanyContactPhone').value = company.contactPhone || '';
-        document.getElementById('editCompanyAddress').value = company.address || '';
-        document.getElementById('editCompanyRemark').value = company.remark || '';
-        // 日期格式转换：ISO -> datetime-local (YYYY-MM-DDTHH:mm)
-        document.getElementById('editCompanyLicenseStart').value =
-          company.licenseStart ? new Date(company.licenseStart).toISOString().slice(0, 16) : '';
-        document.getElementById('editCompanyLicenseEnd').value =
-          company.licenseEnd ? new Date(company.licenseEnd).toISOString().slice(0, 16) : '';
-        openModal('editCompany');
-      } else if (action === 'grant-company') {
+      if (action === 'grant-company') {
         const companyId = parseInt(btn.dataset.cid);
         const company = companiesCache.find(c => c.id === companyId);
         document.getElementById('grantCompanyId').value = companyId;
         document.getElementById('grantProductContext').textContent =
           `为「${company ? company.name : ('#'+companyId)}」开通产品（可多选）`;
         const cbs = document.getElementById('grantProductCheckboxes');
+        const cps = await api('GET', `/api/admin/company-products?companyId=${companyId}`);
+        const licensedIds = (cps || []).map(cp => cp.productId);
         cbs.innerHTML = productsCache.map(p => `
-          <label>
-            <input type="checkbox" name="productId" value="${p.id}">
-            <span class="product-code">${escapeHtml(p.code)}</span>
-            <span class="product-name">${escapeHtml(p.name)}</span>
+          <label class="product-row" style="display:flex;align-items:center;gap:10px;color:var(--text-bright);padding:8px 10px;border-radius:6px;cursor:pointer;width:100%;box-sizing:border-box;">
+            <input type="checkbox" name="productId" value="${p.id}"${licensedIds.includes(p.id) ? ' checked' : ''}>
+            <strong>${escapeHtml(p.code)}</strong>
+            <span style="color:var(--text-dim);font-size:12px;">${escapeHtml(p.name)}</span>
           </label>
         `).join('');
         openModal('grantProduct');
-      } else if (action === 'grant-user') {
+      } else if (action === 'suspend-company') {
+        const companyId = parseInt(btn.dataset.cid);
+        const company = companiesCache.find(c => c.id === companyId);
+        if (!confirm(`确认禁用公司「${company ? company.name : '#'+companyId}」？\n禁用后该公司用户将无法登录。`)) return;
+        try {
+          await api('POST', `/api/admin/companies/${companyId}/suspend`);
+          showToast('公司已禁用', 'success');
+          await loadAll();
+        } catch (e) { showToast('禁用失败：' + e.message, 'error'); }
+} else if (action === 'activate-company') {
+      const companyId = parseInt(btn.dataset.cid);
+      const company = companiesCache.find(c => c.id === companyId);
+      if (!confirm(`确认激活公司「${company ? company.name : '#'+companyId}」？`)) return;
+      try {
+        await api('POST', `/api/admin/companies/${companyId}/activate`);
+        showToast('公司已激活', 'success');
+        await loadAll();
+      } catch (e) { showToast('激活失败：' + e.message, 'error'); }
+    } else if (action === 'reset-password') {
+      const userId = parseInt(btn.dataset.uid);
+      const username = btn.dataset.uname || ('#' + userId);
+      if (!confirm(`确认重置用户「${username}」的密码？\n\n系统将生成新的随机密码（12 位，含大小写+数字+特殊字符），重置后该用户下次登录会被强制修改密码。`)) return;
+      try {
+        const result = await api('POST', `/api/admin/users/${userId}/reset-password`);
+        showToast('密码已重置', 'success');
+        showCreatedAccountView(result.username, result.newPassword, true);
+      } catch (e) { showToast('重置失败：' + e.message, 'error'); }
+    } else if (action === 'grant-user') {
         const userId = parseInt(btn.dataset.uid);
         const companyId = btn.dataset.cid ? parseInt(btn.dataset.cid) : null;
         const u = usersCache.find(x => x.id === userId);
@@ -1671,10 +1456,10 @@
           cbs.innerHTML = productsCache
             .filter(p => licensedIds.includes(p.id))
             .map(p => `
-              <label>
+              <label class="product-row" style="display:flex;align-items:center;gap:10px;color:var(--text-bright);padding:8px 10px;border-radius:6px;cursor:pointer;width:100%;box-sizing:border-box;">
                 <input type="checkbox" name="productId" value="${p.id}">
-                <span class="product-code">${escapeHtml(p.code)}</span>
-                <span class="product-name">${escapeHtml(p.name)}</span>
+                <strong>${escapeHtml(p.code)}</strong>
+                <span style="color:var(--text-dim);font-size:12px;">${escapeHtml(p.name)}</span>
               </label>
             `).join('');
         }
@@ -1694,73 +1479,27 @@
         } catch (err) {
           showToast('撤销失败：' + err.message, 'error');
         }
-      } else if (action === 'deploy-staging') {  // V2.0.8
-        openDeployStagingModal();
-      } else if (action === 'deploy-prod') {  // V2.0.8
-        openDeployProdModal();
-      } else if (action === 'refresh-release-history') {  // V2.0.8
-        loadReleaseStatus();
-        loadReleaseHistory();
-      } else if (action === 'view-release-log') {  // V2.0.8
-        viewReleaseLog(parseInt(btn.dataset.hid));
       }
     });
-
-    // ── V2.0.8：发布管理表单提交 ──────────────────────
-    document.getElementById('deployStagingForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const jarPath = fd.get('jarPath').trim();
-      try {
-        const result = await api('POST', '/api/admin/release/deploy-staging', { jarPath });
-        showToast('staging 部署已触发，请观察历史记录', 'success');
-        closeModal('deployStaging');
-        e.target.reset();
-        // 立即刷新一次
-        loadReleaseStatus();
-        loadReleaseHistory();
-        // 5 秒后再刷新一次看进度
-        setTimeout(() => { loadReleaseStatus(); loadReleaseHistory(); }, 5000);
-        // 35 秒后再刷新一次（Spring Boot 启动 + 健康检查）
-        setTimeout(() => { loadReleaseStatus(); loadReleaseHistory(); }, 35000);
-      } catch (err) {
-        showToast('触发失败：' + err.message, 'error');
-      }
-    });
-
-    document.getElementById('deployProdForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const confirmText = (fd.get('confirmText') || '').trim();
-      if (confirmText !== 'prod') {
-        showToast('请输入 prod（小写）才能确认晋升', 'error');
-        return;
-      }
-      try {
-        const result = await api('POST', '/api/admin/release/deploy-prod', {});
-        showToast('prod 晋升已触发', 'success');
-        closeModal('deployProd');
-        e.target.reset();
-        loadReleaseStatus();
-        loadReleaseHistory();
-        setTimeout(() => { loadReleaseStatus(); loadReleaseHistory(); }, 5000);
-        setTimeout(() => { loadReleaseStatus(); loadReleaseHistory(); }, 35000);
-      } catch (err) {
-        showToast('触发失败：' + err.message, 'error');
-      }
-    });
-
-    // V2.0.8：环境过滤器变化时刷新
-    document.getElementById('releaseHistoryEnvFilter').addEventListener('change', loadReleaseHistory);
 
     // ── 表单：创建公司 ─────────────────────────
     document.getElementById('newCompanyBtn').addEventListener('click', () => openModal('company'));
+    // V2.0.28 方案A：管理员区块开关联动
+    document.getElementById('withAdminToggle').addEventListener('change', (e) => {
+      document.getElementById('adminFields').style.display = e.target.checked ? '' : 'none';
+    });
+    // V2.0.29：试用邀请开关联动（试用天数显隐）
+    document.getElementById('trialInviteToggle').addEventListener('change', (e) => {
+      document.getElementById('trialDaysFields').style.display = e.target.checked ? '' : 'none';
+    });
+
     document.getElementById('companyForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
-      const body = {
+      const withAdmin = document.getElementById('withAdminToggle').checked;
+      const companyBody = {
         name: fd.get('name').trim(),
-        code: fd.get('code').trim(),
+        code: fd.get('code').trim().toUpperCase(),
         deploymentMode: fd.get('deploymentMode'),
         licensePlan: fd.get('licensePlan'),
         maxUsers: parseInt(fd.get('maxUsers')),
@@ -1770,12 +1509,61 @@
         remark: fd.get('remark') || null,
         grantAllProducts: fd.get('grantAllProducts') === 'on',
       };
+      let body;
+      if (withAdmin) {
+        const adminUsername = (fd.get('adminUsername') || '').trim();
+        if (!adminUsername) { showToast('已勾选创建管理员，请填写管理员用户名', 'error'); return; }
+        body = {
+          company: companyBody,
+          admin: {
+            username: adminUsername,
+            initialPassword: fd.get('adminPassword') || null,
+            displayName: fd.get('adminDisplayName') || null,
+            email: fd.get('adminEmail') || null,
+            phone: null,
+          },
+          // V2.0.29：试用邀请（按实际开通的产品生成邮件介绍）
+          trialInvite: fd.get('trialInvite') === 'on',
+          trialDays: parseInt(fd.get('trialDays'), 10) || 30,
+        };
+        if (body.trialInvite && !body.admin.email) {
+          showToast('已勾选发送试用邀请邮件，请填写管理员邮箱', 'error');
+          return;
+        }
+      } else {
+        body = { company: companyBody, admin: null };
+      }
       try {
-        await api('POST', '/api/admin/companies', body);
-        showToast('公司创建成功', 'success');
-        closeModal('company');
-        e.target.reset();
+        const resp = await api('POST', '/api/admin/companies/with-admin', body);
+        const d = (resp && resp.data) || {};
         await loadAll();
+        if (d.initialPassword) {
+          // 方案A：显示账号密码（仅一次）
+          document.getElementById('companyModalHead').style.display = 'none';
+          document.getElementById('companyForm').style.display = 'none';
+          document.getElementById('companyModalSuccess').style.display = 'block';
+          document.getElementById('createdAdminUsername').value = d.admin.username;
+          document.getElementById('createdAdminPassword').value = d.initialPassword;
+          const c = d.company || {};
+          const trialSent = d.trialInvite ? ' · 📧 试用邀请邮件已发送至管理员邮箱' : '';
+          document.getElementById('createdAdminMeta').textContent =
+            '公司: ' + (c.name || '-') + ' (' + (c.code || '-') + ') · 状态 ACTIVE · 管理员角色 SUPER_ADMIN' + trialSent;
+          showToast(d.trialInvite ? '公司开通成功，邀请邮件发送中' : '公司开通成功，请记录管理员账号', 'success');
+        } else {
+          showToast('公司创建成功', 'success');
+          closeModal('company');
+        }
+        e.target.reset();
+        // 转开通来源的报名 ID：创建成功后关单
+        if (window.__convertingRegId) {
+          try {
+            await api('PUT', '/api/admin/registrations/' + window.__convertingRegId + '/convert');
+            showToast('报名已标记为已转化', 'success');
+          } catch (_) {}
+          window.__convertingRegId = null;
+          await loadRegistrations();
+          await updateKpi();
+        }
       } catch (_) {}
     });
 
@@ -1803,66 +1591,51 @@
       try {
         await api('POST', '/api/admin/users', body);
         showToast('用户创建成功', 'success');
-        closeModal('user');
-        e.target.reset();
+        document.getElementById('userForm').style.display = 'none';
+        document.getElementById('userModalSuccess').style.display = 'block';
+        document.getElementById('userModalTitle').textContent = '账号已生成';
+        document.getElementById('userModalSubtitle').textContent = '请记录并告知该用户';
+        document.getElementById('createdUsername').value = body.username;
+        document.getElementById('createdPassword').value = body.initialPassword;
         await loadAll();
       } catch (_) {}
     });
 
-    // ── 表单：编辑公司信息 — V2.0.10 ───────────────────
-    document.getElementById('editCompanyForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const id = parseInt(document.getElementById('editCompanyId').value);
-      const fd = new FormData(e.target);
+    function closeUserModalAndReset() {
+      document.getElementById('userForm').style.display = '';
+      document.getElementById('userForm').reset();
+      document.getElementById('userModalSuccess').style.display = 'none';
+      document.getElementById('userModalTitle').textContent = '新建用户';
+      document.getElementById('userModalSubtitle').textContent = '创建后立即绑定到指定公司';
+      closeModal('user');
+    }
 
-      // 取原值用于对比"二次确认"逻辑
-      const orig = companiesCache.find(c => c.id === id) || {};
-      const req = {
-        name: fd.get('name'),
-        deploymentMode: fd.get('deploymentMode'),
-        licensePlan: fd.get('licensePlan'),
-        status: fd.get('status'),
-        maxUsers: fd.get('maxUsers') ? parseInt(fd.get('maxUsers')) : null,
-        contactEmail: fd.get('contactEmail') || null,
-        contactPhone: fd.get('contactPhone') || null,
-        address: fd.get('address') || null,
-        remark: fd.get('remark') || null,
-      };
-      // 日期字段：空字符串传 null（保留原值），有值转 ISO
-      const ls = fd.get('licenseStart');
-      req.licenseStart = ls ? new Date(ls).toISOString() : null;
-      const le = fd.get('licenseEnd');
-      req.licenseEnd = le ? new Date(le).toISOString() : null;
-
-      // 二次确认：高危操作
-      const highRiskChecks = [];
-      if (orig.deploymentMode && orig.deploymentMode !== req.deploymentMode) {
-        highRiskChecks.push(`部署模式: ${formatDeploymentMode(orig.deploymentMode)} → ${formatDeploymentMode(req.deploymentMode)}`);
-      }
-      if (orig.status && orig.status !== req.status
-              && (req.status === 'SUSPENDED' || req.status === 'DELETED'
-                  || orig.status === 'SUSPENDED' || orig.status === 'DELETED')) {
-        highRiskChecks.push(`状态: ${formatCompanyStatus(orig.status)} → ${formatCompanyStatus(req.status)}`);
-      }
-      if (orig.licenseEnd && req.licenseEnd
-              && new Date(orig.licenseEnd).getTime() !== new Date(req.licenseEnd).getTime()) {
-        highRiskChecks.push(`许可证截止: ${formatDateTime(orig.licenseEnd)} → ${formatDateTime(req.licenseEnd)}`);
-      }
-      if (highRiskChecks.length > 0) {
-        const confirmMsg = `⚠️ 关键信息变更：\n\n${highRiskChecks.join('\\n')}\n\n确定提交？`;
-        if (!confirm(confirmMsg)) {
-          showToast('已取消', 'info');
-          return;
+    document.querySelectorAll('[data-copy-target]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const targetId = btn.dataset.copyTarget;
+        const label = btn.dataset.copyLabel || '内容';
+        const el = document.getElementById(targetId);
+        if (!el || !el.value) return;
+        try {
+          await navigator.clipboard.writeText(el.value);
+          showToast(`${label + '已复制到剪贴板'}`, 'success');
+        } catch (_) {
+          el.select();
+          document.execCommand('copy');
+          showToast(`${label + '已复制'}`, 'success');
         }
-      }
-
-      try {
-        const updated = await api('PUT', `/api/admin/companies/${id}`, req);
-        showToast(`公司「${updated.name}」已更新`, 'success');
-        closeModal('editCompany');
-        await loadAll();
-      } catch (_) {}
+      });
     });
+
+    function showCreatedAccountView(username, password, isReset = false) {
+      document.getElementById('userForm').style.display = 'none';
+      document.getElementById('userModalSuccess').style.display = 'block';
+      document.getElementById('userModalTitle').textContent = isReset ? '密码已重置' : '账号已生成';
+      document.getElementById('userModalSubtitle').textContent = isReset ? '请将新密码告知该用户' : '请记录并告知该用户';
+      document.getElementById('createdUsername').value = username;
+      document.getElementById('createdPassword').value = password;
+      openModal('user');
+    }
 
     // ── 表单：给公司开通产品 ─────────────────────────
     document.getElementById('grantProductForm').addEventListener('submit', async (e) => {

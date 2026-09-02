@@ -125,6 +125,7 @@ public class CsrfFilter extends OncePerRequestFilter {
             "/api/invitations/",
             "/api/sub-product/",
             "/api/_diag/",
+            "/api/internal/",  // V2.0.39：服务间接口（子平台 → 主站 grants sync），无浏览器 cookie，鉴权靠 service JWT
             "/api/auth/2fa/",   // V2.0.26 P2.4：2FA 管理端点（需 JWT 认证，CSRF 攻击面已由 JWT 防住）
             "/h2-console/"
     );

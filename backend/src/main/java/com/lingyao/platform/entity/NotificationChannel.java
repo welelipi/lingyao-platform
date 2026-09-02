@@ -11,10 +11,11 @@ import java.time.LocalDateTime;
 /**
  * 推送通道配置
  *
- * 支持 3 种通道：
+ * 支持 4 种通道：
  * - FEISHU：飞书群机器人 Webhook
  * - WECHAT_WORK：企业微信群机器人 Webhook
  * - WECHAT_MP：微信公众号模板消息（需 AppID/Secret）
+ * - EMAIL：内置邮箱推送（webhook_url 字段存收件邮箱，如超管邮箱）
  */
 @Data
 @Entity
@@ -75,6 +76,6 @@ public class NotificationChannel {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public enum ChannelType { FEISHU, WECHAT_WORK, WECHAT_MP }
+    public enum ChannelType { FEISHU, WECHAT_WORK, WECHAT_MP, EMAIL }
     public enum Status { ACTIVE, INACTIVE }
 }

@@ -5,11 +5,16 @@ import os, sys
 
 # 路径参数化（V2.0.11 Fix 2 上传远端代码库稳定性）：用 LINGYAO_HOME 覆盖 macOS 本地路径
 # 用法：LINGYAO_HOME=/opt/lingyao python3 scripts/start_backend_daemon.py
+# V2.0.29：profile 参数化——LINGYAO_PROFILE=dev 走 H2 内存开发模式（默认 private 私有化）
 PROJECT_DIR = os.environ.get("LINGYAO_HOME", "/Users/hua/Documents/myself/凌瑶")
 JAVA_BIN = os.environ.get("LINGYAO_JAVA_BIN", "/Users/hua/sdk/jdk-21/Contents/Home/bin/java")
+PROFILE = os.environ.get("LINGYAO_PROFILE", "private")
 JAR_PATH = f"{PROJECT_DIR}/backend/target/lingyao-platform.jar"
-CONFIG_PATH = f"{PROJECT_DIR}/backend/src/main/resources/application-private.yml"
-LOG_FILE = f"{PROJECT_DIR}/logs/backend.out"
+CONFIG_PATH = os.environ.get(
+    "LINGYAO_CONFIG",
+    f"{PROJECT_DIR}/backend/src/main/resources/application-{PROFILE}.yml",
+)
+LOG_FILE = os.environ.get("LINGYAO_LOG", f"{PROJECT_DIR}/logs/backend-{PROFILE}.out")
 
 # 第 1 次 fork：父进程立即 exit，让子进程被 init 收养
 pid = os.fork()
@@ -57,10 +62,20 @@ if not os.environ.get("LINGYAO_JWT_SECRET"):
         print(f"[backend-daemon] 首次启动：生成 JWT 密钥（持久化到 {JWT_SECRET_FILE}）", flush=True)
 
 os.chdir(PROJECT_DIR)
-os.execv(JAVA_BIN, [
-    JAVA_BIN,
-    "-jar", JAR_PATH,
-    "--server.port=9091",
-    "--spring.profiles.active=private",
-    f"--spring.config.location={CONFIG_PATH}",
-])
+# V2.0.29：dev profile 不指定 config.location（走 jar 内 application.yml 的 dev 多文档段），
+# 其余 profile 显式指定外部配置；--server.port=9091 命令行兜底覆盖 sandbox 注入的 SERVER_PORT
+if PROFILE == "dev":
+    os.execv(JAVA_BIN, [
+        JAVA_BIN,
+        "-jar", JAR_PATH,
+        "--server.port=9091",
+        "--spring.profiles.active=dev",
+    ])
+else:
+    os.execv(JAVA_BIN, [
+        JAVA_BIN,
+        "-jar", JAR_PATH,
+        "--server.port=9091",
+        "--spring.profiles.active=" + PROFILE,
+        f"--spring.config.location={CONFIG_PATH}",
+    ])

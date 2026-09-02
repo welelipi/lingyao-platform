@@ -307,11 +307,12 @@ public class SubTaskController {
     }
 
     // ════════════════════════════════════════════════════════════════
-    // V2.0.19 W6 阶段 2.5 B1 — 集中审批 3 接口
-    // 设计要点：
-    // 1) 只看本公司审批：公司超管看自己公司，平台超管看全部
-    // 2) 审批流通用化：type+payload_json 字段支持任意业务场景扩展
-    // 3) 与现有 audit_log 解耦：审批事件是业务流程，audit_log 是合规追溯，分开记录
+    // V2.0.19 W6 阶段 2.5 B1 — 审批接口（V2.0.38 起前端已下线入口）
+    //
+    // 主人 2026-09-02 14:44 终版拍板：全部审批归各子平台自管（责任清晰，
+    // 避免多产品下公司超管操作混乱）。主站 pending/approve/reject 保留路由
+    // 与 autoGrantOnApprove 联动（历史数据审计兼容 + 未来服务端间调用备用），
+    // 但主站前端无任何入口。
     // ════════════════════════════════════════════════════════════════
 
     /**
@@ -382,6 +383,9 @@ public class SubTaskController {
         approval.setApproverUsername(cu.getUsername());
         approval.setApproveTime(LocalDateTime.now());
         SubTaskApproval saved = subTaskApprovalRepo.save(approval);
+
+        // V2.0.36：PRODUCT_GRANT 类型审批通过 → 自动写 product_user_grant（员工下次进入直接放行）
+        autoGrantOnApprove(saved);
 
         auditLogService.record("SUBTASK_APPROVAL_APPROVE", "APPROVAL",
                 String.valueOf(saved.getId()),
@@ -488,6 +492,70 @@ public class SubTaskController {
         row.put("createdAt", a.getCreatedAt());
         row.put("status", a.getStatus().name());
         return row;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // V2.0.36 — 员工申请产品权限（SSO 双轨制 · 主站侧）
+    //
+    // 背景（主人 2026-09-02 13:02 拍板）：
+    // - 公司配置 SSO 后，员工扫码/点登录直接进子平台；无权限 → 向公司超管申请
+    // - 公司超管用「主网站账密」登录子平台处理审批（双轨：员工走 SSO、超管走账密）
+    // - 审批通过 → 自动写 product_user_grant → 员工下次进入直接放行
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/sub/{code}/apply — 【V2.0.38 已停用】
+     *
+     * 主人 2026-09-02 14:44 拍板：全部审批（含产品开通申请）归各子平台自管，
+     * 主站不做审批、不收申请。本接口保留路由但返回 410 引导，避免子平台/旧前端调用报 404。
+     * 员工申请入口 → 各子平台内提交 → 公司超管在子平台内审批。
+     */
+    @PostMapping("/{code}/apply")
+    public ApiResponse<?> apply(@PathVariable String code, @RequestBody(required = false) Map<String, Object> body) {
+        return ApiResponse.fail(410, "申请入口已迁移：请在对应子平台内提交开通申请（V2.0.38 审批全面下放子平台）");
+    }
+
+    /**
+     * GET /api/sub/my-approvals — 【V2.0.38 已停用】返回空列表（前端已无调用方；保留路由防旧缓存页面报错）
+     */
+    @GetMapping("/my-approvals")
+    public ApiResponse<?> myApprovals() {
+        return ApiResponse.ok(new ArrayList<>());
+    }
+
+    /** V2.0.36：我的申请列表（按申请人倒序，由仓库提供） */
+
+    @Autowired private com.lingyao.platform.repository.CompanyProductRepository companyProductRepo;
+
+    /**
+     * 内部（V2.0.36 重载）：审批通过后的自动授权联动
+     * PRODUCT_GRANT 类型 → 写 product_user_grant（幂等：REVOKED 复活 / 不存在新建）
+     */
+    private void autoGrantOnApprove(SubTaskApproval approval) {
+        if (approval.getType() != SubTaskApproval.Type.PRODUCT_GRANT) return;
+        if (approval.getProductId() == null) return;
+        Long companyId = approval.getCompanyId();
+        Long productId = approval.getProductId();
+        Long userId = approval.getRequesterId();
+
+        com.lingyao.platform.entity.ProductUserGrant g = productUserGrantRepo
+                .findByCompanyIdAndProductIdAndUserId(companyId, productId, userId)
+                .map(existing -> {
+                    existing.setStatus(com.lingyao.platform.entity.ProductUserGrant.Status.ACTIVE);
+                    return productUserGrantRepo.save(existing);
+                })
+                .orElseGet(() -> {
+                    com.lingyao.platform.entity.ProductUserGrant ng = new com.lingyao.platform.entity.ProductUserGrant();
+                    ng.setCompanyId(companyId);
+                    ng.setProductId(productId);
+                    ng.setUserId(userId);
+                    ng.setGrantedBy(approval.getApproverId() != null ? approval.getApproverId() : 0L);
+                    ng.setStatus(com.lingyao.platform.entity.ProductUserGrant.Status.ACTIVE);
+                    return productUserGrantRepo.save(ng);
+                });
+        auditLogService.record("PRODUCT_GRANT_AUTO", "USER", String.valueOf(userId),
+                "审批通过自动授权：user=" + approval.getRequesterUsername()
+                        + " productId=" + productId + " grantId=" + g.getId());
     }
 }
 

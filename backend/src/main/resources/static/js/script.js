@@ -404,7 +404,7 @@
   // 10. 表单提交（对接后端 API）
   // ==========================================
   const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://127.0.0.1:9091'
+    ? window.location.protocol + '//' + window.location.hostname + ':9091'
     : '';
 
   function showToast(message, type = 'success') {
@@ -424,6 +424,8 @@
     const fd = new FormData(form);
     const interested = [];
     form.querySelectorAll('input[name="product"]:checked').forEach(cb => interested.push(cb.value));
+    const sel = form.querySelector('select[name="product"]');
+    if (sel && sel.value && !interested.includes(sel.value)) interested.push(sel.value);
     return {
       name: (fd.get('name') || '').toString().trim(),
       company: (fd.get('company') || '').toString().trim(),
@@ -495,6 +497,10 @@
         const json = await resp.json();
         if (json.success) {
           localStorage.setItem('lingyao_token', json.data.token);
+          // V2.0.21 P1.4：保存 refresh_token（30 天有效，用于静默续期）
+          if (json.data.refreshToken) {
+            localStorage.setItem('lingyao_refresh_token', json.data.refreshToken);
+          }
           localStorage.setItem('lingyao_user', JSON.stringify(json.data.user));
           closeModal('login');
           showToast('登录成功！欢迎 ' + (json.data.user.displayName || json.data.user.username), 'success');
@@ -527,13 +533,181 @@
     });
   }
 
-  // 退出登录
+  // 退出登录 — V2.0.20 P1 阶段 A
+  // 调后端 /api/auth/logout（服务端黑名单），再清前端状态
   function logout() {
+    const token = localStorage.getItem('lingyao_token');
+    // 1) 先发服务端黑名单（fire-and-forget，失败也继续清前端）
+    if (token) {
+      try {
+        // 同步 fetch（保证后端 jti 写入黑名单后再清前端）
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/auth/logout', false);  // 同步
+        xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send('{}');
+        // 不管成功 200 / 已过期 / 网络失败，都继续清前端
+      } catch (e) {
+        // 静默吞掉：网络失败也要清前端，避免用户登不出去
+        console.warn('logout 后端调用失败（不影响前端清理）:', e);
+      }
+    }
+    // 2) 清前端状态
     localStorage.removeItem('lingyao_token');
+    localStorage.removeItem('lingyao_refresh_token');
     localStorage.removeItem('lingyao_user');
-    location.reload();
+    localStorage.removeItem('lingyao_company');
+    localStorage.removeItem('lingyao_products');
+    // 3) 跳转登录页（而非 reload，避免循环）
+    window.location.href = '/index.html';
   }
   window.lingyaoLogout = logout;
+
+  // ══════════════════════════════════════════════════════════════════
+  // V2.0.21 P1.4：refresh_token 静默续期
+  // - 在 token 即将过期时（或 API 返回 401 时）调 /api/auth/refresh
+  // - 成功后更新 localStorage 中的 token + refresh_token
+  // - 失败（refresh 也过期）→ 跳登录页
+  // ══════════════════════════════════════════════════════════════════
+
+  // 同步锁：避免并发 401 同时触发多次 refresh
+  let refreshingPromise = null;
+
+  async function silentRefresh() {
+    if (refreshingPromise) return refreshingPromise;
+    const refreshToken = localStorage.getItem('lingyao_refresh_token');
+    if (!refreshToken) {
+      // 无 refresh_token → 跳登录
+      window.location.href = '/index.html';
+      return null;
+    }
+    refreshingPromise = (async () => {
+      try {
+        const resp = await fetch(API_BASE + '/api/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: refreshToken })
+        });
+        const json = await resp.json();
+        if (json.success) {
+          localStorage.setItem('lingyao_token', json.data.token);
+          if (json.data.refreshToken) {
+            localStorage.setItem('lingyao_refresh_token', json.data.refreshToken);
+          }
+          return json.data.token;
+        } else {
+          // refresh 失败 → 清状态 + 跳登录
+          logout();
+          return null;
+        }
+      } catch (e) {
+        console.warn('silent refresh failed:', e);
+        logout();
+        return null;
+      } finally {
+        refreshingPromise = null;
+      }
+    })();
+    return refreshingPromise;
+  }
+  window.lingyaoSilentRefresh = silentRefresh;
+
+  // 包装 fetch：401 时自动 silent refresh + 重试一次
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async function(input, init) {
+    let initWithCsrf = addCsrfHeader(input, init);
+    let resp = await originalFetch(input, initWithCsrf);
+
+    // 仅对带 Authorization 的请求做 401 自动续期
+    const auth = (initWithCsrf && initWithCsrf.headers && initWithCsrf.headers.Authorization) || '';
+    if (resp.status === 401 && auth.startsWith('Bearer ')) {
+      const url = typeof input === 'string' ? input : (input.url || '');
+      // 不对 /api/auth/login 和 /api/auth/refresh 自身做续期（避免循环）
+      if (url.includes('/api/auth/login') || url.includes('/api/auth/refresh')) {
+        return resp;
+      }
+      // 尝试续期
+      const newToken = await silentRefresh();
+      if (!newToken) return resp;
+
+      // 重发原请求（替换 token + 重新注入 CSRF）
+      const newInit = { ...init };
+      newInit.headers = { ...(init.headers || {}) };
+      // 替换 Authorization 头中的 Bearer xxx
+      newInit.headers.Authorization = 'Bearer ' + newToken;
+      // 401 续期后 cookie 可能已重新生成，重新读一次
+      const newInitWithCsrf = addCsrfHeader(input, newInit);
+      resp = await originalFetch(input, newInitWithCsrf);
+    }
+    return resp;
+  };
+
+  // ══════════════════════════════════════════════════════════════════
+  // V2.0.25 P2.3：CSRF 防护（Double-Submit Cookie 模式）
+  // - 读 XSRF-TOKEN cookie → 注入到 X-XSRF-TOKEN header
+  // - 状态变更方法（POST/PUT/DELETE/PATCH）才需要
+  // - 与 X-XSRF-TOKEN 头名对应，服务端 CsrfFilter 校验
+  // ══════════════════════════════════════════════════════════════════
+
+  const CSRF_COOKIE_NAME = 'XSRF-TOKEN';
+  const CSRF_HEADER_NAME = 'X-XSRF-TOKEN';
+  const CSRF_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
+
+  /**
+   * 读 cookie 值的通用工具（document.cookie 解析）
+   */
+  function readCookie(name) {
+    const match = document.cookie.match(new RegExp('(^|; )' + name + '=([^;]*)'));
+    return match ? decodeURIComponent(match[2]) : null;
+  }
+
+  /**
+   * 给 fetch init 注入 X-XSRF-TOKEN header（如果方法需要）
+   * @returns 新的 init 对象（不修改原对象）
+   */
+  function addCsrfHeader(input, init) {
+    if (!init) init = {};
+    const method = (init.method || (typeof input === 'object' && input.method) || 'GET').toUpperCase();
+    if (!CSRF_METHODS.includes(method)) {
+      // 幂等方法（GET/HEAD/OPTIONS）不需要 CSRF
+      return init;
+    }
+    // 公开端点不注入（与后端 EXEMPT 列表对齐，避免误导）
+    const url = typeof input === 'string' ? input : (input.url || '');
+    if (isCsrfExemptUrl(url)) {
+      return init;
+    }
+    const csrfToken = readCookie(CSRF_COOKIE_NAME);
+    if (!csrfToken) {
+      // 没 cookie：让后端拒绝（403），前端会在控制台打 warning
+      console.warn('CSRF token cookie 缺失，请先访问任意 GET 接口获取');
+      return init;
+    }
+    // 拷贝 headers（避免污染原对象）
+    const newHeaders = { ...(init.headers || {}) };
+    newHeaders[CSRF_HEADER_NAME] = csrfToken;
+    return { ...init, headers: newHeaders };
+  }
+
+  /**
+   * CSRF 豁免路径判断（与后端 CsrfFilter.EXEMPT_* 对齐）
+   */
+  function isCsrfExemptUrl(url) {
+    if (!url) return false;
+    const EXACT = [
+      '/api/auth/login', '/api/auth/logout', '/api/auth/refresh',
+      '/api/auth/forgot-password', '/api/auth/reset-password',
+      '/api/auth/register', '/api/registrations', '/api/registrations/stats',
+      '/api/feedback', '/api/health', '/api/version', '/api/_diag/version'
+    ];
+    const PREFIXES = ['/api/public/', '/api/invitations/', '/api/sub-product/', '/api/_diag/', '/h2-console/'];
+    for (const e of EXACT) if (url.includes(e)) return true;
+    for (const p of PREFIXES) if (url.includes(p)) return true;
+    return false;
+  }
+
+  // 导出给测试或调试用
+  window.lingyaoCsrfToken = () => readCookie(CSRF_COOKIE_NAME);
 
   // ==========================================
   // 11. 平滑滚动锚点

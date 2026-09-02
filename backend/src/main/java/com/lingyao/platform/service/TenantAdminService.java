@@ -2,6 +2,7 @@ package com.lingyao.platform.service;
 
 import com.lingyao.platform.dto.admin.BindUserToCompanyRequest;
 import com.lingyao.platform.dto.admin.CreateCompanyRequest;
+import com.lingyao.platform.dto.admin.CreateCompanyWithAdminRequest;
 import com.lingyao.platform.dto.admin.CreateUserRequest;
 import com.lingyao.platform.dto.admin.GrantCompanyProductsRequest;
 import com.lingyao.platform.dto.admin.GrantProductRequest;
@@ -13,12 +14,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -43,6 +48,7 @@ public class TenantAdminService {
     @Autowired private ProductUserGrantRepository grantRepo;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private AuditLogService auditLogService;
+    @Autowired private TrialInviteService trialInviteService;
 
     /**
      * 创建公司
@@ -89,6 +95,149 @@ public class TenantAdminService {
         auditLogService.record("COMPANY_CREATE", "COMPANY", String.valueOf(saved.getId()),
                 "创建公司: " + saved.getName() + " (" + saved.getCode() + ")");
         return saved;
+    }
+
+    /**
+     * V2.0.28 方案A：一步创建公司 + 公司管理员（主人 2026-09-02 拍板 A+B）
+     *
+     * admin 为 null 或 username 空 → 行为同旧版 createCompany（PENDING 公司，不建号）。
+     * admin 填写 → 一次事务内：建公司(直接 ACTIVE) + 建管理员(SUPER_ADMIN, ACTIVE) + 绑定 + 随产品授权。
+     * 初始密码留空 → 自动生成 12 位强密码（明文仅在返回值中出现一次）。
+     */
+    @Transactional
+    public Map<String, Object> createCompanyWithAdmin(CreateCompanyWithAdminRequest req) {
+        CreateCompanyRequest companyReq = req.getCompany();
+        if (companyRepo.findByCode(companyReq.getCode()).isPresent()) {
+            throw new IllegalArgumentException("公司 code 已存在: " + companyReq.getCode());
+        }
+
+        // ── 1. 建公司：携带管理员时直接 ACTIVE（开通仪式一步到位） ──
+        CreateCompanyWithAdminRequest.AdminRef adminRef = req.getAdmin();
+        boolean withAdmin = adminRef != null
+                && adminRef.getUsername() != null && !adminRef.getUsername().isBlank();
+        // V2.0.29：试用邀请模式（默认 30 天），主人 2026-09-02 拍板
+        // V2 变更（09:21/09:22）：取消"仅 GEO"限制——按实际勾选开通的产品发对应介绍；
+        //                         邮件内严禁出现 GEOM/MPDM/AIDD/D-Info 等内部代号
+        boolean trialInvite = Boolean.TRUE.equals(req.getTrialInvite()) && withAdmin;
+        int trialDays = (req.getTrialDays() != null && req.getTrialDays() > 0) ? req.getTrialDays() : 30;
+        Company company;
+        if (withAdmin) {
+            // createCompany 固定 PENDING，这里先建再激活，审计两条都留痕
+            // （试用模式不忽略 grantAllProducts：开通哪个产品，邮件就介绍哪个产品）
+            company = createCompany(companyReq);
+            company.setStatus(Company.CompanyStatus.ACTIVE);
+            if (trialInvite) {
+                // 试用模式：TRIAL 许可 + 试用期 = N 天（覆盖默认 1 年）
+                company.setLicensePlan(Company.LicensePlan.TRIAL);
+                company.setLicenseStart(LocalDateTime.now());
+                company.setLicenseEnd(LocalDateTime.now().plusDays(trialDays));
+            }
+            company = companyRepo.save(company);
+            auditLogService.record("COMPANY_ACTIVATE", "COMPANY", String.valueOf(company.getId()),
+                    "组合开通直接激活: " + company.getName()
+                            + (trialInvite ? " (试用 " + trialDays + " 天)" : ""));
+        } else {
+            company = createCompany(companyReq);
+        }
+
+        // ── 2. 无管理员请求 → 返回公司即可 ──
+        if (!withAdmin) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("company", company);
+            return result;
+        }
+
+        // ── 3. 建管理员（SUPER_ADMIN）+ 绑定 + 授权全部已购产品 ──
+        if (userRepo.existsByUsername(adminRef.getUsername())) {
+            throw new IllegalArgumentException("用户名已存在: " + adminRef.getUsername());
+        }
+        String rawPassword = (adminRef.getInitialPassword() != null && !adminRef.getInitialPassword().isBlank())
+                ? adminRef.getInitialPassword() : generateRandomPassword(12);
+
+        SysUser admin = new SysUser();
+        admin.setUsername(adminRef.getUsername());
+        admin.setPasswordHash(passwordEncoder.encode(rawPassword));
+        admin.setDisplayName(adminRef.getDisplayName() != null ? adminRef.getDisplayName() : adminRef.getUsername());
+        admin.setEmail(adminRef.getEmail());
+        admin.setPhone(adminRef.getPhone());
+        admin.setStatus(SysUser.UserStatus.ACTIVE);
+        admin.setIsPlatformAdmin(false);
+        admin.setPasswordChanged(true);
+        admin.setLoginMethods("PASSWORD");
+        SysUser savedAdmin = userRepo.save(admin);
+
+        CompanyUser cu = new CompanyUser();
+        cu.setCompanyId(company.getId());
+        cu.setUserId(savedAdmin.getId());
+        cu.setRole(CompanyUser.CompanyRole.SUPER_ADMIN);
+        cu.setStatus(CompanyUser.Status.ACTIVE);
+        companyUserRepo.save(cu);
+
+        // V2.0.29 试用模式兜底：一个产品都没勾时，默认授权 GEO（保证账号有东西可用、邮件有内容可写）
+        if (trialInvite && companyProductRepo
+                .findByCompanyIdAndStatus(company.getId(), CompanyProduct.Status.ACTIVE).isEmpty()) {
+            Product geo = productRepo.findByCode("GEO")
+                    .orElseThrow(() -> new IllegalStateException("产品 GEO 不存在，请检查种子数据"));
+            CompanyProduct cp = new CompanyProduct();
+            cp.setCompanyId(company.getId());
+            cp.setProductId(geo.getId());
+            cp.setLicenseStart(LocalDateTime.now());
+            cp.setLicenseEnd(LocalDateTime.now().plusDays(trialDays));
+            cp.setMaxUsers(100);
+            cp.setStatus(CompanyProduct.Status.ACTIVE);
+            cp.setGrantedBy(currentUserIdOrNull());
+            companyProductRepo.save(cp);
+            auditLogService.record("COMPANY_GRANT", "COMPANY", String.valueOf(company.getId()),
+                    "试用默认授权 GEO (" + trialDays + " 天)");
+        }
+
+        // 管理员授权公司已开通的产品（若公司勾选了 grantAllProducts 则此处已全部开通）
+        // V2.0.29：CompanyProduct 试用期与公司一致——试用模式下对齐 licenseEnd
+        List<Long> grantedProductIds = new ArrayList<>();
+        List<String> grantedProductCodes = new ArrayList<>();
+        for (CompanyProduct cp : companyProductRepo.findByCompanyIdAndStatus(
+                company.getId(), CompanyProduct.Status.ACTIVE)) {
+            if (trialInvite) {
+                cp.setLicenseStart(company.getLicenseStart());
+                cp.setLicenseEnd(company.getLicenseEnd());
+                companyProductRepo.save(cp);
+            }
+            ProductUserGrant grant = new ProductUserGrant();
+            grant.setCompanyId(company.getId());
+            grant.setProductId(cp.getProductId());
+            grant.setUserId(savedAdmin.getId());
+            grant.setGrantedBy(currentUserIdOrNull());
+            grant.setStatus(ProductUserGrant.Status.ACTIVE);
+            grantRepo.save(grant);
+            grantedProductIds.add(cp.getProductId());
+            productRepo.findById(cp.getProductId()).map(Product::getCode).ifPresent(grantedProductCodes::add);
+        }
+
+        auditLogService.record("USER_CREATE", "USER", String.valueOf(savedAdmin.getId()),
+                "组合开通建管理员: " + savedAdmin.getUsername() + " @ " + company.getName()
+                        + " (SUPER_ADMIN), 授权产品 " + grantedProductIds.size() + " 个");
+
+        // V2.0.29：试用邀请邮件——按实际开通的产品生成介绍，事务提交后异步发送（发信失败不影响开通）
+        if (trialInvite) {
+            final Company fCompany = company;
+            final SysUser fAdmin = savedAdmin;
+            final String fPassword = rawPassword;
+            final List<String> fCodes = grantedProductCodes.isEmpty() ? List.of("GEO") : grantedProductCodes;
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() {
+                    trialInviteService.sendTrialInviteAsync(fCompany, fAdmin, fPassword, trialDays, fCodes);
+                }
+            });
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("company", company);
+        result.put("admin", savedAdmin);
+        result.put("initialPassword", rawPassword);   // 仅此一次返回明文
+        result.put("grantedProductIds", grantedProductIds);
+        result.put("grantedProductCodes", grantedProductCodes);
+        result.put("trialInvite", trialInvite);
+        return result;
     }
 
     /**
@@ -331,17 +480,24 @@ public class TenantAdminService {
 
     /**
      * 为公司开通多个产品（公司级 license）
+     *
+     * V2.0.43 语义修正：改为「全量同步」——弹窗勾选即公司最终产品集合。
+     * 勾选 = 开通/续期（原逻辑）；取消勾选 = 公司 license 置 SUSPENDED + 级联 SUSPEND 该公司用户的用户级授权。
+     * 此前只做追加，取消勾选不生效（主人报：A药企 5 产品减 4 个不生效）。
      */
     @Transactional
     public List<CompanyProduct> grantCompanyProducts(GrantCompanyProductsRequest req) {
         Company company = companyRepo.findById(req.getCompanyId())
                 .orElseThrow(() -> new IllegalArgumentException("公司不存在: " + req.getCompanyId()));
 
-        // 已开通的产品集合
-        Set<Long> existingProductIds = new HashSet<>();
-        for (CompanyProduct cp : companyProductRepo.findByCompanyIdAndStatus(
-                req.getCompanyId(), CompanyProduct.Status.ACTIVE)) {
-            existingProductIds.add(cp.getProductId());
+        Set<Long> requested = new HashSet<>(req.getProductIds());
+
+        // 当前 ACTIVE 的公司产品
+        List<CompanyProduct> activeList = companyProductRepo.findByCompanyIdAndStatus(
+                req.getCompanyId(), CompanyProduct.Status.ACTIVE);
+        Set<Long> existing = new HashSet<>();
+        for (CompanyProduct cp : activeList) {
+            existing.add(cp.getProductId());
         }
 
         int maxUsers = req.getMaxUsers() != null ? req.getMaxUsers() : 100;
@@ -350,11 +506,11 @@ public class TenantAdminService {
 
         List<CompanyProduct> results = new ArrayList<>();
         for (Long productId : req.getProductIds()) {
-            // 已开通 → 更新 license_end
-            // 未开通 → 新建
+            // V2.0.43：先查任意状态的历史记录（含 SUSPENDED/EXPIRED/CANCELLED）——
+            // uk_company_product(company_id, product_id) 唯一约束下不能 INSERT 撞已有行；
+            // ACTIVE → 续期；非 ACTIVE → 复活；无记录 → 新建
             CompanyProduct cp = companyProductRepo
-                    .findByCompanyIdAndProductIdAndStatus(
-                            req.getCompanyId(), productId, CompanyProduct.Status.ACTIVE)
+                    .findByCompanyIdAndProductId(req.getCompanyId(), productId)
                     .orElse(null);
             if (cp == null) {
                 cp = new CompanyProduct();
@@ -369,9 +525,35 @@ public class TenantAdminService {
             results.add(companyProductRepo.save(cp));
         }
 
-        auditLogService.record("COMPANY_GRANT_PRODUCT", "COMPANY", String.valueOf(req.getCompanyId()),
-                "为 " + company.getName() + " 开通 " + req.getProductIds().size() + " 个产品");
+        // V2.0.43：取消勾选的产品 → 公司 license SUSPENDED + 级联挂起用户级授权
+        List<Long> revoked = new ArrayList<>();
+        for (CompanyProduct cp : activeList) {
+            if (requested.contains(cp.getProductId())) continue;
+            cp.setStatus(CompanyProduct.Status.SUSPENDED);
+            companyProductRepo.save(cp);
+            revoked.add(cp.getProductId());
+            suspendUserGrantsForCompanyProduct(req.getCompanyId(), cp.getProductId());
+        }
+
+        String auditMsg = "为 " + company.getName() + " 同步产品：开通 " + req.getProductIds().size()
+                + " 个" + (revoked.isEmpty() ? "" : "，停用 " + revoked.size() + " 个(产品ID:" + revoked + ")");
+        auditLogService.record("COMPANY_GRANT_PRODUCT", "COMPANY", String.valueOf(req.getCompanyId()), auditMsg);
         return results;
+    }
+
+    /**
+     * V2.0.43：公司产品被停用时，级联挂起该公司用户在该产品上的 ACTIVE 授权。
+     * 恢复公司 license（重新勾选）时授权记录仍在——重新授权走既有 grantProductToUser，或恢复时手工处理。
+     */
+    private void suspendUserGrantsForCompanyProduct(Long companyId, Long productId) {
+        for (CompanyUser cu : companyUserRepo.findByCompanyId(companyId)) {
+            for (ProductUserGrant g : grantRepo.findByCompanyIdAndUserIdAndStatus(
+                    companyId, cu.getUserId(), ProductUserGrant.Status.ACTIVE)) {
+                if (!productId.equals(g.getProductId())) continue;
+                g.setStatus(ProductUserGrant.Status.REVOKED);
+                grantRepo.save(g);
+            }
+        }
     }
 
     @Transactional

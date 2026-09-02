@@ -1,7 +1,429 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.44 (2026-09-02 20:35) — 邀请角色真实化 + 同账号追加授权 + 邀请页手机适配/产品摘要
+
+主人指出：邀请弹窗三个角色选项（ADMIN/OPERATOR/VIEWER）"只能选公司超管权限，没有其他两个"——排查确认三选项此前**均无实际差异**（redeem 把公司角色硬编码 OPERATOR，roleCode 只进产品内角色表且主站不消费）。本轮让邀请角色真正生效：
+
+### 1）邀请角色 → 公司级角色映射（InvitationController）
+- `ADMIN（公司超管）→ CompanyRole.SUPER_ADMIN`：JWT `is_tenant_admin=true`，SSO 进子平台自动获超管（契约六A）
+- `OPERATOR → OPERATOR`；`VIEWER → VIEWER`；未知值兜底 OPERATOR
+- 前端下拉标签同步语义化：「ADMIN（公司超管·进子平台自动获管理员）」等
+
+### 2）redeem 双分支：新建 / 追加（同一账号接受多次邀请不再裂号）
+- 用户名已存在 → **必须验密码**（防冒名顶替），通过则把产品授权追加到同一账号（`appended=true`）
+- 公司成员关系幂等：已是成员不重复建；曾被 remove → 重新激活
+- **ADMIN 只升不降**：已是 SUPER_ADMIN 不被 OPERATOR/VIEWER 邀请降级
+- 产品授权幂等：曾有 REVOKED 记录 → 复用复活；产品内角色幂等：已存在则更新 roleCode
+- 整个 redeem 事务化（已有 @Transactional）
+
+### 3）invite.html 手机适配 + 产品特点摘要
+- @media ≤480px：卡片/字号/输入框 16px（防 iOS 聚焦放大）、按钮全宽
+- 校验通过后显示**产品特点卡片**（正式名 + 一句话价值 + 新手第一步，与 TrialInviteService PRODUCT_CATALOG 对外口径一致，不出现内部代号）
+
+### E2E（全绿）
+- ① 首次核销（OPERATOR+GEO）→ 新建账号 appended=false；② 同用户名错密码核销 → 拒绝（防冒名）；③ 二次核销（ADMIN+HPD）→ 追加同账号 appended=true；④ grants：GEO+HPD 双 ACTIVE、membership role=SUPER_ADMIN；⑤ 登录 JWT `is_tenant_admin=true`
+- 测试残留：invtest_dup（uid=1000，A-DEMO SUPER_ADMIN，GEO/HPD）留在 dev H2（重启自清）
+
+版本 2.0.44
+
+## V2.0.43 (2026-09-02 19:15) — 产品调整 Bug 修复（CSRF 403 + 减产品不生效 + 重开 409）
+
+主人报：A 药企（5 产品）在「开通产品」弹窗减掉 4 个 → 报「CSRF token cookie 缺失」。排查挖出 **3 层问题**，一次修完：
+
+### 1）admin.html api() 缺 CSRF 凭证（主人看到的报错根因）
+- V2.0.32 修 API_BASE 跨站问题时漏了 admin.html：fetch 无 `credentials:'include'`（8765→9091 跨源不携带/不落盘 XSRF-TOKEN cookie）也没带 `X-XSRF-TOKEN` header → CsrfFilter Double-Submit 校验 403
+- 修复：api() 统一补 `credentials:'include'` + 非 GET 自动读 cookie 加 `X-XSRF-TOKEN` 头（与 portal.html V2.0.42 写法对齐）
+- **同类隐患顺手修**：company-admin.html 的 api() 有 credentials 但同样缺 X-XSRF-TOKEN 头（公司超管的授权/撤销/改角色等写操作会 403）→ 一并补齐
+- 全站排查结论：aidd/geo/hpd/por 仅 GET `/api/sub/*/info`（CSRF 不校验安全方法）；invite 的 POST `/api/invitations/redeem` 在豁免前缀内——均不受影响
+
+### 2）减产品不生效（隐藏语义缺陷）
+- 原 `grantCompanyProducts` 只做追加/续期：勾选=开通，**取消勾选=无操作**。即使没有 CSRF 报错，减 4 个产品也不会生效
+- 修复（全量同步语义）：弹窗勾选集合 = 公司最终产品集合
+  - 勾选 → 开通/续期（原逻辑）
+  - 取消勾选 → 公司 license 置 **SUSPENDED**（保留记录可审计可恢复）+ **级联 REVOKED** 该公司用户在该产品上的 ACTIVE 用户级授权
+  - 审计消息区分「开通 N 个，停用 M 个(产品ID:...)」
+
+### 3）重开已停用产品 409（E2E 抓出的连环 bug）
+- `uk_company_product(company_id, product_id)` 唯一约束：SUSPENDED 旧记录仍在，重开时原代码只查 ACTIVE 状态查不到 → 走 INSERT → 撞唯一约束 → 409「数据冲突，可能已存在」
+- 修复：改为 `findByCompanyIdAndProductId` 查任意状态——ACTIVE→续期 / 非 ACTIVE→**复活置回 ACTIVE** / 无记录→新建
+
+### E2E（curl 模拟浏览器 CSRF 全凭证 · 全绿）
+①全开5 → ②减到1（GEO，级联 REVOKED 用户授权 ×8）→ ③重开5（复活路径，上次 409 场景）→ ④再减到2 → ⑤恢复5，全流程 code=0；⑥无 header POST 仍 403（CSRF 防护未破）
+
+### ⚠️ 遗留语义点（待主人拍板）
+- 公司产品停用会级联 REVOKED 用户级授权；但**重开公司产品不会自动恢复**用户授权（记录还在，REVOKED→需公司超管在子平台内重新授权，符合 V2.0.38 审批下放精神；如需自动恢复再说）
+
+### 4）invite.html API_BASE 错位（19:30 主人报「邀请链接打开报无效」· 同属跨站修复漏网）
+- 现象：邀请链接（8765 形态）打开后报「邀请链接无效 · `<!DOCTYPE` is not valid JSON」
+- 根因：invite.html `API_BASE = window.location.origin`——页面在 8765 静态服务上打开，API 全打到 8765（无 /api 路由 → 404 HTML 被 r.json() 炸）。这是 V2.0.32 跨站修复的第 5 处漏网（portal/admin/company-admin 已修，invite 一直漏）
+- 修复：API_BASE 与 portal 对齐（localhost/127.0.0.1 → `:9091`；生产空串走 Nginx 反代）
+- 全链路浏览器验证：创建邀请 → 打开链接 → 校验页渲染 → 注册开通 → 新账号可登录，全绿
+- 配套：start_frontend_daemon.py 加 NoCacheHandler，HTML 一律 `Cache-Control: no-cache`（根治浏览器缓存旧 JS 反复报旧错）
+
+版本 2.0.43
+
+## V2.0.42 (2026-09-02 18:10) — 2FA 全链路集成（登录 challenge + 前端 2FA UI）
+
+登录流程强制第二步 + portal 前端完整 2FA 管理界面：
+
+### 后端：登录 challenge（AuthService）
+- `LoginRequest` 新增 `totpCode`；`LoginResponse` 新增 `mfaRequired`/`mfaReason`
+- 已启用 2FA 的用户登录：密码对但码缺失 → HTTP 200 + `mfaRequired=true` + `mfaReason=MFA_REQUIRED`；码错误 → `MFA_INVALID`；**不返回 token**
+- **不暴露「是否启用 2FA」**：未认证方看到的响应结构一致（`mfaRequired=false` 仅在挑战通过时随正常登录体出现）
+- 2FA challenge 失败**不计入 Bug-09 五次锁定**（防锁死），但记 LOGIN_FAIL 安全审计
+
+### 前端：portal.html 2FA 全流程 UI
+- 登录 challenge 处理：收到 `mfaRequired` → 弹验证码输入 → 带 `totpCode` 重试登录（TOTP 6 位或备份码 XXXX-XXXX 均可）
+- 顶栏新增「🔐 两步验证」按钮（所有登录用户可见）→ `open2FaModal()` 完整弹窗：
+  - 绑定：`/setup` 取 secret + otpauthUrl → qrcodejs CDN 渲染 QR + 手动 secret 备用
+  - 验证启用：`/verify-setup` → 展示 8 个备份码（明文仅此一次，提示保存）
+  - 解绑：`/disable` 密码二次确认
+- 印章 `V2.0.42 · 2FA 全链路集成`
+
+### E2E（9 步全绿）
+1. 未开 2FA 正常登录 ✅ 2. 绑定（setup+verify-setup，8 备份码）✅ 3. 无码登录 → MFA_REQUIRED ✅ 4. 错码 → MFA_INVALID ✅ 5. 正确 TOTP 登录 ✅ 6. 备份码登录（一次性）✅ 6b. 已用备份码重放 → MFA_INVALID ✅ 7. 同 TOTP 重放拦截（防 30s 重放）+ disable ✅ 8. 解绑后回归无挑战 ✅
+- 注：步骤 5 首轮 FAIL 为同 30s 窗口复用 verify-setup 验证码被服务端重放防护拦截——即防重放逻辑的正向证据
+
+### 已知缺口（V2.0.43+ 待办）
+- **恢复码逃生通道**：用户丢失 secret + 全部备份码即永久锁死（dev 可重启清 H2，prod 需平台超管代解绑或服务端恢复流程）
+- dev H2 重启清零后 2FA 记录随之清零（无状态残留问题，prod PG 无此便利）
+
+版本 2.0.42
+
+## V2.0.41 (2026-09-02 17:13) — P1/P2 开发计划四项落地（login-link / 服务间通知 / 2FA TOTP / 审计归档）
+
+主人 16:53 拍板「除 P0 推送外其他都做」，四项一次交付：
+
+### P1-A：SSO 登录链接生成接口（第七节第 4 条闭环）
+- **`POST /api/company-admin/sso-config/{provider}/login-link`**（SsoConfigController）：生成员工 SSO 登录入口（复用既有 OAuth 发起端点 `/api/sso/{provider}/login?company_code=X&sub_product=Y`）
+- 校验链：公司超管守卫 → 配置存在且 enabled → sub_product 缺省取本公司第一个 ACTIVE License 产品（或显式指定）
+- 前端 SSO 配置卡「生成登录链接」按钮即插即用（此前该按钮调用必 404）
+
+### P1-B：服务间通知接口（子平台复用主站 SMTP）
+- **`POST /api/internal/notify/email`**（InternalNotifyController 新文件）：子平台服务端经主站 SMTP 发审批/安全通知
+- 鉴权与 grants/sync 一致：service JWT（audience=lingyao-service，用户 token 冒充被拦）
+- **收件人白名单**：仅允许主站激活 EMAIL 通道的超管邮箱，防被当开放 relay 滥发
+- PushService 新增 `sendGenericHtmlMail`/`firstActiveEmailRecipient` 公开方法
+- E2E：service token 真发成功（188407408@qq.com 收到）；任意收件人 403 ✅
+
+### P2-A：2FA TOTP 真实现（替代 V2.0.26 skeleton）
+- TwoFactorService 全量实现：RFC 6238 HMAC-SHA1 自实现（零新依赖）
+  - `setup`：20B secret → Base32 + otpauth URI（明文仅此一次回显，AES-256-GCM 入库复用 SsoSecretCipher）
+  - `verify-setup`：首验通过 → enabled + 8 个一次性 backup codes（SHA-256 存储，明文仅此一次）
+  - `verify-login`：±1 窗口容错 + lastUsed 防 30s 重放；备份码命中即作废
+  - `disable`/`backup-codes`：密码二次确认
+- TwoFactorController 5 个 501 端点全部激活
+- **修复 1 个时区 bug**：lastUsedAt 换算 epoch 误用 ZoneOffset.UTC（GMT+8 下偏差 960 窗口导致重放防护误杀），改系统时区
+- E2E 7 步全绿：绑定/验码/错误码 401/同窗口重放 401/下窗口 200/无效备份码 401/关闭
+- 注：登录流程 challenge（mfa_required 强制第二步）暂未启用，随前端 2FA UI 一起上（V2.0.43+）
+
+### P2-B：审计归档 job + 安全告警
+- **AuditArchiveScheduler**（新文件，@EnableScheduling 复用 V2.0.10）：
+  - 每日 02:30：`company_audit_log` 90 天前记录 → `company_audit_log_archive` 归档表（新实体）+ 原表删除，500 条/批
+  - 每日 02:35：`auth_audit_event` 90 天前安全事件清理（V2.0.26 设计保留期）
+  - 每 10 分钟安全扫描 → 邮件告警：TOKEN_REFRESH_REPLAY ≥1 / LOGIN_FAIL ≥5 / LOGIN_LOCKED ≥1
+  - 保留期可配 `lingyao.audit.archive-days`（默认 90）
+
+### 配套
+- AuthAuditEventRepository：归档/清理/告警 3 组查询方法；CompanyAuditLogRepository：归档 2 方法
+- 版本 2.0.41 · E2E：login-link 4 例 / notify 3 例 / 2FA 7 步 / scheduler 注册无报错
+
+## V2.0.40 (2026-09-02 16:16) — 工作台「复制入口链接」按钮（D4=B · 主站分工 #1）
+
+主/子平台分工明确版落地（主人 16:16 拍板）。主站 3 件事中 #2（generate-link V2.0.31）、#3（grants/sync V2.0.39）已就绪，本次完成 #1；GEOM 9 件事归 GEOM 窗口。
+
+### 变更
+- **portal.html 产品列表**：「📋 复制链接」（365 天 token 专属链接）→「🔗 复制入口链接」（纯前端，D4=B）
+  - 复制子平台站点根（origin），如 `http://localhost:5180/`——**不带 token**
+  - 理由：V2.0.38 审批下放后，员工入口须走「子平台登录页 → 公司 SSO/主站账密 → pending 拦截 → 子平台内审批 → grants/sync 写回」；365 天 token 链接会绕过审批拦截，故弃用
+  - 数据源：`/api/sub/list` 已有 `baseUrl`，前端 `new URL().origin` 提取站点根，零后端改动
+  - scope：`canManage`（公司超管/平台超管），按钮仅对已开通且 READY 的产品显示
+- 旧 generate-link 接口保留（后端不删，将来如需专属链接场景可用），前端不再调用
+
+### 验证
+- node --check 内联 JS 全过；generate-link 前端引用清零
+- 双端口 8765/9091 印章一致 V2.0.40；5 产品 origin 提取 E2E 全对（GEO 5180 / HPD 3100 / AIDD 13000 / DINFO 5181 / PORM 8280）
+
+## V2.0.39 (2026-09-02 15:10) — 服务间授权同步接口（审批下放子平台的配套契约 · 方案 A 主站侧落地）
+
+承接 V2.0.38：审批全面归子平台后，员工在子平台获批"产品开通"，主站 `product_user_grant` 需同步激活，否则主站 /enter 仍 403。按上轮推荐方案 A 落地主站侧。
+
+### 新增
+- **`POST /api/internal/grants/sync`** — 子平台审批通过 → 主站激活授权（`InternalGrantsController` 新文件）
+- **`POST /api/internal/grants/revoke`** — 子平台撤销 → 主站同步撤销
+- **`JwtUtil.generateServiceToken/parseServiceToken`** — 服务间 JWT（audience=lingyao-service，5 分钟，svc 标识调用方）；子平台用共享 LINGYAO_JWT_SECRET 签发，无需新发密钥
+- **`docs/grants_sync_client.py`** — 子平台参考实现（Python，可直接抄；含 secret 加载/env/主站地址参数）
+
+### 安全链
+- CsrfFilter 豁免前缀加 `/api/internal/`（服务间调用无浏览器 cookie）
+- SecurityConfig permitAll 加 `/api/internal/**`（接口内自验 service token，不进用户 JWT 体系）
+- 防冒充：用户 access_token audience=lingyao-sso ≠ lingyao-service → 401 拦截（E2E 验证）
+
+### 复用与幂等
+- 授权写回复用 `CompanyAdminService.grantProductToUser/revokeProductFromUser`：license 校验 + maxUsers 上限 + 幂等 + 审计全继承
+- 重复 sync → ALREADY_ACTIVE · 重复 revoke → IDEMPOTENT_OK · 撤销后 sync → 复活 ACTIVE
+
+### E2E（9 步全绿）
+sync 激活 ✅ → 重复 sync duplicate ✅ → 无 token 401 ✅ → 用户 token 冒充 401 ✅ → revoke ✅ → 重复 revoke 幂等 ✅ → 复活 ✅ → E2E 数据回滚 ✅ → 主站 /enter 回归 DIRECT_REDIRECT ✅
+
+### 变更文件
+`InternalGrantsController.java`(新)、`JwtUtil.java`、`CsrfFilter.java`、`SecurityConfig.java`、`application.yml`(2.0.39)、`docs/grants_sync_client.py`(新)、方案文档第七节第 6 条改写
+
+### 待移交子平台
+GEOM 窗口：sso-callback 补读 `is_tenant_admin`（六A）+ 审批通过后调 grants/sync（参考脚本）。其余平台同契约。
+
+## V2.0.38 (2026-09-02 14:50) — 审批全面下放子平台 + 公司超管自动获得子平台超管权限契约
+
+主人 14:44 终版拍板：**"我还是坚持把各个平台的审批放到各个平台自己管理，责任更清晰，避免将来多产品引发公司超管的操作混乱"** + 补充指令 **"确保公司超管自动获得各平台超管权限"**。
+
+### 主站前端下线（portal.html）
+- 删第 4 Tab「开通审批」及整个审批面板 → 3 Tab：用户管理 / 产品授权 / SSO 配置
+- 删 KPI「待审批」卡片（4 卡变 3 卡）
+- 删产品列表「申请开通」按钮及 my-approvals「⏳审批中」回显 → 未开通显示「请联系公司超管开通」
+- enter 403 弹窗删「向公司超管申请开通」按钮 → 改引导文案
+
+### 主站后端降级（SubTaskController）
+- `POST /api/sub/{code}/apply` → 返回 410「申请入口已迁移：请在对应子平台内提交开通申请」（保留路由防旧调用 404）
+- `GET /api/sub/my-approvals` → 返回空列表（防旧缓存页面报错）
+- pending/approve/reject 路由 + autoGrantOnApprove 保留（历史数据审计兼容），前端无入口
+
+### 公司超管 → 子平台超管权限（契约，文档六A）
+- 主站 JWT `is_tenant_admin` claim 已具备（平台超管 || CompanyUser.SUPER_ADMIN → true）
+- 子平台规范：sso-callback 读 claim，true → 自动提升本地最高角色；主站降权 → 以 claim 为准降权 + 审计
+- **GEOM 现状未达标**：lingyao_sso.py 未读该 claim（role 纯本地），移交 GEOM 窗口补齐（约 15 行）
+
+### 移交契约（文档第七节 5~7 条）
+- 子平台内审批闭环（开通申请 + 功能权限申请全在子平台）
+- grant 写回契约两方案待主人拍板：A=服务端 `/api/internal/grants/sync`（推荐）/ B=超管主站手工授权无申请流
+
+### E2E
+版本 2.0.38 双端口一致 ✅ · approvals Tab 出现次数=0 ✅ · apply→410 ✅ · my-approvals→[] ✅
+
+### 变更文件
+`website/portal.html` + static 副本、`SubTaskController.java`、`application.yml`、`docs/sso-dual-track-方案-V2.0.36.md`、`CHANGELOG.md`
+
+## V2.0.37 (2026-09-02 13:50) — 工作台 Tab 体验修复 + 「集中审批」更名「开通审批」
+
+主人 13:43 截图反馈 2 点：
+
+### 修复
+- **Tab 默认全收起**：登录进首页后 4 个 Tab 都未打开，用户不知道可点击 → `loadWorkspace()` 超管分支末尾默认 `switchWsTab('users')`，直接展开「用户管理」表格
+- **「集中审批」更名「开通审批」**：主人质疑该 Tab 定位（讨论见下），先正名——它只管"员工申请产品 License"这一件事（scope=产品级），改名消除"所有审批都往主站收"的误导
+
+### 审批边界方案（讨论结论，待主人最终拍板后由各子平台窗口落地）
+| 审批类型 | 审批位置 | 说明 |
+|---|---|---|
+| 产品开通/关闭（License 级） | 主站「开通审批」Tab | 现有闭环保持（apply → approve → autoGrantOnApprove） |
+| 功能权限/角色申请 | **子平台内部** | 各子平台自建申请+审批 UI，主站只提供 SSO 身份，不碰权限 schema |
+| 将来新审批类型 | 默认放子平台 | 主站不扩权 |
+
+### 变更文件
+- `website/portal.html` + `backend/src/main/resources/static/portal.html`（仅前端，无后端代码变更）
+
+## V2.0.36 (2026-09-02 13:35) — 首页工作台改版 + SSO 双轨申请审批闭环
+
+主人 13:02 拍板 4 点需求：① 登录后首页直接透出公司超管功能（KPI + 产品列表 + 4 Tab），不再藏按钮；② 产品改列表；③「管理后台」仅平台超管可见；④ SSO 双轨——员工走公司 SSO、无权限向超管申请，超管用账密登录子平台处理审批（避免分不清谁是超管 + 保留各子产品权限特殊性调整空间）。
+
+### 首页工作台（portal.html 重构）
+- **KPI 行**（超管可见）：公司成员 / License 剩余（<90d 黄、<30d 红）/ 已开通产品 / 待审批（红色角标+点击直达）
+- **产品列表**（行式，替代卡片网格）：已授权 → [进入][📋复制链接]；已申请 → 「⏳审批中」；未授权 → [申请开通]
+- **4 Tab**：用户管理 / 产品授权 / SSO 配置（4 Provider 卡片 + 配置弹窗，Secret 留空不覆盖）/ 集中审批（通过=自动授权）
+- 删「🏢 公司管理」按钮；「⚙ 管理后台」仅 isPlatformAdmin 可见
+- 普通员工视角：仅产品列表 + 申请按钮，无管理区
+
+### 后端申请-审批-自动授权闭环
+- 新增 `POST /api/sub/{code}/apply`：员工申请产品权限（校验公司 license → 幂等防重 → PRODUCT_GRANT 审批单）
+- 新增 `GET /api/sub/my-approvals`：我的申请状态
+- `POST /api/sub/{id}/approve` 挂钩 `autoGrantOnApprove()`：**通过后自动写 product_user_grant(ACTIVE)**（REVOKED 复活/新建幂等）
+- 无权限弹窗加「向公司超管申请开通」按钮（enter 403 → 一键申请）
+- SubTaskApprovalRepository 补 2 查询；CompanyProductRepository 注入 SubTaskController
+
+### E2E（7 步全绿）
+员工 a_user1 enter AIDD 403 → apply 提交 → 重复申请幂等 duplicate=true → my-approvals PENDING → admin pending 列表可见 → approve APPROVED → 员工再 enter **DIRECT_REDIRECT**（AIDD 13000）✅；EMAIL 通道重建 id=1000 ✅
+
+### SSO 双轨方案
+`/tmp/MainSite_sso-dual-track_方案.md`：主站侧已落地；子平台侧移交项（登录页账密常驻 + NO_ACCESS 重定向主站申请流 + 读 is_tenant_admin claim 授产品内管理员角色）
+
+## V2.0.35 (2026-09-02 12:55) — 修复「公司管理」入口不显示（SSO 配置入口丢失）
+
+主人 12:44 报告：看不到 SSO 配置入口。排查发现 V2.0.34 已把 SSO 配置界面做进 company-admin.html（4 Provider 卡片 + 配置弹窗），但**入口按钮「🏢 公司管理」从不显示**。
+
+### 根因：前后端字段名错位
+- 后端 `LoginResponse.UserView` 序列化字段名是 **`tenantAdmin`**（登录响应 + `/api/auth/me` 一致）
+- portal.html 登录适配代码读的是 **`u.isTenantAdmin`**（不存在的字段）→ `isTenantAdmin` 恒 false → 「公司管理」按钮 `display:none` 恒成立
+- 平台超管的 `platformAdmin` 字段名恰好一致，所以「⚙ 管理后台」正常显示——问题被掩盖至今
+
+### 修复
+- portal.html：`isTenantAdmin: !!(u.tenantAdmin || u.isTenantAdmin)`（兼容两种字段名）
+- portal.html init() 加**会话自愈**：老会话（修复前登录、localStorage 存旧 user）静默调 `/api/auth/me` 重刷身份标记，按钮即刻恢复，无需重新登录
+- 页面版本标记 → `V2.0.35 · 公司管理入口修复`
+
+### E2E 验证（curl）
+- 登录返回 `platformAdmin: true, tenantAdmin: true` ✅
+- `/api/company-admin/me` 平台超管可访问，scope 到 A 药企（id=1，5 产品授权）✅
+- `/api/company-admin/sso-config` 返回空列表（待配置）✅
+- 8765 前端已提供新版 portal.html ✅
+
+### 入口路径（回复主人）
+登录后右上角「🏢 公司管理」→「SSO 单点登录」Tab → 飞书/企微/钉钉/OIDC 4 卡片配置（App ID/Secret/BaseURL/启用）。平台超管自动 scope 到其第一个 SUPER_ADMIN 公司。
+
+## V2.0.33 (2026-09-02 12:28) — 复制链接自愈重试（Safari 兼容加固）
+
+主人 12:24 报告：Chrome 复制链接已正常，Safari 仍报「CSRF token cookie 缺失」。服务端配置已被 Chrome 证明正确，Safari 最大嫌疑是**缓存旧版 portal.html**（旧 JS 指向 127.0.0.1:9091，永远拿不到 localhost 域 cookie；Python 静态服务器无 no-cache 头，Safari 缓存黏性强）。
+
+### 加固
+- portal.html「复制链接」加**自愈重试**：POST 遇 403 → 自动 GET `/api/auth/me` 补种 XSRF-TOKEN cookie → 重试一次（不依赖缓存状态，任何浏览器都能自愈）
+- 页面加版本标记 `V2.0.33`（console 可见），便于确认加载的是新版
+
+### 验证（模拟 Safari 无 cookie 场景）
+- 无 cookie 直接 POST → 403 ✅ → GET 补种 → 重试 POST → code=0 TTL 365 天 ✅
+- EMAIL 通道重建 id=1000 ✅
+
+## V2.0.32 (2026-09-02 12:10) — 修复「CSRF token cookie 缺失」：API_BASE host 不匹配
+
+主人 12:08 报告：portal「复制链接」仍报错，这次能看到真实错误「CSRF token cookie 缺失」（V2.0.31 的 CORS 修复生效，错误不再被吞）。
+
+### 根因：localhost ≠ 127.0.0.1（跨站）
+- 页面在 `http://localhost:8765`，`API_BASE` 硬编码 `http://127.0.0.1:9091`
+- 二者是**不同 host** → 跨站请求：`XSRF-TOKEN` cookie（SameSite=Lax）既不落盘到 localhost 域、也不随请求携带；`document.cookie` 也读不到 → CSRF header 缺失 → CsrfFilter 403
+
+### 修复
+- `portal.html` / `admin.html` / `js/script.js` 三处 `API_BASE` 统一改为 `location.protocol + '//' + location.hostname + ':9091'`（与页面同 host，same-site cookie 机制恢复；生产仍走相对路径 Nginx 反代）
+- `portal.html` 全部 6 个 fetch 补 `credentials: 'include'`
+
+### 验证
+- localhost 域完整链路：拿 XSRF cookie → 登录 → 生成链接 code=0（TTL 365 天）✅
+- EMAIL 报名通道已重建（H2 重启清零）id=1000 ✅
+
+## V2.0.31 (2026-09-02 11:58) — 复制链接改长期有效 + 修复 Load failed（CORS/CSRF）
+
+主人 11:44 报告两个问题：① portal 工作台「复制链接」生成的是 5 分钟短时链接，但该链接是公司超管分享给全员日常使用的长期入口，不应过期；② 点击确定后报「请求失败：Load failed」。
+
+### 1. 专属链接改长期（TTL 参数化）
+- `JwtUtil`：`SHORT_LINK_TTL_SECONDS=300`（硬编码）→ `@Value("${lingyao.security.sub-link-ttl-seconds:31536000}")`，默认 365 天
+- 历史设计（V2.0.19 的 5 分钟一次性窗口）不匹配实际场景：链接分享到公司群后是全员长期入口；泄露风险由主站授权下线兜底
+- `SubProductLinkController` + `portal.html` 全部「5 分钟」文案改为长期有效提示
+
+### 2. 修复 Load failed（三层叠加根因）
+- 根因链：portal.html 的 POST fetch 未带 cookie + 未注入 X-XSRF-TOKEN header → CsrfFilter 拦 403 → 但 CsrfFilter 是 @Component 全局过滤器（order HIGHEST+15），先于 Security 链内 CorsFilter 执行 → 403 响应无 Access-Control-Allow-Origin → 浏览器拦截响应，JS 只能看到 "Load failed"
+- 修复① `WebConfig`：CORS 白名单迁移到 `corsConfigurationSource()` Bean + 注册全局 `CorsFilter`（order HIGHEST+5，先于所有安全过滤器），错误响应也带 CORS 头
+- 修复② `portal.html`：generate-link fetch 补 `credentials: 'include'` + 读 XSRF-TOKEN cookie 注入 `X-XSRF-TOKEN` header
+- `SecurityConfig`：`http.cors()` 显式挂接 corsConfigurationSource
+
+### E2E 验证（3/3 通过）
+1. 生成长期链接：TTL 365 天，过期 2027-09-02 ✅
+2. 无 CSRF 头跨域 POST：403 响应带 `Access-Control-Allow-Origin`（前端可见真实错误）✅
+3. 链接验签：verify-link 通过，company/product/role 完整 ✅
+
+## V2.0.30 (2026-09-02 10:05) — 报名 30 天重复检测关闭（测试期）
+
+主人指令：暂时取消报名后 30 天内不能重复报名的检测（测试需要）。实现为配置开关 `app.registration.duplicate-check-enabled`（当前 false），恢复改 true 重启即可。E2E：同手机号/邮箱连报 3 次全部成功。
+
+## V2.0.29 (2026-09-02 09:55) — 试用邀请邮件（开通哪个产品就介绍哪个）
+
+主人 09:02 拍板试用邀请邮件功能，09:21/09:22 两次需求变更：① 按实际开通产品动态生成介绍（核心 4+1 产品）；② 邮件严禁出现 GEOM/MPDM/AIDD/D-Info/PORM 内部代号，用对外正式名 + ≤2 句话介绍，排版朴素（不放产品链接，将来再内置）。
+
+### 后端
+- 新增 `TrialInviteService`：试用邀请邮件服务
+  - 产品目录 `PRODUCT_CATALOG`：code → [对外正式名, ≤2 句介绍, 新手首步指引]，未来加产品只需加一行
+    - GEO→智能 GEO 监测平台 / HPD→智能医院潜力预测平台 / AIDD→AI 立项智能辅助平台 / DINFO→智能信息填报系统 / PORM→智能协作平台
+  - 邮件结构：您好+账号已开通 → 产品介绍（开通哪个写哪个）→ 登录网址/用户名/初始密码/试用期表格 → 安全提示 → 新手指引 3 步 → 登录按钮
+  - 单产品写该产品专属首步指引；多产品写"工作台点产品卡片"；未收录产品用通用描述兜底（不出现代号）
+  - `@Async` 发送，失败仅记 ERROR 不回滚开通事务；无邮箱跳过
+- `CreateCompanyWithAdminRequest` 加 `trialInvite` + `trialDays`（默认 30）
+- `TenantAdminService.createCompanyWithAdmin`：trialInvite=true 时 licensePlan=TRIAL + licenseEnd=now+N 天，响应带 trialInvite 标记；`TransactionSynchronization.afterCommit` 事务提交后才发信
+- 前端（admin.html 公司弹窗）：「📧 发送试用邀请邮件（按开通产品 · 默认 30 天）」开关 + 试用天数显隐 + 成功面板提示邮件已发送
+
+### 基础设施修复（本次会话附带）
+- **58811 随机端口之谜**：sandbox 注入的 `SERVER_PORT` 环境变量被 Spring relaxed binding 采纳覆盖 yml 的 9091 → daemon 脚本加 `--server.port=9091` 命令行兜底（最高优先级）
+- **daemon 脚本参数化**（`scripts/start_backend_daemon.py`）：`LINGYAO_PROFILE=dev` 走 jar 内 dev 段（H2 内存），默认 private 不变；日志按 profile 分文件
+- static 源码目录 admin.html 同步机制恢复（此前只改 website/ 导致 jar 内旧版）
+
+### E2E（4/4 通过）
+1. 组合开通+试用邀请（TRIAL/到期 2026-10-02/密码一次性返回/trialInvite=true）✅
+2. 邮件真实发出：`✅ 试用邀请邮件发送成功：to=188407408@qq.com, products=[GEO,HPD,AIDD,DINFO,PORM]` ✅
+3. 新管理员登录（tenantAdmin=true + 公司绑定 + 产品列表可见）✅
+4. EMAIL 报名通道 H2 重启后重建（id=1000 ACTIVE）✅
+
+## V2.0.28 (2026-09-02 09:10) — 方案 A+B：新建公司内联建管理员 + 报名一键转开通
+
+主人 08:55 拍板 A+B，用户旅程第 3 步（开通）闭环。
+
+### 方案 A：新建公司 + 管理员一步开通
+- 后端：`POST /api/admin/companies/with-admin`（AdminController）
+  - DTO：`CreateCompanyWithAdminRequest`（company 必填 + admin 可选）
+  - Service：`TenantAdminService.createCompanyWithAdmin`（单事务：公司 ACTIVE + 管理员 SUPER_ADMIN/ACTIVE + CompanyUser 绑定 + 全部已购产品 ProductUserGrant 授权）
+  - 初始密码留空 → 服务端 `generateRandomPassword(12)` 自动生成；明文仅在响应中出现一次
+  - admin=null 时行为同旧 `POST /companies`（仅建 PENDING 公司，完全兼容）
+  - 审计：COMPANY_CREATE + COMPANY_ACTIVATE + USER_CREATE 三条留痕
+- 前端（admin.html 新建公司弹窗）：
+  - 「同时创建公司管理员（推荐）」开关（默认勾选，可关）
+  - 管理员字段：用户名*/显示名/邮箱/初始密码（留空自动生成）
+  - 成功后弹窗切换为「✓ 公司开通成功」面板：用户名 + 初始密码（仅显示一次）+ 公司信息
+
+### 方案 B：报名一键转开通
+- Registration.Status 枚举加 `CONVERTED`（终态）
+- 后端：`PUT /api/admin/registrations/{id}/convert`（PENDING/CONTACTED/QUALIFIED → CONVERTED；终态拦截）
+- 前端（admin.html 报名管理 Tab）：
+  - PENDING/CONTACTED/QUALIFIED 行显示「转开通」按钮（替代原 QUALIFIED 的"转化"按钮语义）
+  - 点击 → 打开新建公司弹窗并预填：公司名/code（自动生成大写码）/管理员用户名建议/报名邮箱/显示名 + 默认勾选全部产品
+  - 组合创建成功后自动调 convert 端点关单，刷新列表 + KPI
+  - 状态标签加「✓ 已开通」（CONVERTED）+ 筛选下拉加选项
+
+### E2E（9/9 通过）
+1. 超管登录 ✅ 2. 新报名入库 ✅ 3. 组合开通（ACTIVE+12位密码+5产品授权）✅ 4. 管理员登录（非平台超管）✅ 5. 报名转 CONVERTED ✅ 6. 终态重复转化拦截 ✅ 7. 自设密码开通 ✅ 8. 无管理员旧行为 PENDING ✅ 9. code 重复拦截 ✅
+
+### 文件
+- 新增：dto/admin/CreateCompanyWithAdminRequest.java
+- 修改：TenantAdminService / AdminController / Registration(Status+CONVERTED) / RegistrationService(convertToClosed) / application.yml(2.0.28)
+- 前端：website/admin.html（弹窗+提交+报名Tab）→ 已同步 backend/.../static/
+
+
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
+
+## V2.0.27 (2026-09-02 08:50) — 用户旅程 Bug 修复：报名去重规则说明 + 超管报名管理 + 邮件推送
+
+主人 08:21 用户旅程联调（企业用户视角）发现 3 个问题，本版全部修复。
+
+### Bug-20：`GET /api/registrations/stats` 500
+- 根因：`countByStatus(String)` 传 String 给枚举参数 → InvalidDataAccessApiUsageException
+- 修复：Repository 方法签名改 `Registration.Status` 枚举；Service 层 `Status.valueOf()` 转换（stats + list 过滤两处）
+- 文件：RegistrationRepository.java / RegistrationService.java
+
+### Bug-22：超管后台看不到报名信息
+- 根因：admin.html 只有 公司/用户/授权/邀请 4 个 tab，报名数据无 UI 入口（数据一直都在 DB 里，`GET /api/registrations` 正常返回）
+- 修复（admin.html）：
+  - 新增「报名管理」Tab：9 列表格（ID/姓名/公司/手机/邮箱/意向产品/状态/提交时间/操作）
+  - 状态筛选下拉（全部/待处理/已联系/已转化/已关闭）
+  - 操作按钮：标记联系(CONTACTED) / 转化(QUALIFIED) / 关闭(CLOSED)，走 `PUT /api/registrations/{id}/status`
+  - KPI 新增「待处理报名」卡片（PENDING 计数）
+  - 进入 Tab 自动刷新 + 筛选联动
+- 同步：website/admin.html → backend/src/main/resources/static/admin.html
+
+### Bug-21：报名推送只支持企微、超管收不到邮件
+- 根因：PushService 只扫 WECHAT_WORK 通道；NotificationChannel 枚举无 EMAIL；项目无邮件发送能力
+- 修复：
+  - NotificationChannel.ChannelType 加 `EMAIL`（webhook_url 字段复用为收件邮箱）
+  - pom.xml 加 `spring-boot-starter-mail`（jakarta.mail）
+  - 新增 `NotifyEmailProperties`（lingyao.notify.email.*，enabled=false 时 dev 模式只记日志不发真邮件）
+  - PushService 重构：同时扫 WECHAT_WORK / FEISHU / EMAIL 三类通道；EMAIL 走 JavaMailSender 发 HTML 邮件
+  - application.yml 加 SMTP 配置段（LINGYAO_SMTP_HOST/PORT/USER/PASS/FROM 环境变量可覆盖）
+
+### 重复报名规则（主人 08:34 问询确认，未改动）
+- 同一手机号 30 天内只能提交 1 次（`existsByPhoneAndCreatedAtAfter`）
+- 同一邮箱 30 天内只能提交 1 次（`existsByEmailAndCreatedAtAfter`）
+- 命中任一规则返回 fail：`该手机号 30 天内已提交过报名，请勿重复提交`
+- 状态流转白名单：PENDING→CONTACTED/QUALIFIED/CLOSED；CONTACTED→QUALIFIED/CLOSED；QUALIFIED→CLOSED
+
+### 推送验证（dev）
+- EMAIL 通道已建：`超管邮箱（报名推送）` → 188407408@qq.com · ACTIVE
+- 报名触发推送链路日志确认：`📧 [DEV 模式] 邮件未真实发送（enabled=false）。收件: 188407408@qq.com, 主题: 【凌瑶智数】新报名：赵六 / ...`
+- 生产启用真实邮件：设置 env `LINGYAO_SMTP_USER`（QQ 邮箱授权码方式）+ `LINGYAO_SMTP_PASS`，且 `lingyao.notify.email.enabled=true`
+
+### E2E 回归
+- ✅ 登录 → stats（Bug-20 修复）→ status 过滤 → 新报名（去重拦截正常）→ 推送链路（EMAIL dev 日志确认）
+- ✅ 后端 V2.0.27 重启 PID 27892 · 端口 9091 · H2 内存库（重启数据清零属预期）
 
 ## V2.0.26 (2026-09-02 08:15) — P2.4 阶段 D：审计日志强化 + 2FA 预留 SKELETON
 

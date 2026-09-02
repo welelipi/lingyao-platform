@@ -30,6 +30,10 @@ public class SecurityConfig {
     @Autowired
     private CsrfFilter csrfFilter;
 
+    // V2.0.31：filter 层 CORS 源（WebConfig 提供，白名单含主站/子平台/生产域名）
+    @Autowired
+    private org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -39,7 +43,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> {})
+            .cors(cors -> cors.configurationSource(corsConfigurationSource))   // V2.0.31：filter 层 CORS（错误响应也带 CORS 头）
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
@@ -60,6 +64,7 @@ public class SecurityConfig {
                     "/api/invitations/redeem",    // 公开：通过邀请注册
                     "/api/feedback",              // 公开：反馈提交（前端兜底本地存储）
                     "/api/sub-product/*/verify-link",  // V2.0.19 W6 阶段 2：专属链接验签（子平台调用，员工可能还没账号）
+                    "/api/internal/**",           // V2.0.39：服务间接口（grants sync），接口内自验 service JWT（audience=lingyao-service）
                     // ── 静态资源（全部放行） ─────
                     "/",
                     "/index.html",
