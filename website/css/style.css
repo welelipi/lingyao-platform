@@ -2279,10 +2279,10 @@ body {
   color: var(--text-dim);
   margin-top: 6px;
 }
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .kpi-grid { grid-template-columns: repeat(3, 1fr); }
 }
-@media (max-width: 768px) {
+@media (max-width: 600px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
 }
 

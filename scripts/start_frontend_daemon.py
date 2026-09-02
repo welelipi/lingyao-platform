@@ -35,11 +35,13 @@ os.chdir(PROJECT_DIR)
 
 # V2.0.43：HTML 不缓存 handler——浏览器对无 Cache-Control 的 HTML 用启发式缓存（按 Last-Modified 猜），
 # 改版后常拿到旧 JS（本次「创建邀请 403」即是旧 admin.html 无 CSRF 凭证）。HTML 一律 no-cache，静态资源保留启发式缓存。
+# V2.0.49：CSS/JS 也纳入 no-cache——「KPI 卡片两行」即是旧 style.css 被启发式缓存（HTML 已改新版引用，CSS 还是旧 4 列）。
+# dev 环境体量小，全量 no-cache 代价可忽略；生产走 nginx 独立配置不受此影响。
 HEADER_FIX = '''
 import http.server
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
-        if self.path in ("/", "") or self.path.endswith((".html", "/")):
+        if self.path in ("/", "") or self.path.endswith((".html", ".css", ".js", "/")):
             self.send_header("Cache-Control", "no-cache, must-revalidate")
         super().end_headers()
 handler_class = NoCacheHandler
