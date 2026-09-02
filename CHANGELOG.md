@@ -1,5 +1,24 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.46 (2026-09-02 21:05) — 用户管理只管超管（平台超管 + 公司超管）
+
+主人拍板：平台超管后台的「用户管理」只管理公司超管，**公司普通用户不应该出现在这个平台**（普通用户由公司超管在子平台内管理，延续 V2.0.38 审批下放架构）：
+
+### 1）后端口径收窄（SysUserRepository + AdminController）
+- `/api/admin/users` 从 `findAll` 改为 `findPlatformAndTenantAdmins`：只返回「平台超管 + 公司超管（SUPER_ADMIN·ACTIVE）」，JPQL DISTINCT + EXISTS 子查询
+- 新增 `GET /api/admin/users/count`：KPI「用户总数」同口径计数
+
+### 2）前端适配（admin.html + style.css）
+- KPI「用户总数」hint 改「平台超管 + 公司超管」，数据走新 count 接口
+- **KPI 卡片 4 列 → 5 列一行**（≤1200px 降 3 列、≤768px 降 2 列）
+- 用户列表角色徽标「普通用户」→「公司超管」；用户 Tab 副标题注明「仅超管：公司普通用户由公司超管在子平台内管理」
+
+### E2E + 浏览器验证（全绿）
+- ① 列表 5 → 3（只剩 admin + a_admin + b_admin，a_user1 等 OPERATOR 被过滤）；② KPI count = 3 与列表一致；③ 邀请核销新建 u46admin（B-DEMO 超管）→ 自动入列 count=4；④ 浏览器截图确认：5 卡一行、徽标「公司超管」、副标题提示
+- 重启 SOP：EMAIL 通道已重建 ACTIVE
+
+版本 2.0.46
+
 ## V2.0.45 (2026-09-02 20:55) — 邀请唯一角色 = 公司超管
 
 主人拍板：邀请后**不用选角色，只有一个角色——公司超管**，因为只有公司超管才能真正体验平台：

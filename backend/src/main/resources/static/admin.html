@@ -281,7 +281,7 @@
       <div class="kpi-card">
         <div class="kpi-label">用户总数</div>
         <div class="kpi-value" id="kpiUsers">-</div>
-        <div class="kpi-hint">全部租户累计</div>
+        <div class="kpi-hint">平台超管 + 公司超管</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">产品授权数</div>
@@ -346,7 +346,7 @@
       <!-- Tab 2：用户 -->
       <div class="tab-content" data-pane="users">
         <div class="toolbar">
-          <div class="left">共 <span id="userCount">0</span> 个用户</div>
+          <div class="left">共 <span id="userCount">0</span> 个用户（仅超管：公司普通用户由公司超管在子平台内管理）</div>
           <div class="right">
             <button class="btn-primary-sm" id="newUserBtn">+ 新建用户</button>
           </div>
@@ -809,7 +809,7 @@
   </div>
 
   <script>
-    console.log("%c V2.0.45 · 邀请唯一角色 = 公司超管", 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');
+    console.log("%c V2.0.46 · 用户管理只管超管（平台超管+公司超管）", 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');
     // ── 数据层 ─────────────────────────
     const TOKEN_KEY = 'lingyao_token';
     const USER_KEY = 'lingyao_user';
@@ -933,7 +933,13 @@
     async function updateKpi() {
       // KPI：总数
       document.getElementById('kpiCompanies').textContent = companiesCache.length;
-      document.getElementById('kpiUsers').textContent = usersCache.length;
+      // V2.0.46：用户总数 = 平台超管 + 公司超管（与用户管理 Tab 同口径）
+      try {
+        const adminCount = await api('GET', '/api/admin/users/count');
+        document.getElementById('kpiUsers').textContent = (adminCount == null) ? usersCache.length : adminCount;
+      } catch (e) {
+        document.getElementById('kpiUsers').textContent = usersCache.length;
+      }
       // 活跃用户授权数（ProductUserGrant ACTIVE 状态，从 grants 列表统计）
       try {
         const grantsAll = await api('GET', '/api/admin/grants?page=0&size=500');
@@ -1143,7 +1149,7 @@
           <td><strong>${escapeHtml(u.username)}</strong></td>
           <td>${escapeHtml(u.displayName || '-')}</td>
           <td>${escapeHtml(u.email || '-')}</td>
-          <td>${u.isPlatformAdmin ? '<span class="badge private">平台超管</span>' : '<span class="badge active">普通用户</span>'}</td>
+          <td>${u.isPlatformAdmin ? '<span class="badge private">平台超管</span>' : '<span class="badge active">公司超管</span>'}</td>
           <td><span data-mem-uid="${u.id}">-</span></td>
           <td><span class="badge ${(u.status||'ACTIVE').toLowerCase()}">${u.status||'ACTIVE'}</span></td>
           <td>

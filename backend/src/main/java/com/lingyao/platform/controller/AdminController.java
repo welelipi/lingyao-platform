@@ -253,7 +253,17 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageableValidator.safeOf(page, size);
-        return ApiResponse.ok(userRepo.findAll(pageable));
+        // V2.0.46：只返回「平台超管 + 公司超管（SUPER_ADMIN·ACTIVE）」，
+        // 公司普通用户不进平台超管后台 —— 普通用户由公司超管在子平台内管理
+        return ApiResponse.ok(userRepo.findPlatformAndTenantAdmins(pageable));
+    }
+
+    /**
+     * V2.0.46：KPI「用户总数」同口径 —— 只统计平台超管 + 公司超管
+     */
+    @GetMapping("/users/count")
+    public ApiResponse<Long> countAdminUsers() {
+        return ApiResponse.ok(userRepo.countPlatformAndTenantAdmins());
     }
 
     @GetMapping("/products")
