@@ -613,10 +613,11 @@
   // 包装 fetch：401 时自动 silent refresh + 重试一次
   const originalFetch = window.fetch.bind(window);
   window.fetch = async function(input, init) {
-    let resp = await originalFetch(input, init);
+    let initWithCsrf = addCsrfHeader(input, init);
+    let resp = await originalFetch(input, initWithCsrf);
 
     // 仅对带 Authorization 的请求做 401 自动续期
-    const auth = (init && init.headers && init.headers.Authorization) || '';
+    const auth = (initWithCsrf && initWithCsrf.headers && initWithCsrf.headers.Authorization) || '';
     if (resp.status === 401 && auth.startsWith('Bearer ')) {
       const url = typeof input === 'string' ? input : (input.url || '');
       // 不对 /api/auth/login 和 /api/auth/refresh 自身做续期（避免循环）
@@ -627,15 +628,84 @@
       const newToken = await silentRefresh();
       if (!newToken) return resp;
 
-      // 重发原请求（替换 token）
+      // 重发原请求（替换 token + 重新注入 CSRF）
       const newInit = { ...init };
       newInit.headers = { ...(init.headers || {}) };
       // 替换 Authorization 头中的 Bearer xxx
       newInit.headers.Authorization = 'Bearer ' + newToken;
-      resp = await originalFetch(input, newInit);
+      // 401 续期后 cookie 可能已重新生成，重新读一次
+      const newInitWithCsrf = addCsrfHeader(input, newInit);
+      resp = await originalFetch(input, newInitWithCsrf);
     }
     return resp;
   };
+
+  // ══════════════════════════════════════════════════════════════════
+  // V2.0.25 P2.3：CSRF 防护（Double-Submit Cookie 模式）
+  // - 读 XSRF-TOKEN cookie → 注入到 X-XSRF-TOKEN header
+  // - 状态变更方法（POST/PUT/DELETE/PATCH）才需要
+  // - 与 X-XSRF-TOKEN 头名对应，服务端 CsrfFilter 校验
+  // ══════════════════════════════════════════════════════════════════
+
+  const CSRF_COOKIE_NAME = 'XSRF-TOKEN';
+  const CSRF_HEADER_NAME = 'X-XSRF-TOKEN';
+  const CSRF_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
+
+  /**
+   * 读 cookie 值的通用工具（document.cookie 解析）
+   */
+  function readCookie(name) {
+    const match = document.cookie.match(new RegExp('(^|; )' + name + '=([^;]*)'));
+    return match ? decodeURIComponent(match[2]) : null;
+  }
+
+  /**
+   * 给 fetch init 注入 X-XSRF-TOKEN header（如果方法需要）
+   * @returns 新的 init 对象（不修改原对象）
+   */
+  function addCsrfHeader(input, init) {
+    if (!init) init = {};
+    const method = (init.method || (typeof input === 'object' && input.method) || 'GET').toUpperCase();
+    if (!CSRF_METHODS.includes(method)) {
+      // 幂等方法（GET/HEAD/OPTIONS）不需要 CSRF
+      return init;
+    }
+    // 公开端点不注入（与后端 EXEMPT 列表对齐，避免误导）
+    const url = typeof input === 'string' ? input : (input.url || '');
+    if (isCsrfExemptUrl(url)) {
+      return init;
+    }
+    const csrfToken = readCookie(CSRF_COOKIE_NAME);
+    if (!csrfToken) {
+      // 没 cookie：让后端拒绝（403），前端会在控制台打 warning
+      console.warn('CSRF token cookie 缺失，请先访问任意 GET 接口获取');
+      return init;
+    }
+    // 拷贝 headers（避免污染原对象）
+    const newHeaders = { ...(init.headers || {}) };
+    newHeaders[CSRF_HEADER_NAME] = csrfToken;
+    return { ...init, headers: newHeaders };
+  }
+
+  /**
+   * CSRF 豁免路径判断（与后端 CsrfFilter.EXEMPT_* 对齐）
+   */
+  function isCsrfExemptUrl(url) {
+    if (!url) return false;
+    const EXACT = [
+      '/api/auth/login', '/api/auth/logout', '/api/auth/refresh',
+      '/api/auth/forgot-password', '/api/auth/reset-password',
+      '/api/auth/register', '/api/registrations', '/api/registrations/stats',
+      '/api/feedback', '/api/health', '/api/version', '/api/_diag/version'
+    ];
+    const PREFIXES = ['/api/public/', '/api/invitations/', '/api/sub-product/', '/api/_diag/', '/h2-console/'];
+    for (const e of EXACT) if (url.includes(e)) return true;
+    for (const p of PREFIXES) if (url.includes(p)) return true;
+    return false;
+  }
+
+  // 导出给测试或调试用
+  window.lingyaoCsrfToken = () => readCookie(CSRF_COOKIE_NAME);
 
   // ==========================================
   // 11. 平滑滚动锚点
