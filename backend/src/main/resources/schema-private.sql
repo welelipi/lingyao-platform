@@ -243,3 +243,87 @@ CREATE INDEX IF NOT EXISTS idx_reset_user_active
     ON password_reset_token(user_id, used_at, expires_at);
 CREATE INDEX IF NOT EXISTS idx_reset_expires
     ON password_reset_token(expires_at);
+
+-- ══════════════════════════════════════════════════════════════════
+-- V2.0.26 P2.4 阶段 A — auth_audit_event 安全审计表
+--
+-- 用途：
+-- 记录认证安全事件（独立于 company_audit_log 业务审计），用于：
+-- 1) 安全监控 dashboard（按事件类型统计 + 趋势）
+-- 2) 异常行为排查（同一 IP 多次失败 / 同一用户多次登出后复用 token）
+-- 3) 合规审计（谁什么时候从哪个 IP 尝试登录 / 改密 / 被限流）
+--
+-- 设计要点：
+-- - 必填：event_type + created_at（其余可空，因为登录失败 / CSRF 拒绝时拿不到真实 user）
+-- - 索引聚焦三类查询：① 事件类型 + 时间 ② 用户 + 时间 ③ IP + 时间
+-- - metadata 用 TEXT 存 JSON 字符串（事件特有数据）
+-- - 默认保留 90 天（V2.0.27 加归档清理 job）
+-- ══════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS auth_audit_event (
+    id                BIGSERIAL PRIMARY KEY,
+    event_type        VARCHAR(48) NOT NULL,
+    user_id           BIGINT,
+    username          VARCHAR(64),
+    company_id        BIGINT,
+    ip_address        VARCHAR(64),
+    user_agent        VARCHAR(512),
+    request_path      VARCHAR(256),
+    request_method    VARCHAR(8),
+    success           BOOLEAN NOT NULL DEFAULT TRUE,
+    error_code        VARCHAR(64),
+    error_message     VARCHAR(512),
+    metadata          TEXT,
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_audit_type_created
+    ON auth_audit_event(event_type, created_at);
+CREATE INDEX IF NOT EXISTS idx_auth_audit_user_created
+    ON auth_audit_event(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_auth_audit_ip_created
+    ON auth_audit_event(ip_address, created_at);
+CREATE INDEX IF NOT EXISTS idx_auth_audit_created
+    ON auth_audit_event(created_at);
+CREATE INDEX IF NOT EXISTS idx_auth_audit_company
+    ON auth_audit_event(company_id);
+
+-- ══════════════════════════════════════════════════════════════════
+-- V2.0.26 P2.4 阶段 D — user_2fa 双因素认证表（2FA 预留 SKELETON）
+--
+-- ⚠️ V2.0.26 仅建表 + 占位，未实际启用 2FA。V2.0.27+ 落地 TOTP + QR + 备份码。
+--
+-- 字段说明：
+-- - secret_encrypted: AES-256-GCM 加密的 TOTP secret（Base64 IV+ciphertext+tag）
+-- - backup_codes_hash: 8 个一次性 backup code 的 SHA-256 哈希（JSON 数组）
+-- - enabled: 是否启用（用户首次验证 TOTP 后才置 true）
+-- - verified_at: 用户首次验证 2FA 的时间
+-- - last_used_at: 上次 TOTP 验证时间（防重放窗口）
+--
+-- 索引：
+-- - user_id UNIQUE：一个用户只允许一份 2FA 记录
+-- ══════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS user_2fa (
+    id                BIGSERIAL PRIMARY KEY,
+    user_id           BIGINT NOT NULL UNIQUE,
+    secret_encrypted  TEXT,
+    backup_codes_hash TEXT,
+    enabled           BOOLEAN NOT NULL DEFAULT FALSE,
+    verified_at       TIMESTAMP,
+    last_used_at      TIMESTAMP,
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_2fa_enabled
+    ON user_2fa(enabled);
+
+-- ══════════════════════════════════════════════════════════════════
+-- V2.0.26 P2.4 阶段 D — sys_user 加 two_factor_enabled 字段
+--
+-- ALTER TABLE 加字段（H2 + PG 都支持），V2.0.26 ddl-auto=update 会自动加，
+-- 但写在这里确保 schema-private.sql 启动时也加一次（dev profile 用）
+-- ══════════════════════════════════════════════════════════════════
+
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE;

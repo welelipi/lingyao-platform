@@ -6,8 +6,8 @@
 -- 1. 平台超管账号（主人）
 -- 用户名: admin   密码: admin123
 -- password_changed=TRUE（SAAS 老用户已改密，不触发首登强制改密）
-INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, created_at, updated_at)
-VALUES (1, 'admin', '$2a$10$sGGMda/K1XOkDq/gg5B18.Xu99jzot/vt/Et6k6KUi5NVa1hKM6hK', '平台超管', 'admin@lingyao.cn', 'ACTIVE', TRUE, TRUE, NOW(), NOW());
+INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, two_factor_enabled, created_at, updated_at)
+VALUES (1, 'admin', '$2a$10$sGGMda/K1XOkDq/gg5B18.Xu99jzot/vt/Et6k6KUi5NVa1hKM6hK', '平台超管', 'admin@lingyao.cn', 'ACTIVE', TRUE, TRUE, FALSE, NOW(), NOW());
 
 -- 2. 演示公司 A：购买了 GEO + 医院潜力预测
 INSERT INTO company (id, name, code, deployment_mode, license_plan, status, max_users, contact_email, created_at, updated_at)
@@ -18,16 +18,16 @@ INSERT INTO company (id, name, code, deployment_mode, license_plan, status, max_
 VALUES (2, 'B 药企（演示）', 'B-DEMO', 'SAAS', 'ENTERPRISE', 'ACTIVE', 100, 'admin@b-pharma.cn', NOW(), NOW());
 
 -- 4. A 药企管理员（用户名: a_admin  密码: pass123）
-INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, created_at, updated_at)
-VALUES (2, 'a_admin', '$2a$10$7Jch2YNp3SLTl69yurfQ6efLHxf4O6pO/bbIgLHqvAbWFpfhkyHGu', 'A 药企管理员', 'admin@a-pharma.cn', 'ACTIVE', FALSE, TRUE, NOW(), NOW());
+INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, two_factor_enabled, created_at, updated_at)
+VALUES (2, 'a_admin', '$2a$10$7Jch2YNp3SLTl69yurfQ6efLHxf4O6pO/bbIgLHqvAbWFpfhkyHGu', 'A 药企管理员', 'admin@a-pharma.cn', 'ACTIVE', FALSE, TRUE, FALSE, NOW(), NOW());
 
 -- 5. A 药企普通用户（用户名: a_user1  密码: pass123）
-INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, created_at, updated_at)
-VALUES (3, 'a_user1', '$2a$10$7Jch2YNp3SLTl69yurfQ6efLHxf4O6pO/bbIgLHqvAbWFpfhkyHGu', 'A 药企用户 1', 'user1@a-pharma.cn', 'ACTIVE', FALSE, TRUE, NOW(), NOW());
+INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, two_factor_enabled, created_at, updated_at)
+VALUES (3, 'a_user1', '$2a$10$7Jch2YNp3SLTl69yurfQ6efLHxf4O6pO/bbIgLHqvAbWFpfhkyHGu', 'A 药企用户 1', 'user1@a-pharma.cn', 'ACTIVE', FALSE, TRUE, FALSE, NOW(), NOW());
 
 -- 6. B 药企管理员（用户名: b_admin  密码: pass123）
-INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, created_at, updated_at)
-VALUES (4, 'b_admin', '$2a$10$7Jch2YNp3SLTl69yurfQ6efLHxf4O6pO/bbIgLHqvAbWFpfhkyHGu', 'B 药企管理员', 'admin@b-pharma.cn', 'ACTIVE', FALSE, TRUE, NOW(), NOW());
+INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, two_factor_enabled, created_at, updated_at)
+VALUES (4, 'b_admin', '$2a$10$7Jch2YNp3SLTl69yurfQ6efLHxf4O6pO/bbIgLHqvAbWFpfhkyHGu', 'B 药企管理员', 'admin@b-pharma.cn', 'ACTIVE', FALSE, TRUE, FALSE, NOW(), NOW());
 
 -- 7. 平台超管绑定到所有公司（跨租户管理）
 INSERT INTO company_user (id, company_id, user_id, role, status, created_at)
