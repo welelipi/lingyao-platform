@@ -1,6 +1,8 @@
 package com.lingyao.platform.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lingyao.platform.entity.AuthAuditEvent;
+import com.lingyao.platform.service.AuthAuditService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -92,6 +94,10 @@ public class CsrfFilter extends OncePerRequestFilter {
     @Autowired
     private CsrfTokenService csrfTokenService;
 
+    // V2.0.26 P2.4：CSRF 拒绝时记录安全审计事件
+    @Autowired
+    private AuthAuditService authAuditService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** 安全方法（不修改状态，不需要 CSRF 校验） */
@@ -119,6 +125,7 @@ public class CsrfFilter extends OncePerRequestFilter {
             "/api/invitations/",
             "/api/sub-product/",
             "/api/_diag/",
+            "/api/auth/2fa/",   // V2.0.26 P2.4：2FA 管理端点（需 JWT 认证，CSRF 攻击面已由 JWT 防住）
             "/h2-console/"
     );
 
@@ -159,12 +166,14 @@ public class CsrfFilter extends OncePerRequestFilter {
 
         if (cookieToken == null || cookieToken.isBlank()) {
             log.warn("🚫 CSRF 拦截：缺少 XSRF-TOKEN cookie ({} {})", method, path);
+            recordCsrfReject(req, "CSRF_COOKIE_MISSING");
             writeCsrfError(resp, "CSRF token cookie 缺失，请先访问任意 GET 接口获取");
             return;
         }
 
         if (headerToken == null || headerToken.isBlank()) {
             log.warn("🚫 CSRF 拦截：缺少 X-XSRF-TOKEN header ({} {})", method, path);
+            recordCsrfReject(req, "CSRF_HEADER_MISSING");
             writeCsrfError(resp, "CSRF token header 缺失，前端需在请求头加 X-XSRF-TOKEN");
             return;
         }
@@ -173,6 +182,7 @@ public class CsrfFilter extends OncePerRequestFilter {
         if (!java.security.MessageDigest.isEqual(
                 cookieToken.getBytes(), headerToken.getBytes())) {
             log.warn("🚫 CSRF 拦截：cookie 与 header 不匹配 ({} {})", method, path);
+            recordCsrfReject(req, "CSRF_TOKEN_MISMATCH");
             writeCsrfError(resp, "CSRF token 校验失败，cookie 与 header 不一致");
             return;
         }
@@ -216,5 +226,48 @@ public class CsrfFilter extends OncePerRequestFilter {
                 "error", "CSRF_TOKEN_INVALID"
         );
         resp.getWriter().write(objectMapper.writeValueAsString(body));
+    }
+
+    /**
+     * V2.0.26 P2.4：记录 CSRF 拒绝事件（失败审计）
+     *
+     * @param req        HttpServletRequest
+     * @param reasonCode 错误码（CSRF_COOKIE_MISSING / CSRF_HEADER_MISSING / CSRF_TOKEN_MISMATCH）
+     */
+    private void recordCsrfReject(HttpServletRequest req, String reasonCode) {
+        try {
+            String ip = getClientIp(req);
+            String ua = req.getHeader("User-Agent");
+            authAuditService.recordFailureWithMeta(
+                    AuthAuditEvent.EventType.CSRF_REJECT,
+                    null, null,
+                    ip,
+                    req.getRequestURI(), req.getMethod(),
+                    reasonCode,
+                    "CSRF token 校验失败",
+                    Map.of(
+                            "cookiePresent", req.getCookies() != null,
+                            "headerPresent", req.getHeader(CsrfTokenService.HEADER_NAME) != null,
+                            "userAgent", ua == null ? "unknown" : (ua.length() > 200 ? ua.substring(0, 200) : ua)
+                    )
+            );
+        } catch (Exception e) {
+            log.warn("CSRF 审计写入失败（不影响拦截）: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 提取客户端 IP（与 RateLimitFilter 保持一致）
+     */
+    private String getClientIp(HttpServletRequest req) {
+        String xff = req.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        String xri = req.getHeader("X-Real-IP");
+        if (xri != null && !xri.isBlank()) {
+            return xri.trim();
+        }
+        return req.getRemoteAddr();
     }
 }

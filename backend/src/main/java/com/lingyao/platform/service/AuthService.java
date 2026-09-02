@@ -35,6 +35,8 @@ public class AuthService {
     @Autowired private JwtUtil jwtUtil;
     @Autowired private LoginAttemptService attemptService;
     @Autowired private AuditLogService auditLogService;
+    // V2.0.26 P2.4 阶段 A：认证安全审计（独立表 auth_audit_event）
+    @Autowired private AuthAuditService authAuditService;
     // V2.0.20 P1 阶段 A
     @Autowired private TokenBlacklistRepository tokenBlacklistRepository;
     // V2.0.21 P1.4 阶段 B：refresh_token 滑动续期
@@ -46,6 +48,13 @@ public class AuthService {
         // Bug-09：登录前先检查是否锁定
         if (attemptService.isLocked(req.getUsername())) {
             String msg = attemptService.getLockMessage(req.getUsername());
+            // V2.0.26 P2.4：登录锁定 → 记录安全审计事件
+            authAuditService.recordFailureWithMeta(
+                    AuthAuditEvent.EventType.LOGIN_LOCKED,
+                    null, req.getUsername(), ip,
+                    "/api/auth/login", "POST",
+                    "ACCOUNT_LOCKED", msg,
+                    java.util.Map.of("username", req.getUsername(), "reason", "Bug-09: 5分钟内5次错误"));
             throw new IllegalArgumentException(msg != null ? msg : "账号已锁定，请稍后重试");
         }
 
@@ -53,12 +62,27 @@ public class AuthService {
         if (user == null || !passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
             attemptService.recordFailure(req.getUsername());
             auditLogService.record("LOGIN_FAIL", "USER", String.valueOf(user == null ? -1 : user.getId()), "登录失败: " + req.getUsername());
-            // Bug-09：剩余尝试次数提示
+            // V2.0.26 P2.4：登录失败 → 记录安全审计事件
             int remaining = 5 - (attemptService.isLocked(req.getUsername()) ? 5 : 0);
+            authAuditService.recordFailureWithMeta(
+                    AuthAuditEvent.EventType.LOGIN_FAIL,
+                    user == null ? null : user.getId(),
+                    req.getUsername(), ip,
+                    "/api/auth/login", "POST",
+                    "INVALID_CREDENTIALS",
+                    "用户名或密码错误",
+                    java.util.Map.of("userExists", user != null, "attemptsRemaining", remaining));
+            // Bug-09：剩余尝试次数提示
             throw new IllegalArgumentException("用户名或密码错误" + (remaining < 5 ? "，剩余尝试次数: " + remaining : ""));
         }
 
         if (user.getStatus() != SysUser.UserStatus.ACTIVE) {
+            // V2.0.26 P2.4：账号已停用 → 记录安全审计事件
+            authAuditService.recordFailure(
+                    AuthAuditEvent.EventType.LOGIN_DISABLED,
+                    user.getId(), user.getUsername(), ip,
+                    "/api/auth/login", "POST",
+                    "ACCOUNT_DISABLED", "账号已停用，无法登录");
             throw new IllegalArgumentException("账号已停用");
         }
 
@@ -137,6 +161,11 @@ public class AuthService {
 
         // 审计
         auditLogService.record("LOGIN_SUCCESS", "USER", String.valueOf(user.getId()), "登录成功: " + user.getUsername());
+        // V2.0.26 P2.4：登录成功 → 记录安全审计事件
+        authAuditService.recordSuccess(
+                AuthAuditEvent.EventType.LOGIN_SUCCESS,
+                user.getId(), user.getUsername(), ip,
+                "/api/auth/login", "POST");
 
         LoginResponse resp = new LoginResponse();
         resp.setToken(token);
@@ -220,6 +249,12 @@ public class AuthService {
 
         auditLogService.record("PASSWORD_CHANGED", "USER", String.valueOf(user.getId()),
                 "用户修改密码成功: " + user.getUsername() + " (revokedRefreshTokens=" + activeRefreshTokens.size() + ")");
+
+        // V2.0.26 P2.4：主动改密 → 记录安全审计事件
+        authAuditService.recordSuccess(
+                AuthAuditEvent.EventType.PASSWORD_CHANGED,
+                user.getId(), user.getUsername(), null,
+                "/api/auth/change-password", "POST");
     }
 
     // ═══════════════════════ V2.0.20 P1 阶段 A 新增：logout + getMe ═══════════════════════
@@ -259,6 +294,12 @@ public class AuthService {
 
         auditLogService.record("LOGOUT", "USER", String.valueOf(userId),
                 "用户主动退出登录 (jti=" + jti + ", refreshTokens=" + activeRefreshTokens.size() + ")");
+
+        // V2.0.26 P2.4：登出 → 记录安全审计事件
+        authAuditService.recordSuccess(
+                AuthAuditEvent.EventType.LOGOUT,
+                userId, claims.getSubject(), ip,
+                "/api/auth/logout", "POST");
     }
 
     /**
@@ -354,7 +395,15 @@ public class AuthService {
         }
         String hash = JwtUtil.hashRefreshToken(refreshPlain);
         RefreshToken oldToken = refreshTokenRepository.findByTokenHash(hash)
-                .orElseThrow(() -> new IllegalArgumentException("refresh_token 无效"));
+                .orElseThrow(() -> {
+                    // V2.0.26 P2.4：无效 refresh_token → 记录安全审计事件
+                    authAuditService.recordFailure(
+                            AuthAuditEvent.EventType.TOKEN_REFRESH_INVALID,
+                            null, null, ip,
+                            "/api/auth/refresh", "POST",
+                            "INVALID_REFRESH_TOKEN", "refresh_token hash 不存在（伪造或已过期清理）");
+                    return new IllegalArgumentException("refresh_token 无效");
+                });
 
         // ★ 防重放检测：已 used 的 token 再次出现 → 整条链撤销
         if (oldToken.isUsed()) {
@@ -368,13 +417,31 @@ public class AuthService {
             refreshTokenRepository.saveAll(chainTokens);
             auditLogService.record("REFRESH_REPLAY_DETECTED", "USER", String.valueOf(oldToken.getUserId()),
                     "refresh_token 重放检测：已 used 的 token 再次出现，已撤销用户所有 active refresh_token (chainSize=" + chainTokens.size() + ")");
+            // V2.0.26 P2.4：refresh_token 重放 → 记录安全审计事件（关键攻击信号）
+            authAuditService.recordFailureWithMeta(
+                    AuthAuditEvent.EventType.TOKEN_REFRESH_REPLAY,
+                    oldToken.getUserId(), null, ip,
+                    "/api/auth/refresh", "POST",
+                    "REFRESH_REPLAY_DETECTED",
+                    "已 used 的 refresh_token 再次出现，已撤销用户所有会话",
+                    java.util.Map.of("oldTokenId", oldToken.getId(), "revokedTokensCount", chainTokens.size()));
             throw new IllegalArgumentException("refresh_token 已失效（疑似重放攻击，已撤销该用户所有会话，请重新登录）");
         }
 
         if (oldToken.isRevoked()) {
+            authAuditService.recordFailure(
+                    AuthAuditEvent.EventType.TOKEN_REFRESH_INVALID,
+                    oldToken.getUserId(), null, ip,
+                    "/api/auth/refresh", "POST",
+                    "REVOKED", "refresh_token 已撤销（" + oldToken.getRevokedReason() + "）");
             throw new IllegalArgumentException("refresh_token 已撤销（" + oldToken.getRevokedReason() + "）");
         }
         if (oldToken.isExpired()) {
+            authAuditService.recordFailure(
+                    AuthAuditEvent.EventType.TOKEN_REFRESH_INVALID,
+                    oldToken.getUserId(), null, ip,
+                    "/api/auth/refresh", "POST",
+                    "EXPIRED", "refresh_token 已过期");
             throw new IllegalArgumentException("refresh_token 已过期，请重新登录");
         }
 
@@ -467,6 +534,12 @@ public class AuthService {
         auditLogService.record("TOKEN_REFRESH", "USER", String.valueOf(user.getId()),
                 "refresh_token 滑动续期成功 (oldTokenId=" + oldToken.getId() + " → newTokenId=" + newRefresh.getId() + ")");
 
+        // V2.0.26 P2.4：refresh_token 续期成功 → 记录安全审计事件
+        authAuditService.recordSuccess(
+                AuthAuditEvent.EventType.TOKEN_REFRESH,
+                user.getId(), user.getUsername(), ip,
+                "/api/auth/refresh", "POST");
+
         return resp;
     }
 
@@ -516,6 +589,12 @@ public class AuthService {
             // 用户不存在 → 记录 audit（可疑枚举行为）但不泄漏信息
             auditLogService.record("FORGOT_PASSWORD_USER_NOT_FOUND", "USER", "-1",
                     "forgot-password 请求的用户名/邮箱不存在: " + emailOrUsername + " (ip=" + ip + ")");
+            // V2.0.26 P2.4：枚举尝试 → 记录安全审计事件
+            authAuditService.recordFailure(
+                    AuthAuditEvent.EventType.PASSWORD_RESET_USER_NOT_FOUND,
+                    null, emailOrUsername, ip,
+                    "/api/auth/forgot-password", "POST",
+                    "USER_NOT_FOUND", "forgot-password 请求的用户名/邮箱不存在（可疑枚举）");
             return resp;
         }
 
@@ -539,6 +618,12 @@ public class AuthService {
 
             auditLogService.record("PASSWORD_RESET_REQUESTED", "USER", String.valueOf(user.getId()),
                     "forgot-password 请求成功，邮件已发送 (ip=" + ip + ", email=" + maskEmail(user.getEmail()) + ")");
+
+            // V2.0.26 P2.4：忘记密码请求 → 记录安全审计事件
+            authAuditService.recordSuccess(
+                    AuthAuditEvent.EventType.PASSWORD_RESET_REQUESTED,
+                    user.getId(), user.getUsername(), ip,
+                    "/api/auth/forgot-password", "POST");
 
             // 开发模式：邮件通道未配置时直接返回 token 给前端（V2.0.21 仅本地开发使用）
             // 生产环境邮件通道启用后，应该删除这行
@@ -583,11 +668,29 @@ public class AuthService {
         }
         String hash = JwtUtil.hashRefreshToken(tokenPlain);
         PasswordResetToken tokenEntity = passwordResetTokenRepository.findByTokenHash(hash)
-                .orElseThrow(() -> new IllegalArgumentException("reset_token 无效"));
+                .orElseThrow(() -> {
+                    // V2.0.26 P2.4：无效 reset_token → 记录安全审计事件
+                    authAuditService.recordFailure(
+                            AuthAuditEvent.EventType.PASSWORD_RESET_INVALID,
+                            null, null, ip,
+                            "/api/auth/reset-password", "POST",
+                            "INVALID_RESET_TOKEN", "reset_token hash 不存在（伪造或已清理）");
+                    return new IllegalArgumentException("reset_token 无效");
+                });
         if (tokenEntity.isUsed()) {
+            authAuditService.recordFailure(
+                    AuthAuditEvent.EventType.PASSWORD_RESET_INVALID,
+                    tokenEntity.getUserId(), null, ip,
+                    "/api/auth/reset-password", "POST",
+                    "RESET_TOKEN_USED", "reset_token 已被使用");
             throw new IllegalArgumentException("reset_token 已使用");
         }
         if (tokenEntity.isExpired()) {
+            authAuditService.recordFailure(
+                    AuthAuditEvent.EventType.PASSWORD_RESET_INVALID,
+                    tokenEntity.getUserId(), null, ip,
+                    "/api/auth/reset-password", "POST",
+                    "RESET_TOKEN_EXPIRED", "reset_token 已过期");
             throw new IllegalArgumentException("reset_token 已过期，请重新申请");
         }
 
@@ -622,6 +725,12 @@ public class AuthService {
 
         auditLogService.record("PASSWORD_RESET", "USER", String.valueOf(user.getId()),
                 "用户通过 reset_token 重置密码成功 (revokedRefreshTokens=" + activeRefreshTokens.size() + ", ip=" + ip + ")");
+
+        // V2.0.26 P2.4：重置密码成功 → 记录安全审计事件
+        authAuditService.recordSuccess(
+                AuthAuditEvent.EventType.PASSWORD_RESET,
+                user.getId(), user.getUsername(), ip,
+                "/api/auth/reset-password", "POST");
     }
 
     private List<LoginResponse.ProductView> buildProductView(Long userId, Long companyId, Boolean isPlatformAdmin) {

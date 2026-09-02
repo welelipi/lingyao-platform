@@ -1,6 +1,8 @@
 package com.lingyao.platform.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lingyao.platform.entity.AuthAuditEvent;
+import com.lingyao.platform.service.AuthAuditService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -38,6 +40,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     // V2.0.24 P2.2 修复：自己解析 token 拿 userId（不依赖 JwtAuthFilter 设置 CurrentUser）
     @Autowired
     private JwtUtil jwtUtil;
+
+    // V2.0.26 P2.4：限流命中时记录安全审计事件
+    @Autowired
+    private AuthAuditService authAuditService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -138,6 +144,54 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "retryAfterSeconds", retryAfterSec
         );
         resp.getWriter().write(objectMapper.writeValueAsString(body));
+
+        // V2.0.26 P2.4：限流命中 → 记录安全审计事件
+        // 注：本次请求已写 429，所以从 latestRateLimitedRequest 上下文拿不到，用 path + key 反推
+        // 简化处理：审计里只记录端点 + key 类型 + IP（key 中 "user:" 前缀表示 user 维度）
+        recordRateLimitHit(endpoint, key, maxRequests, windowMs, retryAfterSec);
+    }
+
+    /**
+     * V2.0.26 P2.4：记录限流命中
+     *
+     * @param endpoint      /api/auth/login 等
+     * @param key           限流键（IP 或 user:123 形式）
+     * @param maxRequests   窗口内最大请求数
+     * @param windowMs      窗口长度（毫秒）
+     * @param retryAfterSec Retry-After 秒数
+     */
+    private void recordRateLimitHit(String endpoint, String key, int maxRequests, long windowMs, long retryAfterSec) {
+        try {
+            // 解析 userId（key 为 "user:123" 形式时）
+            Long userId = null;
+            String displayKey = key;
+            if (key != null && key.startsWith("user:")) {
+                try {
+                    userId = Long.parseLong(key.substring(5));
+                    displayKey = "user:" + userId;
+                } catch (NumberFormatException ignored) {
+                    // key 格式异常，原样记录
+                }
+            }
+            authAuditService.recordFailureWithMeta(
+                    AuthAuditEvent.EventType.RATE_LIMIT_HIT,
+                    userId, null,  // userId 可空，username 从 ip 反查不到
+                    displayKey,    // IP 直接放 ip_address 字段（key 维度）
+                    "/api/auth/" + endpoint, "POST",
+                    "RATE_LIMIT_EXCEEDED",
+                    "请求过于频繁，已被限流",
+                    Map.of(
+                            "endpoint", endpoint,
+                            "limit", maxRequests,
+                            "windowMs", windowMs,
+                            "retryAfterSec", retryAfterSec
+                    )
+            );
+        } catch (Exception e) {
+            // 审计失败不影响限流响应
+            org.slf4j.LoggerFactory.getLogger(RateLimitFilter.class)
+                    .warn("限流审计写入失败（不影响 429 响应）: {}", e.getMessage());
+        }
     }
 
     /**

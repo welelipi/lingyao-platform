@@ -1,6 +1,8 @@
 package com.lingyao.platform.security;
 
+import com.lingyao.platform.entity.AuthAuditEvent;
 import com.lingyao.platform.repository.TokenBlacklistRepository;
+import com.lingyao.platform.service.AuthAuditService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -43,6 +45,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Autowired
     private TokenBlacklistRepository tokenBlacklistRepository;
 
+    // V2.0.26 P2.4：黑名单命中时记录安全审计事件
+    @Autowired
+    private AuthAuditService authAuditService;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
@@ -56,6 +62,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String jti = claims.getId();
                 if (jti != null && tokenBlacklistRepository.existsByJti(jti)) {
                     logger.debug("JWT 已被吊销 (jti=" + jti + ")");
+                    // V2.0.26 P2.4：黑名单命中 → 记录安全审计事件（关键攻击信号）
+                    recordBlacklistHit(claims, request);
                     // 不抛异常 → 让后续接口返回 401，由 GlobalExceptionHandler 统一处理
                     // 这里只清掉 SecurityContext，跳过设置 CurrentUser
                     filterChain.doFilter(request, response);
@@ -148,5 +156,54 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return (CurrentUser) auth.getPrincipal();
         }
         return null;
+    }
+
+    /**
+     * V2.0.26 P2.4：记录黑名单命中（异常使用已登出 token）
+     *
+     * 典型场景：
+     * - 用户登出后，前端仍用旧 token 发请求（应该清掉 tokenStorage）
+     * - 攻击者截获已登出的 access_token 试图使用（合法但已无效 → 审计）
+     * - refresh_token 撤销后，对应的 access_token 在 24h 有效期内被复用
+     */
+    private void recordBlacklistHit(Claims claims, HttpServletRequest request) {
+        try {
+            String ip = getClientIp(request);
+            Long userId = claims.get("uid", Number.class) != null
+                    ? claims.get("uid", Number.class).longValue() : null;
+            String username = claims.get("username", String.class);
+            authAuditService.recordFailureWithMeta(
+                    AuthAuditEvent.EventType.TOKEN_BLACKLIST_HIT,
+                    userId, username, ip,
+                    request.getRequestURI(), request.getMethod(),
+                    "BLACKLIST_HIT",
+                    "已登出的 access_token 被复用",
+                    Map.of(
+                            "jti", claims.getId() == null ? "unknown" : claims.getId(),
+                            "exp", claims.getExpiration() == null ? "unknown" : claims.getExpiration().toString(),
+                            "userAgent", request.getHeader("User-Agent") == null ? "unknown"
+                                    : request.getHeader("User-Agent").substring(0,
+                                            Math.min(200, request.getHeader("User-Agent").length()))
+                    )
+            );
+        } catch (Exception e) {
+            // 审计失败不影响主流程
+            logger.warn("黑名单审计写入失败（不影响 401 响应）: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 提取客户端 IP（与 CsrfFilter / RateLimitFilter 保持一致）
+     */
+    private String getClientIp(HttpServletRequest req) {
+        String xff = req.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        String xri = req.getHeader("X-Real-IP");
+        if (xri != null && !xri.isBlank()) {
+            return xri.trim();
+        }
+        return req.getRemoteAddr();
     }
 }
