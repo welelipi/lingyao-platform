@@ -598,7 +598,7 @@
       <button class="modal-close" onclick="closeModal('user')">&times;</button>
       <div class="modal-header">
         <h3 id="userModalTitle">新建用户</h3>
-        <p id="userModalSubtitle">创建后立即绑定到指定公司</p>
+        <p id="userModalSubtitle">创建公司超管账号并绑定到指定公司（普通成员由公司超管在子平台内添加）</p>
       </div>
       <form class="modal-form" id="userForm">
         <div class="form-row">
@@ -628,25 +628,14 @@
             <input name="initialPassword" type="password" required minlength="8" placeholder="≥ 8 位">
           </div>
           <div class="form-field">
-            <label>平台超管</label>
-            <select name="platformAdmin">
-              <option value="false">否（普通用户）</option>
-              <option value="true">是（平台超管）</option>
-            </select>
+            <label>角色</label>
+            <input value="公司超管（唯一角色）" disabled>
           </div>
         </div>
         <div class="form-field">
           <label>绑定到公司 *</label>
           <select name="companyId" id="userCompanySelect" required>
             <option value="">-- 选择公司 --</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <label>公司内角色</label>
-          <select name="companyRole">
-            <option value="SUPER_ADMIN">SUPER_ADMIN（公司超管）</option>
-            <option value="OPERATOR" selected>OPERATOR（操作员）</option>
-            <option value="VIEWER">VIEWER（查看者）</option>
           </select>
         </div>
         <div class="form-field">
@@ -809,7 +798,7 @@
   </div>
 
   <script>
-    console.log("%c V2.0.46 · 用户管理只管超管（平台超管+公司超管）", 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');
+    console.log("%c V2.0.47 · 主站建号/绑定一律=公司超管（与邀请对齐）", 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');
     // ── 数据层 ─────────────────────────
     const TOKEN_KEY = 'lingyao_token';
     const USER_KEY = 'lingyao_user';
@@ -1583,10 +1572,10 @@
         displayName: fd.get('displayName') || null,
         email: fd.get('email') || null,
         phone: fd.get('phone') || null,
-        platformAdmin: fd.get('platformAdmin') === 'true',
+        platformAdmin: false,
         memberships: [{
           companyId,
-          companyRole: fd.get('companyRole') || 'OPERATOR',
+          companyRole: 'SUPER_ADMIN', // V2.0.47：主站只建公司超管
         }],
         productIds: checkedProducts,
       };
@@ -1608,7 +1597,7 @@
       document.getElementById('userForm').reset();
       document.getElementById('userModalSuccess').style.display = 'none';
       document.getElementById('userModalTitle').textContent = '新建用户';
-      document.getElementById('userModalSubtitle').textContent = '创建后立即绑定到指定公司';
+      document.getElementById('userModalSubtitle').textContent = '创建公司超管账号并绑定到指定公司（普通成员由公司超管在子平台内添加）';
       closeModal('user');
     }
 

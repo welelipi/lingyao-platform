@@ -360,14 +360,13 @@ public class TenantAdminService {
 
         SysUser saved = userRepo.save(user);
 
-        // 绑定公司 + 角色
+        // 绑定公司 + 角色（V2.0.47：主站只建公司超管，角色强制归一化 SUPER_ADMIN）
         if (req.getMemberships() != null) {
             for (CreateUserRequest.BindCompanyRef ref : req.getMemberships()) {
                 CompanyUser cu = new CompanyUser();
                 cu.setCompanyId(ref.getCompanyId());
                 cu.setUserId(saved.getId());
-                cu.setRole(CompanyUser.CompanyRole.valueOf(
-                        ref.getCompanyRole() == null ? "OPERATOR" : ref.getCompanyRole()));
+                cu.setRole(CompanyUser.CompanyRole.SUPER_ADMIN);
                 cu.setStatus(CompanyUser.Status.ACTIVE);
                 companyUserRepo.save(cu);
             }
@@ -405,8 +404,8 @@ public class TenantAdminService {
         CompanyUser cu = new CompanyUser();
         cu.setCompanyId(req.getCompanyId());
         cu.setUserId(req.getUserId());
-        cu.setRole(CompanyUser.CompanyRole.valueOf(
-                req.getCompanyRole() == null ? "OPERATOR" : req.getCompanyRole()));
+        // V2.0.47：主站绑定一律 = 公司超管（与邀请唯一角色对齐；普通成员由公司超管在子平台内添加）
+        cu.setRole(CompanyUser.CompanyRole.SUPER_ADMIN);
         cu.setStatus(CompanyUser.Status.ACTIVE);
         CompanyUser saved = companyUserRepo.save(cu);
 
