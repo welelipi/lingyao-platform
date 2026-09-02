@@ -26,6 +26,10 @@ public class SecurityConfig {
     @Autowired
     private RateLimitFilter rateLimitFilter;
 
+    // V2.0.25 P2.3 阶段 C：CSRF 防护（Double-Submit Cookie）
+    @Autowired
+    private CsrfFilter csrfFilter;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -89,7 +93,8 @@ public class SecurityConfig {
                 })
             )
             .addFilterBefore(securityHeadersFilter, org.springframework.web.filter.CorsFilter.class)  // V2.0.23 P2.1：安全响应头（CSP/HSTS/X-Frame-Options）
-            .addFilterAfter(rateLimitFilter, org.springframework.web.filter.CorsFilter.class)  // V2.0.24 P2.2：限流（login/refresh/forgot/change-password）
+            .addFilterAfter(csrfFilter, org.springframework.web.filter.CorsFilter.class)  // V2.0.25 P2.3：CSRF（Double-Submit Cookie，在头与限流之间）
+            .addFilterBefore(rateLimitFilter, CsrfFilter.class)  // V2.0.24 P2.2：限流，在 CSRF 之后
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
