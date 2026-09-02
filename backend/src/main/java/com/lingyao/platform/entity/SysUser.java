@@ -58,6 +58,18 @@ public class SysUser {
     @Column(name = "password_changed", nullable = false)
     private Boolean passwordChanged = true;
 
+    /**
+     * 是否启用 2FA — V2.0.26 P2.4 预留字段
+     *
+     * V2.0.26：仅占位，登录流程不消费此字段
+     * V2.0.27+：实际启用后，登录流程会检查此字段 + 调用 TwoFactorService.verifyLoginCode
+     *
+     * 注意：真正的 2FA 配置在 user_2fa 表（secret_encrypted + backup_codes），
+     * 本字段仅是快速"是否启用"的冗余缓存（避免每次登录都查 user_2fa 表）
+     */
+    @Column(name = "two_factor_enabled", nullable = false)
+    private Boolean twoFactorEnabled = false;
+
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
