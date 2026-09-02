@@ -761,12 +761,8 @@
             <select name="productCode" id="invProductSelect" required></select>
           </div>
           <div class="form-field">
-            <label>角色 *</label>
-            <select name="roleCode" required>
-              <option value="ADMIN">ADMIN（公司超管·进子平台自动获管理员）</option>
-              <option value="OPERATOR" selected>OPERATOR（运营·普通成员）</option>
-              <option value="VIEWER">VIEWER（只读）</option>
-            </select>
+            <label>角色</label>
+            <input value="公司超管（唯一角色）" disabled>
           </div>
         </div>
         <div class="form-row">
@@ -813,7 +809,7 @@
   </div>
 
   <script>
-    console.log("%c V2.0.44 · 邀请角色真实化 + 同账号追加授权", 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');
+    console.log("%c V2.0.45 · 邀请唯一角色 = 公司超管", 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');
     // ── 数据层 ─────────────────────────
     const TOKEN_KEY = 'lingyao_token';
     const USER_KEY = 'lingyao_user';
@@ -1333,7 +1329,7 @@
       const body = {
         companyId: parseInt(fd.get('companyId')),
         productCode: fd.get('productCode'),
-        roleCode: fd.get('roleCode'),
+        roleCode: 'ADMIN', // V2.0.45：邀请唯一角色 = 公司超管
         invitedEmail: fd.get('invitedEmail') || null,
         expiresDays: parseInt(fd.get('expiresDays')) || 7,
         remark: fd.get('remark') || null,

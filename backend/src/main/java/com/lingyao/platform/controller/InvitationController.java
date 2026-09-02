@@ -48,13 +48,16 @@ public class InvitationController {
 
     @PostMapping
     public ApiResponse<?> create(@RequestBody InvitationCreateRequest req, HttpServletRequest request) {
-        if (req.getCompanyId() == null || req.getProductCode() == null
-                || req.getRoleCode() == null) {
-            throw new IllegalArgumentException("companyId / productCode / roleCode 必填");
+        if (req.getCompanyId() == null || req.getProductCode() == null) {
+            throw new IllegalArgumentException("companyId / productCode 必填");
         }
         // 校验产品 code
         Product product = productRepo.findByCode(req.getProductCode().toUpperCase())
                 .orElseThrow(() -> new IllegalArgumentException("未知产品: " + req.getProductCode()));
+
+        // V2.0.45：邀请唯一角色 = 公司超管（ADMIN）。服务端强制归一化，
+        // 防旧缓存页面 / API 直调提交其他角色 —— 即使传 OPERATOR/VIEWER 也按 ADMIN 落库
+        String normalizedRole = "ADMIN";
 
         CurrentUser cu = CurrentUser.get();
         if (cu == null) {
@@ -66,7 +69,7 @@ public class InvitationController {
         inv.setCompanyId(req.getCompanyId());
         inv.setInvitedEmail(req.getInvitedEmail());
         inv.setProductCode(product.getCode());
-        inv.setRoleCode(req.getRoleCode().toUpperCase());
+        inv.setRoleCode(normalizedRole);
         inv.setInvitedByUserId(cu.getUserId());
         inv.setRemark(req.getRemark());
         inv.setStatus(Invitation.Status.PENDING);

@@ -361,7 +361,7 @@
       // 填充 banner
       document.getElementById('bannerCompany').textContent = data.contextHint || ('公司 #' + data.companyId);
       document.getElementById('bannerProduct').textContent = data.productCode;
-      document.getElementById('bannerRole').textContent = data.roleCode;
+      document.getElementById('bannerRole').textContent = '公司超管（完整体验）';
       const exp = new Date(data.expiresAt);
       document.getElementById('bannerExpiry').textContent = exp.toLocaleString('zh-CN');
       // V2.0.44：产品特点摘要（对外正式名，不出现产品代号）

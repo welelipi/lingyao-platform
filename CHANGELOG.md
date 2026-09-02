@@ -1,5 +1,24 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.45 (2026-09-02 20:55) — 邀请唯一角色 = 公司超管
+
+主人拍板：邀请后**不用选角色，只有一个角色——公司超管**，因为只有公司超管才能真正体验平台：
+
+### 1）前端（admin.html）
+- 创建邀请弹窗删除角色下拉（ADMIN/OPERATOR/VIEWER 三选项），替换为只读展示「公司超管（唯一角色）」
+- 提交逻辑固定 `roleCode: 'ADMIN'`
+- invite.html 校验页角色横幅显示「公司超管（完整体验）」（不再暴露内部枚举值）
+
+### 2）后端兜底（InvitationController）
+- **服务端强制归一化**：无论请求传什么 roleCode（含恶意直调传 OPERATOR/VIEWER），落库一律 ADMIN
+- roleCode 从「必填」放宽为「可缺省」（缺省即 ADMIN，兼容旧客户端）
+
+### E2E（全绿）
+- ① 创建邀请不传 roleCode → 落库 ADMIN；② 恶意传 OPERATOR → 仍落库 ADMIN；③ 真实核销注册 u45super → 登录 JWT `is_tenant_admin=True` + `sub_product_grants=['GEO']` + 授权表 ACTIVE
+- 重启后 SOP：EMAIL 通道已重建并 ACTIVE（id=1000）
+
+版本 2.0.45
+
 ## V2.0.44 (2026-09-02 20:35) — 邀请角色真实化 + 同账号追加授权 + 邀请页手机适配/产品摘要
 
 主人指出：邀请弹窗三个角色选项（ADMIN/OPERATOR/VIEWER）"只能选公司超管权限，没有其他两个"——排查确认三选项此前**均无实际差异**（redeem 把公司角色硬编码 OPERATOR，roleCode 只进产品内角色表且主站不消费）。本轮让邀请角色真正生效：
