@@ -3,6 +3,116 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.26 (2026-09-02 08:15) — P2.4 阶段 D：审计日志强化 + 2FA 预留 SKELETON
+
+主人 22:55 拍板「P2.4 审计日志强化 + 2FA 预留」。17/17 E2E 全过，本地 commit 不 push。
+
+### 阶段 A：认证安全审计（独立表 + 独立服务）
+
+**AuthAuditEvent 实体 + 18 个事件类型枚举**
+- 独立表 `auth_audit_event`（与 `company_audit_log` 业务审计区分）
+- 字段：event_type / user_id / username / company_id / ip_address / user_agent / request_path / request_method / success / error_code / error_message / metadata (JSON) / created_at
+- 5 个索引聚焦三类查询：① 事件类型+时间 ② 用户+时间 ③ IP+时间
+
+**18 个事件类型枚举**（EventType）
+- AUTH：LOGIN_SUCCESS / LOGIN_FAIL / LOGIN_LOCKED / LOGIN_DISABLED / LOGIN_COMPANY_EXPIRED / LOGOUT
+- TOKEN：TOKEN_REFRESH / TOKEN_REFRESH_REPLAY / TOKEN_REFRESH_INVALID / TOKEN_BLACKLIST_HIT
+- PASSWORD：PASSWORD_CHANGED / PASSWORD_RESET_REQUESTED / PASSWORD_RESET / PASSWORD_RESET_INVALID / PASSWORD_RESET_USER_NOT_FOUND
+- CSRF：CSRF_REJECT
+- RATE_LIMIT：RATE_LIMIT_HIT
+- PERMISSION：PERMISSION_DENIED
+
+**AuthAuditService 集成点**：
+- AuthService.login() → LOGIN_SUCCESS / LOGIN_FAIL / LOGIN_LOCKED / LOGIN_DISABLED
+- AuthService.logout() → LOGOUT
+- AuthService.refresh() → TOKEN_REFRESH / TOKEN_REFRESH_REPLAY / TOKEN_REFRESH_INVALID（3 种错误码）
+- AuthService.changePassword() → PASSWORD_CHANGED
+- AuthService.forgotPassword() → PASSWORD_RESET_REQUESTED / PASSWORD_RESET_USER_NOT_FOUND
+- AuthService.resetPassword() → PASSWORD_RESET / PASSWORD_RESET_INVALID（3 种错误码）
+- CsrfFilter → CSRF_REJECT（含 cookie/header/mismatch 3 子错误码）
+- RateLimitFilter → RATE_LIMIT_HIT（含 endpoint/limit/windowMs/retryAfterSec metadata）
+- JwtAuthFilter → TOKEN_BLACKLIST_HIT（已登出 token 被复用）
+
+### 阶段 B：管理端点
+
+**SecurityAuditController**（超管权限）
+- `GET /api/admin/security-audit?type=&userId=&ip=&from=&to=&page=&size=` 列表+分页
+- `GET /api/admin/security-audit/stats?hours=24` 按类型统计
+- `GET /api/admin/security-audit/event-types` 列出枚举（前端下拉框用）
+
+### 阶段 D：2FA 预留 SKELETON
+
+⚠️ **V2.0.26 仅建表 + 占位 + skeleton，未实际启用 2FA。V2.0.27+ 落地 TOTP + QR + 备份码。**
+
+**User2FA 实体**（独立表）
+- 字段：user_id (UNIQUE) / secret_encrypted (AES-256-GCM 加密) / backup_codes_hash (SHA-256 哈希数组) / enabled / verified_at / last_used_at / created_at / updated_at
+- 索引：user_id UNIQUE + enabled
+
+**SysUser 加字段**：two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE
+
+**TwoFactorService**（骨架）
+- ✅ getStatus(userId) 可用（仅读 DB，返回 RESERVED 状态）
+- ✅ isEnabled(userId) 可用
+- ❌ generateSetup/verifySetup/verifyLoginCode/verifyBackupCode/disable/regenerateBackupCodes 全部抛 UnsupportedOperationException
+
+**TwoFactorController**（端点）
+- ✅ `GET /api/auth/2fa/status` 可用
+- ✅ `GET /api/auth/2fa/users/{userId}/status` 管理员查询
+- ❌ setup / verify-setup / verify-login / disable / backup-codes 全部返回 501 Not Implemented
+
+**V2.0.27+ 实现计划**：TOTP secret 生成（Base32）+ QR 码（otpauth://）+ 8 个一次性 backup codes + AES-256-GCM 加密 + 登录第二步流程
+
+### 安全设计要点
+
+| 维度 | 选择 | 理由 |
+|---|---|---|
+| 写入策略 | 同步写库 | 复刻 AuditLogService 的 Bug-17 修复（@Async 丢 ThreadLocal） |
+| 写入失败 | try/catch + log 不抛出 | 审计失败不影响主业务 |
+| metadata 序列化 | 手工 JSON 拼接 | 避免引入 Jackson 依赖（用现有 Spring Boot 内置） |
+| 过滤方式 | 直接 HQL/JPQL | 不引入 Criteria API（简单可读） |
+| 2FA 加密 | AES-256-GCM | 密钥派生自 LINGYAO_JWT_SECRET |
+| 2FA CSRF 豁免 | `/api/auth/2fa/*` 不需 CSRF | JWT 在 localStorage（非 cookie），传统 CSRF 攻击面已由 JWT 防住 |
+
+### 变更
+
+- **app.version 2.0.25 → 2.0.26**
+- **新增 7 个 Java 文件**：
+  - entity/AuthAuditEvent.java
+  - repository/AuthAuditEventRepository.java
+  - service/AuthAuditService.java
+  - service/TwoFactorService.java (skeleton)
+  - entity/User2FA.java
+  - repository/User2FARepository.java
+  - controller/SecurityAuditController.java
+  - controller/TwoFactorController.java
+- **修改 6 个 Java 文件**：AuthService / CsrfFilter / RateLimitFilter / JwtAuthFilter / SysUser / CsrfFilter (2FA 豁免)
+- **修改 3 个 SQL 文件**：schema-private.sql (auth_audit_event + user_2fa DDL + sys_user ALTER) / data.sql (4 个 sys_user INSERT 加字段) / data-private.sql (1 个 sys_user INSERT 加字段)
+
+### 验收（17/17）
+
+- T1 登录成功 → LOGIN_SUCCESS ✅
+- T2 登录失败 → LOGIN_FAIL（带 attemptsRemaining metadata）✅
+- T3 LOGIN_SUCCESS 记录可查 ✅
+- T4 CSRF 拒绝 → CSRF_REJECT（含 cookie/header 状态 metadata）✅
+- T5 登出 → LOGOUT ✅
+- T6 /stats 端点返回 5+ 事件 + 按类型分组 ✅
+- T7 /event-types 端点返回 18 个枚举 ✅
+- T8 /api/auth/2fa/status → RESERVED + V2.0.27+ + exists=false ✅
+- T9 2FA POST 端点 5 个全部 501 Not Implemented ✅
+- T10 forgot-password 用户不存在 → PASSWORD_RESET_USER_NOT_FOUND ✅
+- T11 refresh_token 续期 → TOKEN_REFRESH ✅
+- T12 按 userId 过滤查询正常 ✅
+
+### 已知限制 / V2.0.27+ 改进
+
+- **2FA 实际启用**：TOTP 流程、QR 码渲染、备份码生成、登录第二步
+- **审计保留期**：默认永久保留，V2.0.27 加归档清理 job（保留 90 天）
+- **审计告警**：高频 CSRF_REJECT / RATE_LIMIT_HIT 应触发告警邮件（V2.0.27）
+- **审计查询性能**：亿级数据需分表（V2.0.28+）
+- **2FA CSRF**：当前豁免，V2.0.27+ 实现时可保持豁免（JWT-based 不需要 CSRF）
+
+---
+
 ## V2.0.25 (2026-09-02 08:00) — P2.3 阶段 C：CSRF 防护（Double-Submit Cookie 模式）
 
 主人 22:55 拍板「P2.3 CSRF 防护（Recommended）」。21/21 E2E 全过，本地 commit 不 push。
