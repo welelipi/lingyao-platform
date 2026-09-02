@@ -1,5 +1,18 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.48 (2026-09-02 21:45) — SSO 登录链路修复（回复 GEO-M 窗口交接）
+
+主人报障「主站已配置飞书 SSO，但子网站无法登录」，GEOM 窗口排查交接 3 根因 + 2 契约问题，本版本全部修复：
+
+1. **SecurityConfig**：permitAll 加 `/api/sso/**`——公司 SSO 的 login（员工未登录发起）与 callback（飞书回跳无会话）必须匿名可达，此前命中 `/api/**` authenticated 全链路 401
+2. **SsoCallbackController**：
+   - 新增 `normalizeSubProductCode()`：GEOM→GEO 别名归一化（产品表实际 code=GEO/HPD/AIDD/DINFO/PORM，交接的 `case "GEOM"` 永不命中已实证）；state 缓存、audit、JWT claim 全部使用归一化值
+   - `buildSubProductCallbackUrl()` 按产品表 code 重新映射 + GEOM 回调基址改为前端 Vue 路由 `http://localhost:5180/auth/lingyao/sso-callback`（原 `/api/auth/sso-callback` 是后端端点，前端路由 404）
+3. **新增 sso-error.html**：login/callback 异常兜底页此前不存在（404），补错误展示 + 4 类原因提示
+4. dev 数据重建：PRIVATE-CUSTOMER 公司（id=1000，grantAllProducts）+ 超管 pc_admin + FEISHU SSO 配置（测试凭据，生产需真实凭据重配）
+
+E2E：GEOM/GEO 双值 login 均 302 飞书授权页（修复前 401）；callback 无效 state 302 error 页；sso-error.html 双端口 200。回执：`/tmp/MainSite_SSO登录链路修复回执_V2.0.48.md`
+
 ## V2.0.47 (2026-09-02 21:25) — 主站建号/绑定一律 = 公司超管
 
 V2.0.46 口径收口的遗留隐患收尾：「新建用户」表单此前仍可选 OPERATOR/VIEWER 和「平台超管=否」，新建的普通用户会因 V2.0.46 过滤**凭空消失**。按主人拍板精神对齐邀请唯一角色：

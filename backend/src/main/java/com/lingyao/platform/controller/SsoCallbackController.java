@@ -86,8 +86,9 @@ public class SsoCallbackController {
             Long companyId = companyRepo.findByCode(company_code)
                 .orElseThrow(() -> new IllegalArgumentException("公司代码无效: " + company_code))
                 .getId();
-            // 2) 校验 sub_product 有效性
-            Long productId = productRepo.findByCode(sub_product)
+            // 2) 校验 sub_product 有效性（V2.0.48：GEOM 等别名归一化为产品表 code）
+            String normalizedSubProduct = normalizeSubProductCode(sub_product);
+            Long productId = productRepo.findByCode(normalizedSubProduct)
                 .orElseThrow(() -> new IllegalArgumentException("子产品代码无效: " + sub_product))
                 .getId();
             // 3) 查 SSO 配置
@@ -100,12 +101,12 @@ public class SsoCallbackController {
 
             // 4) 生成 state（32 字节随机 Base64）
             String state = generateState();
-            // 5) 缓存 state → 5 分钟过期
+            // 5) 缓存 state → 5 分钟过期（V2.0.48：存归一化后的 code，callback 拼回调映射/JWT claim 都用它）
             SsoLoginAudit audit = ssoConfigService.logPending(
-                companyId, p, sub_product,
+                companyId, p, normalizedSubProduct,
                 getClientIp(request), request.getHeader("User-Agent")
             );
-            stateCache.put(state, new StateEntry(companyId, p, sub_product, audit.getId(),
+            stateCache.put(state, new StateEntry(companyId, p, normalizedSubProduct, audit.getId(),
                 System.currentTimeMillis() + Duration.ofMinutes(5).toMillis(),
                 redirect_to));
 
@@ -229,25 +230,43 @@ public class SsoCallbackController {
     }
 
     /**
-     * 拼子产品 callback URL（按 sub_product_code 路由到对应子产品域名）
-     * 例：GEOM → http://localhost:5180/api/auth/sso-callback#platform_token=xxx
+     * 拼 sub_product code → 传给 productRepo 校验前的别名归一化。
+     * 产品表实际 code = GEO/HPD/AIDD/DINFO/PORM（V2.0.48）；
+     * 子平台侧习惯叫 GEOM（棱镜仓库名）→ 归一化为 GEO，双值兼容。
+     */
+    private String normalizeSubProductCode(String code) {
+        if (code == null) return null;
+        return switch (code.trim().toUpperCase()) {
+            case "GEOM" -> "GEO";
+            case "MED-PPT", "MEDPPT" -> "MEDPPT";  // 预留（产品表暂无此行）
+            default -> code.trim().toUpperCase();
+        };
+    }
+
+    /**
+     * 拼子产品 callback URL（按 sub_product_code 路由到对应子产品前端回调路由）
+     * 例：GEO → http://localhost:5180/auth/lingyao/sso-callback#platform_token=xxx
+     *
+     * V2.0.48 契约对齐（GEOM 窗口交接文档 §四）：
+     * - GEOM 前端是 Vue hash 路由，回调路由 = /auth/lingyao/sso-callback#platform_token=<JWT>
+     * - 旧路径 /api/auth/sso-callback 是后端端点，前端路由打不开 → 404
      */
     private String buildSubProductCallbackUrl(String subProductCode, String platformToken, String redirectTo) {
-        // 子产品域名映射（dev 环境 localhost）
-        String subDomain = switch (subProductCode.toUpperCase()) {
-            case "GEOM" -> "http://localhost:5180";
-            case "DINFO" -> "http://localhost:5181";
-            case "MPDM" -> "http://localhost:3100";
-            case "AIDD" -> "http://localhost:13000";
-            case "PORM" -> "http://localhost:3190";
-            case "MEDPPT", "MED-PPT" -> "http://localhost:19881";
+        // 子产品「域名 + 前端回调路由」映射（dev 环境 localhost）
+        String target = switch (subProductCode.toUpperCase()) {
+            case "GEO"  -> "http://localhost:5180/auth/lingyao/sso-callback";   // V2.0.48：改前端 Vue 路由（原 /api/auth/sso-callback 404）
+            case "DINFO" -> "http://localhost:5181/auth/lingyao/sso-callback";  // 同契约预留
+            case "HPD", "MPDM" -> "http://localhost:3100/auth/lingyao/sso-callback";
+            case "AIDD" -> "http://localhost:13000/auth/lingyao/sso-callback";
+            case "PORM" -> "http://localhost:3190/auth/lingyao/sso-callback";
+            case "MEDPPT" -> "http://localhost:19881/auth/lingyao/sso-callback";
             default -> platformBaseUrl;
         };
         String fragment = "platform_token=" + URLEncoder.encode(platformToken, StandardCharsets.UTF_8);
         if (redirectTo != null && !redirectTo.isBlank()) {
             fragment += "&redirect_to=" + URLEncoder.encode(redirectTo, StandardCharsets.UTF_8);
         }
-        return subDomain + "/api/auth/sso-callback#" + fragment;
+        return target + "#" + fragment;
     }
 
     private String generateState() {

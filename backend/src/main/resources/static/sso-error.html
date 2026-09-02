@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSO 登录失败 · 凌瑶智数</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf3 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(22, 50, 92, 0.12);
+      padding: 48px 40px;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+    }
+    .icon { font-size: 56px; margin-bottom: 16px; }
+    h1 { font-size: 22px; color: #16325C; margin-bottom: 12px; }
+    .msg {
+      background: #FFF7E6;
+      border: 1px solid #FFD591;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #874D00;
+      font-size: 14px;
+      word-break: break-all;
+      margin: 20px 0;
+      text-align: left;
+    }
+    .hint { color: #8c8c8c; font-size: 13px; line-height: 1.8; text-align: left; }
+    .hint b { color: #16325C; }
+    .btn {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 10px 32px;
+      background: #16325C;
+      color: #fff;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .btn:hover { background: #1f477f; }
+    .footer { margin-top: 28px; color: #bbb; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🔐</div>
+    <h1>SSO 登录失败</h1>
+    <div class="msg" id="errMsg">正在获取错误信息…</div>
+    <div class="hint">
+      可能原因：<br>
+      1. <b>公司未配置该 SSO</b> — 请联系公司超管在主站「SSO 配置」完成配置<br>
+      2. <b>授权已过期</b> — 请返回子平台重新发起 SSO 登录<br>
+      3. <b>参数错误</b> — 请检查公司代码 / 子产品代码是否正确<br>
+      4. <b>三方平台拒绝</b> — 飞书/钉钉侧应用配置或白名单未就绪
+    </div>
+    <a class="btn" href="/" id="backHome">返回凌瑶智数</a>
+    <div class="footer">凌瑶智数 · 统一身份认证 · V2.0.48</div>
+  </div>
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      // URLSearchParams.get 已自动解码一次，不再手动 decodeURIComponent（避免双重解码）
+      var msg = q.get('msg');
+      if (msg) {
+        document.getElementById('errMsg').textContent = msg;
+      } else {
+        document.getElementById('errMsg').textContent = '未知错误（未携带 msg 参数）';
+      }
+      // 禁止把外部任意 URL 当跳转目标
+      document.getElementById('backHome').href = '/';
+    })();
+  </script>
+</body>
+</html>
