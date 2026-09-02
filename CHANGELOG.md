@@ -3,6 +3,76 @@
 > 维护者：凌瑶主人
 > 起始：2026-08-27（首次创建，作为质量环产物）
 
+## V2.0.25 (2026-09-02 08:00) — P2.3 阶段 C：CSRF 防护（Double-Submit Cookie 模式）
+
+主人 22:55 拍板「P2.3 CSRF 防护（Recommended）」。21/21 E2E 全过，本地 commit 不 push。
+
+### 新增
+
+- **CsrfTokenService**（V2.0.25 P2.3 核心）
+  - 生成 32B SecureRandom → Base64 URL-safe token（256 bits 熵）
+  - Cookie 工具：`getTokenFromCookie` / `setTokenCookie` / `ensureTokenCookie`
+  - 常量：`COOKIE_NAME=XSRF-TOKEN` / `HEADER_NAME=X-XSRF-TOKEN`
+- **CsrfFilter**（OncePerRequestFilter @Order HIGHEST+15）
+  - GET/HEAD/OPTIONS（幂等方法）→ 仅种 cookie，不做校验
+  - POST/PUT/DELETE/PATCH → 必须 cookie + header 同时存在且一致（timing-safe 比较）
+  - 命中 403 → `{code:403, error:"CSRF_TOKEN_INVALID", success:false}`
+  - filter 顺序：SecurityHeaders → CsrfFilter → RateLimit → JwtAuth
+
+### 豁免路径（与 SecurityConfig permitAll 对齐）
+
+- 完全匹配：`/api/auth/login` `/api/auth/logout` `/api/auth/refresh` `/api/auth/forgot-password` `/api/auth/reset-password` `/api/auth/register` `/api/registrations` `/api/registrations/stats` `/api/feedback` `/api/health` `/api/version` `/api/_diag/version`
+- 前缀匹配：`/api/public/` `/api/invitations/` `/api/sub-product/` `/api/_diag/` `/h2-console/`
+- OPTIONS 预检：浏览器不处理预检响应 Set-Cookie，过滤器跳过 ensureTokenCookie
+
+### 安全设计要点
+
+| 维度 | 选择 | 理由 |
+|---|---|---|
+| Token 长度 | 32B SecureRandom → Base64 URL-safe (43 字符) | 256 bits 熵，暴力破解不可行 |
+| HttpOnly | **false** | 必须 JS 可读才能放进 header（JWT 在 localStorage 也是 JS 可读，攻击面已经存在）|
+| SameSite | Lax | 浏览器自动阻止跨站 POST，CSRF 防御 80% 由它承担 |
+| 比较方式 | `MessageDigest.isEqual` | timing-safe，防止时序攻击 |
+| 模式 | Double-Submit Cookie | 无状态 API 首选，无需服务端 session 存储 |
+| 替代 Spring 内置 | 用自定义 | 凌瑶是 JWT + SPA，不是 form + session，适配成本高 |
+
+### 前端改动
+
+- **website/js/script.js**
+  - 新增 `addCsrfHeader(input, init)` —— 状态变更方法自动注入 `X-XSRF-TOKEN` header
+  - 新增 `readCookie(name)` —— 通用 cookie 解析
+  - 新增 `isCsrfExemptUrl(url)` —— 与后端 EXEMPT 列表对齐
+  - fetch 包装器在 401 续期后**重新读 cookie**（refresh 时可能重新生成）
+  - 导出 `window.lingyaoCsrfToken()` 给调试用
+
+### 变更
+
+- **app.version 2.0.24 → 2.0.25**
+- **SecurityConfig** 新增 `addFilterAfter(csrfFilter, CorsFilter.class)` + `addFilterBefore(rateLimitFilter, CsrfFilter.class)`
+- **filter 顺序**：SecurityHeaders(HIGHEST+10) → CsrfFilter(HIGHEST+15) → RateLimit(HIGHEST+20) → JwtAuth(UPF)
+
+### 验收（21/21）
+
+- T1 GET /api/version 种 cookie（43 字符） ✅
+- T2-T7 公开端点 login/forgot-password/reset-password/refresh/register/feedback 无 CSRF 通过 ✅
+- T8 登录拿 JWT ✅
+- T9 登录后 cookie 重新获取 ✅
+- T10 POST /api/admin/users 无 CSRF → 403（cookie 缺失）✅
+- T11 有 cookie 无 header → 403（header 缺失）✅
+- T12 cookie + 不匹配 header → 403（不一致）✅
+- T13 cookie + 匹配 header → 200/400（CSRF 通过，进入业务校验）✅
+- T14 OPTIONS 预检 → 200（不拦截）✅
+- T15 PUT 接口也需 CSRF ✅
+- T16 DELETE 接口也需 CSRF ✅
+
+### 已知限制 / V2.0.26+ 改进
+
+- 跨子域场景：cookie 默认 SameSite=Lax，跨子域 POST 会被浏览器拦截（这是 SameSite 的本意，不是 bug）
+- 多实例部署：每个实例生成的 token 独立，浏览器无需关心（cookie 跟着用户走）
+- Token 旋转：当前实现不旋转 token（不重置 cookie value），如需 TOTP-style 升级可在 ensureTokenCookie 加 expires 滑动逻辑
+
+---
+
 ## V2.0.24 (2026-09-02 07:55) — P2.2 阶段 C：限流 rate limit（防爆破 + spam + 滥用）
 
 主人 22:55 拍板「P2.2 限流（rate limit）」。4 个接口（login / refresh / forgot-password / change-password）按 IP 或 user 限流，E2E 8/8 全过，本地 commit 不 push。
