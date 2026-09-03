@@ -21,10 +21,6 @@ VALUES (2, 'B 药企（演示）', 'B-DEMO', 'SAAS', 'ENTERPRISE', 'ACTIVE', 100
 INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, two_factor_enabled, created_at, updated_at)
 VALUES (2, 'a_admin', '$2a$10$7Jch2YNp3SLTl69yurfQ6efLHxf4O6pO/bbIgLHqvAbWFpfhkyHGu', 'A 药企管理员', 'admin@a-pharma.cn', 'ACTIVE', FALSE, TRUE, FALSE, NOW(), NOW());
 
--- 5. A 药企普通用户（用户名: a_user1  密码: pass123）
-INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, two_factor_enabled, created_at, updated_at)
-VALUES (3, 'a_user1', '$2a$10$7Jch2YNp3SLTl69yurfQ6efLHxf4O6pO/bbIgLHqvAbWFpfhkyHGu', 'A 药企用户 1', 'user1@a-pharma.cn', 'ACTIVE', FALSE, TRUE, FALSE, NOW(), NOW());
-
 -- 6. B 药企管理员（用户名: b_admin  密码: pass123）
 INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, two_factor_enabled, created_at, updated_at)
 VALUES (4, 'b_admin', '$2a$10$7Jch2YNp3SLTl69yurfQ6efLHxf4O6pO/bbIgLHqvAbWFpfhkyHGu', 'B 药企管理员', 'admin@b-pharma.cn', 'ACTIVE', FALSE, TRUE, FALSE, NOW(), NOW());
@@ -38,9 +34,8 @@ VALUES (1, 1, 1, 'SUPER_ADMIN', 'ACTIVE', NOW()),
 INSERT INTO company_user (id, company_id, user_id, role, status, created_at)
 VALUES (3, 1, 2, 'SUPER_ADMIN', 'ACTIVE', NOW());
 
--- 9. A 药企普通用户加入 A 公司
-INSERT INTO company_user (id, company_id, user_id, role, status, created_at)
-VALUES (4, 1, 3, 'OPERATOR', 'ACTIVE', NOW());
+-- V2.0.51：a_user1（OPERATOR）种子已删——主站平台只有平台超管 + 公司超管两种角色，
+-- 普通用户由公司超管在子平台内管理，不在主站出生。
 
 -- 10. B 药企管理员加入 B 公司
 INSERT INTO company_user (id, company_id, user_id, role, status, created_at)

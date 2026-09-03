@@ -41,8 +41,10 @@ public class CompanyAdminService {
         Company company = companyRepo.findById(companyId)
                 .orElseThrow(() -> new IllegalArgumentException("公司不存在: " + companyId));
 
-        // 已用用户（ACTIVE 状态的 CompanyUser）
-        long usedUsers = companyUserRepo.countByCompanyIdAndStatus(companyId, CompanyUser.Status.ACTIVE);
+        // 已用用户（V2.0.51：只统计超管 SUPER_ADMIN·ACTIVE，与用户管理列表同口径；
+        // 普通员工不在主站存在，子平台内员工不计入主站 license 席位展示）
+        long usedUsers = companyUserRepo.countByCompanyIdAndRoleAndStatus(
+                companyId, CompanyUser.CompanyRole.SUPER_ADMIN, CompanyUser.Status.ACTIVE);
 
         // 已开通产品
         List<CompanyProduct> companyProducts = companyProductRepo.findByCompanyId(companyId);
@@ -90,7 +92,13 @@ public class CompanyAdminService {
     // ═══════════════════════ 2. 用户管理 ═══════════════════════
 
     public List<Map<String, Object>> listCompanyUsers(Long currentUserId, Long companyId) {
-        List<CompanyUser> memberships = companyUserRepo.findByCompanyId(companyId);
+        // V2.0.51：主站平台只有两种角色——平台超管 + 公司超管。
+        // 工作台用户管理只显示超管（SUPER_ADMIN·ACTIVE）；普通员工（OPERATOR/VIEWER）由公司超管
+        // 在子平台内管理，不在主站任何列表出现（与 V2.0.46 admin.html 用户管理口径对齐）。
+        List<CompanyUser> memberships = companyUserRepo.findByCompanyIdAndRoleInAndStatus(
+                companyId,
+                List.of(CompanyUser.CompanyRole.SUPER_ADMIN),
+                CompanyUser.Status.ACTIVE);
         List<Map<String, Object>> result = new ArrayList<>();
         for (CompanyUser cu : memberships) {
             SysUser user = userRepo.findById(cu.getUserId()).orElse(null);
@@ -106,6 +114,8 @@ public class CompanyAdminService {
             m.put("joinedAt", cu.getCreatedAt());
             m.put("lastLoginAt", user.getLastLoginAt());
             m.put("mustChangePassword", !user.getPasswordChanged());
+            // V2.0.51：平台超管标记（前端用于区分「平台超管」vs「公司超管」徽标）
+            m.put("platformAdmin", Boolean.TRUE.equals(user.getIsPlatformAdmin()));
             result.add(m);
         }
         // 按角色优先级排序：SUPER_ADMIN > OPERATOR > VIEWER

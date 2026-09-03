@@ -1,5 +1,22 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.51 (2026-09-03 10:25) — 双超管徽标区分 + 工作台用户列表只含超管
+
+### Fix
+- **角色列裸显 SUPER_ADMIN 无法区分**（主人指出的「巨大区别」）：
+  - 后端 `listCompanyUsers` 响应新增 `platformAdmin` 布尔字段
+  - portal.html / company-admin.html 角色徽标双语分化：平台超管（紫色徽标，管全平台）/ 公司超管（蓝色徽标，只管本公司）
+  - company-admin.html：平台超管行禁止「改角色/移除」操作（平台账号不可被公司侧操作）
+- **OPERATOR 出现在主站平台**（主人：平台没有 Operator）：
+  - 后端 `listCompanyUsers` 只返回 SUPER_ADMIN·ACTIVE（JPQL findByCompanyIdAndRoleInAndStatus），普通员工不再出现
+  - KPI「公司成员」usedUsers 同口径只数超管（countByCompanyIdAndRoleAndStatus）
+  - data.sql 删除 a_user1（OPERATOR）种子——主站不再出生普通用户，普通员工由公司超管在子平台内管理（延续 V2.0.38/V2.0.46 架构）
+
+### Verified
+- E2E：admin 登录 A 药企上下文 → 用户列表 3→2（admin+platformAdmin=true / a_admin+false），a_user1 消失；KPI usedUsers=2
+- 浏览器 DOM 级：用户表 = [admin（你）·平台超管徽标] + [a_admin·公司超管徽标]，OPERATOR 不复现
+
+
 ## V2.0.50 (2026-09-03 10:10) — 产品列表口径修复（已开通 = 真实授权）
 
 ### Fix

@@ -4,6 +4,8 @@
   <meta charset="UTF-8" data-page-node-id="auiTgYX4IJxtECjjaDChxO">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="49XOtBPqD4wzFqIoRjfjGL">
   <title>凌瑶智数 · 公司管理后台</title>
+  <meta name="app-version" content="V2.0.51">
+  <script>console.log('%c company-admin.html V2.0.51 · 双超管徽标区分 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css" data-page-node-id="niMXLtvcDrCVI7MhTHu5BY">
   <style>
     .ca-shell { min-height: 100vh; padding: 96px 32px 64px; max-width: 1320px; margin: 0 auto; }
@@ -507,19 +509,24 @@
       tb.innerHTML = usersCache.map(u => {
         const isMe = u.username === (me?.username);
         const canModify = !isMe;
+        // V2.0.51：平台超管 vs 公司超管 徽标区分（与 portal.html 同口径）
+        const isPlatform = !!u.platformAdmin;
+        const roleBadge = isPlatform
+          ? '<span class="role-tag" style="background:rgba(139,92,246,.18);color:#b794f6;border:1px solid rgba(139,92,246,.4);">平台超管</span>'
+          : '<span class="role-tag SUPER_ADMIN">公司超管</span>';
         return `
           <tr>
             <td><strong>${escapeHtml(u.username)}</strong>${isMe ? ' <span style="color:var(--accent);font-size:11px;">（你）</span>' : ''}</td>
             <td>${escapeHtml(u.displayName || '-')}</td>
-            <td><span class="role-tag ${u.role}">${u.role}</span></td>
+            <td>${roleBadge}</td>
             <td><span class="status-tag ${u.status}">${u.status}</span></td>
             <td style="font-size:12px;color:var(--text-dim);">${fmtDate(u.joinedAt)}</td>
             <td style="font-size:12px;color:var(--text-dim);">${fmtDate(u.lastLoginAt)}</td>
             <td>
-              ${canModify ? `
+              ${canModify && !isPlatform ? `
                 <button class="btn-ghost-sm" data-action="change-role" data-username="u="${escapeHtml(u.username)}" data-uid="${u.userId}" data-current-role="${u.role}">改角色</button>
                 <button class="btn-warn-sm" data-action="remove-user" data-username="u="${escapeHtml(u.username)}" data-uid="${u.userId}">移除</button>
-              ` : '<span style="color:var(--text-dim);font-size:12px;">不能改自己</span>'}
+              ` : (isPlatform ? '<span style="color:var(--text-dim);font-size:12px;">平台账号不可操作</span>' : '<span style="color:var(--text-dim);font-size:12px;">不能改自己</span>')}
             </td>
           </tr>
         `;

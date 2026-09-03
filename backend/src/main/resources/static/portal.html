@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 产品门户</title>
-  <meta name="app-version" content="V2.0.50">
-  <script>console.log('%c portal.html V2.0.50 · 产品列表口径修复（已开通=真实授权） ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <meta name="app-version" content="V2.0.51">
+  <script>console.log('%c portal.html V2.0.51 · 双超管徽标区分+用户列表只含超管 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css">
   <style>
     /* ── Portal 专属样式（复用凌瑶 CSS 变量） ─────── */
@@ -1522,14 +1522,20 @@
           <table class="ws-table">
             <thead><tr><th>用户名</th><th>显示名</th><th>角色</th><th>状态</th><th>最近登录</th></tr></thead>
             <tbody>
-              ${WS.users.map(u => `
+              ${WS.users.map(u => {
+                // V2.0.51：平台超管 vs 公司超管 徽标区分（两者权限天壤之别，不允许混为一谈）
+                const isPlatform = !!u.platformAdmin;
+                const roleBadge = isPlatform
+                  ? '<span class="ws-tag SUPER_ADMIN" style="background:rgba(139,92,246,.18);color:#b794f6;border:1px solid rgba(139,92,246,.4);">平台超管</span>'
+                  : '<span class="ws-tag SUPER_ADMIN">公司超管</span>';
+                return `
                 <tr>
                   <td><strong>${esc(u.username)}</strong>${u.username === me?.username ? ' <span style="color:var(--accent);font-size:11px;">（你）</span>' : ''}</td>
                   <td>${esc(u.displayName || '-')}</td>
-                  <td><span class="ws-tag ${esc(u.role)}">${esc(u.role)}</span></td>
+                  <td>${roleBadge}</td>
                   <td><span class="ws-tag ${esc(u.status)}">${esc(u.status)}</span></td>
                   <td style="color:var(--text-dim);">${fmtDateLocal(u.lastLoginAt)}</td>
-                </tr>`).join('') || '<tr><td colspan="5" class="ws-empty">暂无用户</td></tr>'}
+                </tr>`;}).join('') || '<tr><td colspan="5" class="ws-empty">暂无用户</td></tr>'}
             </tbody>
           </table>`;
       } catch (e) {
