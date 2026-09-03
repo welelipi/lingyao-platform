@@ -47,13 +47,18 @@ public class AuthService {
     @Autowired private TwoFactorService twoFactorService;
     // V2.0.66：算术图形验证码
     @Autowired private CaptchaService captchaService;
+    // V2.0.67：管理员强制 2FA（超管重置逃生通道直接操作 2FA 表）
+    @Autowired private User2FARepository user2FARepository;
 
     public LoginResponse login(LoginRequest req, String ip) {
         // ═══ V2.0.66：图形验证码校验（在锁定检查前——锁定态也要先过验证码，防无脑重试）═══
-        // captchaTicket 例外：2FA 挑战重试时密码+验证码已验过，凭 ticket（10 分钟一次性）免重复过验证码
+        // 例外一：captchaTicket——2FA 挑战重试时密码+验证码已验过，凭 ticket（10 分钟一次性）免重复过验证码
+        // 例外二：enrollTicket——V2.0.67 强制报名第二歩，密码在本次请求中重新验过，同样免图形验证码
         boolean ticketValid = req.getCaptchaTicket() != null
                 && captchaService.verifyTicket(req.getCaptchaTicket(), req.getUsername());
-        if (!ticketValid && !captchaService.verify(req.getCaptchaId(), req.getCaptchaAnswer())) {
+        boolean enrollValid = req.getEnrollTicket() != null
+                && captchaService.peekEnrollTicket(req.getEnrollTicket(), req.getUsername(), "MFA_ENROLL");
+        if (!ticketValid && !enrollValid && !captchaService.verify(req.getCaptchaId(), req.getCaptchaAnswer())) {
             authAuditService.recordFailure(
                     AuthAuditEvent.EventType.LOGIN_FAIL,
                     null, req.getUsername(), ip,
@@ -106,9 +111,45 @@ public class AuthService {
             throw new IllegalArgumentException("账号已停用");
         }
 
+        // ═══ V2.0.67：管理员强制 2FA 报名（密码正确后、正常 2FA 挑战前）═══
+        // 分两种情况：
+        // A) enrollTicket 为空 → 首次撞到强制报名：生成 secret + 发 enrollTicket，返回 mfaEnrollRequired=true
+        // B) enrollTicket+enrollCode 携带 → 第二歩确认：校验通过即完成绑定，直接走下方正常登录签发 token
+        boolean justEnrolled = false;   // V2.0.67：报名第二歩刚验过 TOTP → 跳过下方 challenge（同码防重放会误杀）
+        if (isAdminAccount(user) && !twoFactorService.isEnabled(user.getId())) {
+            if (req.getEnrollTicket() == null || req.getEnrollTicket().isBlank()) {
+                // 首次撞到强制报名：生成 secret（幂等，重复登录重新生成）+ 响应直接带 secret 引导绑定
+                // 密码已验过（走到这里说明凭据正确），secret 只发给刚证明自己是账号主人的人
+                java.util.Map<String, Object> setup = twoFactorService.generateSetup(user.getId());
+                LoginResponse enroll = new LoginResponse();
+                enroll.setMfaEnrollRequired(true);
+                enroll.setEnrollTicket(captchaService.issueEnrollTicket(user.getUsername(), "MFA_ENROLL"));
+                enroll.setMfaSecret((String) setup.get("secret"));
+                // 记审计（公司侧可见：管理员被强制报名）
+                auditLogService.recordWithSubject("LOGIN_FAIL", "USER", user.getId(), user.getUsername(),
+                        "触发管理员强制 2FA 报名: " + user.getUsername());
+                return enroll;
+            }
+            // 第二歩：用 enrollTicket 定位用户 + 验证 6 位码（verifySetup 成功即启用 2FA）
+            if (!captchaService.peekEnrollTicket(req.getEnrollTicket(), user.getUsername(), "MFA_ENROLL")) {
+                throw new IllegalArgumentException("报名凭证无效或已过期，请重新登录");
+            }
+            try {
+                twoFactorService.verifySetup(user.getId(), req.getEnrollCode());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("报名验证码错误：" + e.getMessage());
+            }
+            captchaService.consumeEnrollTicket(req.getEnrollTicket(), user.getUsername(), "MFA_ENROLL");
+            justEnrolled = true;
+            auditLogService.recordWithSubject("LOGIN_SUCCESS", "USER", user.getId(), user.getUsername(),
+                    "管理员强制 2FA 绑定完成: " + user.getUsername());
+            // 绑定成功 → 落到下方正常登录流程（签发 token，用户直接进入已登录态）
+        }
+
         // ═══ V2.0.42：2FA 登录 challenge（密码正确后、会话建立前校验 TOTP）═══
         // 设计：不暴露"是否启用了 2FA"给未认证方——challenge 失败与密码错误统一 401 文案不同码
-        if (twoFactorService.isEnabled(user.getId())) {
+        // V2.0.67：justEnrolled 例外——报名 enrollCode 刚验过 TOTP，同码防重放会误杀，直接放行
+        if (!justEnrolled && twoFactorService.isEnabled(user.getId())) {
             String totpCode = req.getTotpCode();
             boolean totpOk = false;
             String failReason = null;
@@ -269,6 +310,50 @@ public class AuthService {
         }
 
         return resp;
+    }
+
+    /**
+     * V2.0.67：管理员账号判定（强制 2FA 适用对象）
+     * 口径与 JWT is_tenant_admin 一致：平台超管 OR 任一 ACTIVE 公司关系中 role=SUPER_ADMIN
+     */
+    private boolean isAdminAccount(SysUser user) {
+        if (Boolean.TRUE.equals(user.getIsPlatformAdmin())) return true;
+        return companyUserRepo.findByUserId(user.getId()).stream()
+                .filter(cu -> cu.getStatus() == CompanyUser.Status.ACTIVE)
+                .anyMatch(cu -> cu.getRole() == CompanyUser.CompanyRole.SUPER_ADMIN);
+    }
+
+    /**
+     * V2.0.67：平台超管重置目标用户的 2FA（逃生通道——管理员丢手机/换机后走此路径恢复登录）
+     * 目标用户必须是管理员账号才允许；平台超管可重置任何人（含其他平台超管），公司超管仅限本公司成员
+     */
+    @Transactional
+    public void adminResetTwoFactor(Long operatorUserId, Long targetUserId) {
+        SysUser operator = userRepo.findById(operatorUserId)
+                .orElseThrow(() -> new IllegalArgumentException("操作者不存在"));
+        SysUser target = userRepo.findById(targetUserId)
+                .orElseThrow(() -> new IllegalArgumentException("目标用户不存在"));
+        boolean operatorPlatform = Boolean.TRUE.equals(operator.getIsPlatformAdmin());
+        if (!operatorPlatform) {
+            // 公司超管：仅可重置本公司成员
+            boolean sameCompany = companyUserRepo.findByUserId(operatorUserId).stream()
+                    .filter(cu -> cu.getStatus() == CompanyUser.Status.ACTIVE
+                            && cu.getRole() == CompanyUser.CompanyRole.SUPER_ADMIN)
+                    .anyMatch(cuOp -> companyUserRepo.findByUserId(targetUserId).stream()
+                            .anyMatch(cuTarget -> cuTarget.getCompanyId().equals(cuOp.getCompanyId())));
+            if (!sameCompany) throw new IllegalArgumentException("公司超管仅可重置本公司成员的 2FA");
+        }
+        if (!isAdminAccount(target)) {
+            throw new IllegalArgumentException("仅管理员账号支持超管重置 2FA（普通用户可自助用备份码）");
+        }
+        var existing = user2FARepository.findByUserId(targetUserId);
+        existing.ifPresent(user2FARepository::delete);
+        auditLogService.recordWithSubject("PASSWORD_RESET", "USER", target.getId(), target.getUsername(),
+                "超管重置 2FA（逃生通道）: operator=" + operator.getUsername() + " target=" + target.getUsername());
+        authAuditService.recordSuccess(
+                AuthAuditEvent.EventType.PASSWORD_RESET,
+                target.getId(), target.getUsername(), null,
+                "/api/admin/users/2fa/reset", "POST");
     }
 
     /**

@@ -15,6 +15,7 @@ import com.lingyao.platform.repository.*;
 import com.lingyao.platform.security.CurrentUser;
 import com.lingyao.platform.security.JwtAuthFilter;
 import com.lingyao.platform.service.AuditLogService;
+import com.lingyao.platform.service.AuthService;
 import com.lingyao.platform.service.TenantAdminService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,7 @@ public class AdminController {
     @Autowired private NotificationChannelRepository channelRepo;
     @Autowired private AuditLogService auditLogService;
     @Autowired private TenantAdminService tenantAdminService;
+    @Autowired private AuthService authService;
     @Autowired private RegistrationService registrationService;
     @Autowired private CompanyUserRepository companyUserRepo;
     @Autowired private ProductUserGrantRepository grantRepo;
@@ -154,6 +156,22 @@ public class AdminController {
             return ApiResponse.ok("密码已重置，请将新密码告知用户", result);
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());
+        }
+    }
+
+    /**
+     * V2.0.67：超管重置目标用户 2FA（逃生通道——管理员丢手机后无法登录时）
+     * 仅平台超管可操作（公司超管丢手机由平台超管代重置）；目标必须是管理员账号
+     */
+    @PostMapping("/users/{userId}/reset-2fa")
+    public ApiResponse<?> resetUserTwoFactor(@PathVariable Long userId) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        try {
+            authService.adminResetTwoFactor(JwtAuthFilter.getCurrentUser().getUserId(), userId);
+            return ApiResponse.ok("该用户 2FA 已重置，下次登录将重新走强制绑定流程", null);
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(400, e.getMessage());
         }
     }
 

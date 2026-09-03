@@ -46,6 +46,15 @@ public class LoginResponse {
     /** V2.0.66：2FA 挑战凭证——密码+验证码已验过，重试登录只需 totpCode + 此 ticket（免重复过图形验证码） */
     private String captchaTicket;
 
+    /** V2.0.67：true = 管理员账号（平台/公司超管）未绑定 2FA，强制报名——前端展示 secret 引导绑定 */
+    private boolean mfaEnrollRequired;
+
+    /** V2.0.67：强制报名凭证——携带 enrollTicket+enrollCode 重新 POST /api/auth/login 完成绑定并直接签发 token */
+    private String enrollTicket;
+
+    /** V2.0.67：报名用 TOTP secret（明文仅此一次，密码已验过才下发；粘贴进 Authenticator 完成绑定） */
+    private String mfaSecret;
+
     @Data
     @Builder
     @NoArgsConstructor
