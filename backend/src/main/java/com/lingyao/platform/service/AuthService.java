@@ -764,10 +764,11 @@ public class AuthService {
 
     private List<LoginResponse.ProductView> buildProductView(Long userId, Long companyId, Boolean isPlatformAdmin) {
         List<Product> allProducts = productRepo.findAll();
-        Set<Long> companyLicensedProductIds = companyProductRepo.findByCompanyIdAndStatus(companyId, CompanyProduct.Status.ACTIVE).stream()
-                .map(CompanyProduct::getProductId)
-                .collect(Collectors.toSet());
-        Set<Long> userGrantedProductIds = grantRepo.findByUserIdAndStatus(userId, ProductUserGrant.Status.ACTIVE).stream()
+        // V2.0.50：licensed/granted 一律按「公司真实授权 + 用户个人授权」口径，
+        // 平台超管不再短路放行（此前 5 产品全显已开通，与 KPI 已开通数矛盾）。
+        // 平台超管的进入能力由 /api/sub/{code}/enter 服务端鉴权（isPlatformAdmin 直通）保证，不依赖本视图。
+        Set<Long> companyScope = companyId == null ? Set.of() : companyLicensedProductIds(companyId);
+        Set<Long> userScope = grantRepo.findByUserIdAndStatus(userId, ProductUserGrant.Status.ACTIVE).stream()
                 .map(ProductUserGrant::getProductId)
                 .collect(Collectors.toSet());
         Map<Long, String> userRoleByProductId = userRoleRepo.findByUserId(userId).stream()
@@ -780,9 +781,8 @@ public class AuthService {
             pv.setCode(p.getCode());
             pv.setName(p.getName());
             pv.setIcon(p.getIcon());
-            boolean isAdmin = Boolean.TRUE.equals(isPlatformAdmin);
-            boolean licensed = isAdmin || companyLicensedProductIds.contains(p.getId());
-            boolean granted = isAdmin || (licensed && userGrantedProductIds.contains(p.getId()));
+            boolean licensed = companyScope.contains(p.getId());
+            boolean granted = licensed && userScope.contains(p.getId());
             pv.setLicensed(licensed);
             pv.setGranted(granted);
             String roleCode = userRoleByProductId.get(p.getId());
@@ -795,5 +795,12 @@ public class AuthService {
             result.add(pv);
         }
         return result;
+    }
+
+    /** V2.0.50：公司级 ACTIVE 产品授权集合（提取方法便于空公司守卫） */
+    private Set<Long> companyLicensedProductIds(Long companyId) {
+        return companyProductRepo.findByCompanyIdAndStatus(companyId, CompanyProduct.Status.ACTIVE).stream()
+                .map(CompanyProduct::getProductId)
+                .collect(Collectors.toSet());
     }
 }

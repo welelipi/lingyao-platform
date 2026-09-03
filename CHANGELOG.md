@@ -1,5 +1,20 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.50 (2026-09-03 10:10) — 产品列表口径修复（已开通 = 真实授权）
+
+### Fix
+- **portal 产品列表虚假「已开通」**：平台超管登录控制台，产品列表 5 个产品全部显示「✓ 已开通」，与 KPI「已开通产品 N」自相矛盾
+  - 根因（双层短路叠加）：后端 `AuthService.buildProductView` L784 `licensed = isAdmin || 公司授权`（平台超管全量伪造 licensed）；前端 `renderProductList` L1375 `isGranted = isPlatformAdmin || grants`（再次短路）
+  - 后端修复：licensed/granted 一律按「公司真实授权（company_product ACTIVE）+ 用户个人授权（product_user_grant ACTIVE）」口径，删 isAdmin 短路；平台超管进入子平台的能力由 `/api/sub/{code}/enter` 服务端鉴权（isPlatformAdmin 直通）保证，不依赖本视图
+  - 前端修复：删 isPlatformAdmin 万能放行，已开通严格按 subProductGrants（与 KPI 同口径）；平台超管看到的未开通提示改为「该公司未开通（可在管理后台「产品授权」开通）」运营视角文案
+  - 附带修正：平台超管 JWT `sub_product_grants` claim 不再虚报全产品（此前登录子平台会携带未授权产品）
+
+### Verified
+- E2E：b_admin（B 药企，仅 GEO 授权）me 接口 licensed=['GEO']，JWT claim=['GEO']，KPI activeProducts=1；admin（A 药企，5 产品授权）licensed=5 个，KPI=5
+- 浏览器 DOM 级验证：B 药企控制台产品列表 GEO「✓ 已开通」+ 其余 4 个「未开通」；KPI 与列表严格一致
+- 平台超管 `/api/sub/GEO/enter` 直通能力保留（HTTP 200 + redirectUrl 正常签发）
+
+
 ## V2.0.49 (2026-09-02 21:55) — KPI 五卡一行根治（CSS 启发式缓存修复）
 
 主人截图报「KPI 卡片占两行」：磁盘 CSS 已是 5 列，但浏览器按启发式缓存拿着旧 4 列 style.css（HTML no-cache 治了，CSS 漏了）。三步根治：

@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 产品门户</title>
-  <meta name="app-version" content="V2.0.33">
-  <script>console.log('%c portal.html V2.0.42 · 2FA 全链路集成 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <meta name="app-version" content="V2.0.50">
+  <script>console.log('%c portal.html V2.0.50 · 产品列表口径修复（已开通=真实授权） ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css">
   <style>
     /* ── Portal 专属样式（复用凌瑶 CSS 变量） ─────── */
@@ -1372,7 +1372,9 @@
       listEl.innerHTML = modules.map(m => {
         const code = (m.productCode || '').toLowerCase();
         const isReady = m.status === 'REGISTERED' || m.status === 'ACTIVE';
-        const isGranted = isPlatformAdmin || grantedCodes.has(code) || grantedCodes.has((m.productCode || '').toUpperCase());
+        // V2.0.50：平台超管不再万能放行——已开通严格按真实授权（subProductGrants），
+        // 与 KPI「已开通产品」同口径；平台超管的进入权限由 /enter 服务端鉴权兜底
+        const isGranted = grantedCodes.has(code) || grantedCodes.has((m.productCode || '').toUpperCase());
         const locked = !isGranted;
         let statusHtml, actionsHtml;
         if (isGranted) {
@@ -1384,7 +1386,10 @@
         } else {
           // V2.0.38：未开通 → 不再提供主站申请按钮，开通由公司超管在主站「产品授权」或子平台内处理
           statusHtml = '<span class="pr-status">未开通</span>';
-          actionsHtml = `<span style="color:var(--text-dim);font-size:12px;">请联系公司超管开通</span>`;
+          // V2.0.50：平台超管看到的未开通提示改为运营视角（自己不会被「联系公司超管」绕晕）
+          actionsHtml = isPlatformAdmin
+            ? `<span style="color:var(--text-dim);font-size:12px;">该公司未开通（可在管理后台「产品授权」开通）</span>`
+            : `<span style="color:var(--text-dim);font-size:12px;">请联系公司超管开通</span>`;
         }
         return `
           <div class="product-row ${locked ? 'locked' : ''}" data-code="${m.productCode}" data-base-url="${(m.baseUrl||'').replace(/"/g,'&quot;')}">
