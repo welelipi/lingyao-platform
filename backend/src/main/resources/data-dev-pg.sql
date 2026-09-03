@@ -49,20 +49,22 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
 -- 产品目录（V2.0.54 主人拍板：展示 4 产品——棱镜/皓元/源策/医呈；
--- DINFO/PORM 置 DEPRECATED 软下架；MEDPPT=医呈 · 智能医学PPT 新增）
+-- DINFO/PORM 置 DEPRECATED 软下架；MEDPPT=医呈-智能医学PPT生成智能体 新增）
 -- ON CONFLICT 只保护全新初始化；存量库口径靠下方 UPDATE 强制对齐
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO product (id, code, name, description, icon, sort_order, status, created_at, updated_at)
 VALUES
   (1, 'GEO', '棱镜-智能GEO监测', 'AI 品牌监测与内容优化，监测 8 大 AI 平台', 'G', 1, 'ACTIVE', NOW(), NOW()),
   (2, 'HPD', '皓元-智能医院潜力预测', '医院销售潜力模型预测，WMAPE 6.6%', 'H', 2, 'ACTIVE', NOW(), NOW()),
-  (3, 'AIDD', '源策-AI 立项 Copilot', 'AI 辅助药物研发立项 Copilot（双种子方向：肿瘤 + 自免），含 CDE 中国监管数据 + 商业测算（PDB/米内）双增强', 'A', 3, 'ACTIVE', NOW(), NOW()),
+  (3, 'AIDD', '源策-医药研发信息智能体', 'AI 辅助药物研发立项 Copilot（双种子方向：肿瘤 + 自免），含 CDE 中国监管数据 + 商业测算（PDB/米内）双增强', 'A', 3, 'ACTIVE', NOW(), NOW()),
   (4, 'DINFO', '辰录 · 智能信息填报系统', 'Dinfo 智能信息填报系统，LLM 智能填写 + 多任务架构 + 飞书 OAuth', 'D', 4, 'DEPRECATED', NOW(), NOW()),
   (5, 'PORM', '明枢-PORM 智能协作平台', 'POR-M 透明 × 协作中枢（看得见的协作），每张表/每条工单/每次审批可被看见、可被追溯', '明', 5, 'DEPRECATED', NOW(), NOW()),
-  (6, 'MEDPPT', '医呈-智能医学PPT', '智能医学PPT生成智能体，一键生成专业医学演示文稿', 'M', 6, 'ACTIVE', NOW(), NOW())
+  (6, 'MEDPPT', '医呈-智能医学PPT生成智能体', '智能医学PPT生成智能体，一键生成专业医学演示文稿', 'M', 6, 'ACTIVE', NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
--- 存量库对齐 V2.0.54 口径（幂等：无论是否新库都强制置位）
+-- 存量库对齐 V2.0.55 口径（幂等：无论是否新库都强制置位；V2.0.55 = 产品对外名称更新）
+UPDATE product SET name = '源策-医药研发信息智能体', updated_at = NOW() WHERE id = 3 AND name <> '源策-医药研发信息智能体';
+UPDATE product SET name = '医呈-智能医学PPT生成智能体', updated_at = NOW() WHERE id = 6 AND name <> '医呈-智能医学PPT生成智能体';
 UPDATE product SET status = 'DEPRECATED', updated_at = NOW() WHERE id IN (4, 5) AND status <> 'DEPRECATED';
 UPDATE product SET status = 'ACTIVE', updated_at = NOW() WHERE id = 6 AND status <> 'ACTIVE';
 

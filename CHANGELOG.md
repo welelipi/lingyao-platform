@@ -1,5 +1,14 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.55 (2026-09-03 12:15) — 产品对外名称更新（主人拍板）
+
+### Changed
+- **源策**：`源策-AI 立项 Copilot` → **`源策-医药研发信息智能体`**
+- **医呈**：`医呈-智能医学PPT` → **`医呈-智能医学PPT生成智能体`**
+- 落点 5 处：product 表名称（dev data.sql + dev-pg data-dev-pg.sql，含存量库 UPDATE 强制对齐）、试用邀请邮件 PRODUCT_CATALOG、邀请页 invite.html PRODUCT_INTRO、portal.html 新手引导步骤标题
+
+---
+
 ## V2.0.54 (2026-09-03 12:05) — 产品目录收敛 4 产品 + MED PPT 定名「医呈」上架
 
 ### Feature

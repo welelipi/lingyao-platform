@@ -53,7 +53,7 @@ VALUES
   (3, 'AIDD', '源策-AI 立项 Copilot', 'AI 辅助药物研发立项 Copilot（双种子方向：肿瘤 + 自免），含 CDE 中国监管数据 + 商业测算（PDB/米内）双增强', 'A', 3, 'ACTIVE', NOW(), NOW()),
   (4, 'DINFO', '辰录 · 智能信息填报系统', 'Dinfo 基于 GH-Department info V1.5.23 继承的 9 实体 + 9 Controller + 10 前端页面 + 飞书 OAuth + JWT 鉴权 + Excel 重载，新增 LLM 智能填写 + 多任务架构', 'D', 4, 'DEPRECATED', NOW(), NOW()),
   (5, 'PORM', '明枢-PORM 智能协作平台', 'POR-M 透明 × 协作中枢（看得见的协作），从 POR/GS-CoLab 衍生 v1.0.0，每张表/每条工单/每次审批都可被看见、可被追溯', '明', 5, 'DEPRECATED', NOW(), NOW()),
-  (6, 'MEDPPT', '医呈-智能医学PPT', '智能医学PPT生成智能体，一键生成专业医学演示文稿', 'M', 6, 'ACTIVE', NOW(), NOW());
+  (6, 'MEDPPT', '医呈-智能医学PPT生成智能体', '智能医学PPT生成智能体，一键生成专业医学演示文稿', 'M', 6, 'ACTIVE', NOW(), NOW());
 
 -- ═══════════════════════════════════════════════════════════
 -- 公司产品授权（V2.0.52：A 药企: 仅 GEO（主人 09-03 拍板）；B 药企: 仅 GEO）
