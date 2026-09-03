@@ -1086,7 +1086,7 @@
         const statusClass = (status === 'PENDING' && !expired) ? 'active'
                           : status === 'CONSUMED' ? 'saas'
                           : 'suspended';
-        const statusLabel = (status === 'PENDING' && expired) ? '已过期' : status;
+        const statusLabel = (status === 'PENDING' && expired) ? '已过期' : zh(status);
         const inviteUrl = window.location.origin + '/invite.html?token=' + inv.token;
         return `
         <tr>
