@@ -6,6 +6,7 @@ import os, sys
 # 路径参数化（V2.0.11 Fix 2 上传远端代码库稳定性）：用 LINGYAO_HOME 覆盖 macOS 本地路径
 # 用法：LINGYAO_HOME=/opt/lingyao python3 scripts/start_backend_daemon.py
 # V2.0.29：profile 参数化——LINGYAO_PROFILE=dev 走 H2 内存开发模式（默认 private 私有化）
+# V2.0.53：LINGYAO_PROFILE=dev-pg 走本地 Docker PG 持久化开发库（lingyao_dev，界面修改重启保留）
 PROJECT_DIR = os.environ.get("LINGYAO_HOME", "/Users/hua/Documents/myself/凌瑶")
 JAVA_BIN = os.environ.get("LINGYAO_JAVA_BIN", "/Users/hua/sdk/jdk-21/Contents/Home/bin/java")
 PROFILE = os.environ.get("LINGYAO_PROFILE", "private")
@@ -64,6 +65,7 @@ if not os.environ.get("LINGYAO_JWT_SECRET"):
 os.chdir(PROJECT_DIR)
 # V2.0.29：dev profile 不指定 config.location（走 jar 内 application.yml 的 dev 多文档段），
 # 其余 profile 显式指定外部配置；--server.port=9091 命令行兜底覆盖 sandbox 注入的 SERVER_PORT
+# V2.0.53：dev-pg（本地 Docker PG 持久化开发库）同走外部配置，数据重启保留
 if PROFILE == "dev":
     os.execv(JAVA_BIN, [
         JAVA_BIN,

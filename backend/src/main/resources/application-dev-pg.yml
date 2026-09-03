@@ -1,0 +1,73 @@
+# ════════════════════════════════════════════════════════════
+# 凌瑶智数 · dev-pg profile（V2.0.53）
+#
+# 主人 2026-09-03 拍板：dev 也用 PG 持久库——
+# 界面上做的「产品开通收敛」等业务口径修改重启后不再被种子复原
+# （H2 内存库模式下每次重启重跑 data.sql，界面修改即丢）
+#
+# 与 dev（H2）的区别：
+# - 数据库：本地 Docker lingyao-postgres 的 lingyao_dev 库（持久）
+# - ddl-auto: update（不 drop 表）
+# - 种子：data-dev-pg.sql（PG 方言 + ON CONFLICT DO NOTHING 幂等，与
+#   staging/prod 的 data-private.sql 同风格）→ 已存在的行永不覆盖，
+#   界面修改持久生效
+# - 与 dev(H2) 共用同一套演示数据口径（A 药企/B 药企/5 产品）
+#
+# 启动方式：
+#   LINGYAO_PROFILE=dev-pg python3 scripts/start_backend_daemon.py
+#
+# 与 lingyao（staging 形态库）隔离：独立库名 lingyao_dev，互不污染
+# ════════════════════════════════════════════════════════════
+
+spring:
+  config:
+    activate:
+      on-profile: dev-pg
+
+  # PostgreSQL 数据库（本地 Docker dev 专用库，与 lingyao/staging 库隔离）
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/lingyao_dev
+    username: lingyao_app
+    password: ${LINGYAO_DB_PASSWORD:Ui/kBL01bvoIfz6Rctgpx8uD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: lingyao-dev-pg-pool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 600000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+
+  h2:
+    console:
+      enabled: false
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    defer-datasource-initialization: true
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Shanghai
+      hibernate.session_factory.statement_inspector: com.lingyao.platform.security.TenantStatementInspector
+
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:data-dev-pg.sql
+      # 幂等双保险：种子全用 ON CONFLICT (id) DO NOTHING，这里兜底吞掉
+      # 重复主键以外的边缘冲突（如唯一约束 uk_company_product）
+      continue-on-error: true
+
+server:
+  port: 9091
+  error:
+    include-message: always
+
+logging:
+  level:
+    root: INFO
+    com.lingyao.platform: INFO

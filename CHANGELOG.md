@@ -1,5 +1,23 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.53 (2026-09-03 11:40) — dev-pg profile：本地开发切 PG 持久化（界面修改重启保留）
+
+### Feature
+- **主人拍板**：dev 不再只用 H2 内存库，新增 dev-pg 模式（连本地 Docker `lingyao-postgres` 的独立库 `lingyao_dev`）
+  - 动机：V2.0.52 事故——H2 内存库每次重启重跑 data.sql，管理后台做的「产品开通收敛」被种子复原；PG 持久库 + 幂等种子彻底根治
+  - `application-dev-pg.yml`（新建）：PG datasource（127.0.0.1:5432/lingyao_dev）+ ddl-auto:update + data-dev-pg.sql；h2 console 关闭
+  - `data-dev-pg.sql`（新建）：PG 方言 + 全部 `ON CONFLICT (id) DO NOTHING` 幂等种子（与 staging/prod data-private.sql 同风格）；口径与 dev data.sql（V2.0.52 版）完全一致：A 药企仅 GEO / B 药企仅 GEO / 5 产品目录；**内置 dev 常用测试数据**——EMAIL 通道(id=1000)、PRIVATE-CUSTOMER(id=1000)+pc_admin/PrivateCust#2026、FEISHU SSO 配置、pc_admin 全产品授权（免去每次重启手工重建 SOP）
+  - PG 序列 setval 幂等对齐（自增 > 999，避开种子显式 id，延续 Bug-22 修复）
+  - `start_backend_daemon.py`：LINGYAO_PROFILE=dev-pg 走外部配置（同 private/staging 机制）
+  - 独立库 `lingyao_dev`（新建）——不碰容器里已有的 `lingyao` 库（私有化形态旧数据）
+- **dev(H2) 与 dev-pg 双模共存**：快速干净重置用 dev；要界面修改持久/更保真测 PG 用 dev-pg
+
+### Verified
+- 种子落库：3 公司（A/B/PRIVATE-CUSTOMER）/ A 药企仅 GEO / SSO 配置 ENABLED / EMAIL 通道 ACTIVE
+- **持久性 E2E**：界面调 grant-products 给 A 药企开 HPD（落库 id=1005 PG 序列）→ 重启后端 → HPD 仍 ACTIVE（me 接口 licensed=['GEO','HPD']）→ 界面收敛回 [GEO] → HPD 置 SUSPENDED（软删除留痕）
+- SSO 链路 302 飞书授权页；pc_admin 持久库直登成功
+- 前后端版本 2.0.53；8765/9091 双活（dev-pg 模式）
+
 ## V2.0.52 (2026-09-03 10:45) — 种子数据口径修正（A 药企仅 GEO，重启不再复原）
 
 ### Fix
