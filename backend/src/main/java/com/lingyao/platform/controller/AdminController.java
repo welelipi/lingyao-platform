@@ -47,6 +47,7 @@ public class AdminController {
     @Autowired private RegistrationService registrationService;
     @Autowired private CompanyUserRepository companyUserRepo;
     @Autowired private ProductUserGrantRepository grantRepo;
+    @Autowired private SubTaskRepository subTaskRepo;
 
     // ──────────────── P1-B 鉴权工具 ────────────────
 
@@ -267,9 +268,26 @@ public class AdminController {
     }
 
     @GetMapping("/products")
-    public ApiResponse<List<Product>> listProducts() {
+    public ApiResponse<List<Map<String, Object>>> listProducts() {
         // V2.0.54：产品目录收敛——管理后台授权下拉/邀请产品选择也只展示 ACTIVE（棱镜/皓元/源策/医呈）
-        return ApiResponse.ok(productRepo.findByStatusOrderBySortOrderAsc(Product.Status.ACTIVE));
+        // V2.0.57：补 deployed 字段（子任务已部署 = 非 COMING_SOON），前端据此把未部署产品置灰
+        List<Map<String, Object>> views = new java.util.ArrayList<>();
+        for (Product p : productRepo.findByStatusOrderBySortOrderAsc(Product.Status.ACTIVE)) {
+            Map<String, Object> v = new LinkedHashMap<>();
+            v.put("id", p.getId());
+            v.put("code", p.getCode());
+            v.put("name", p.getName());
+            v.put("description", p.getDescription());
+            v.put("icon", p.getIcon());
+            v.put("sortOrder", p.getSortOrder());
+            v.put("status", p.getStatus());
+            boolean deployed = subTaskRepo.findByProductId(p.getId())
+                    .map(st -> st.getStatus() != SubTask.Status.COMING_SOON)
+                    .orElse(false);
+            v.put("deployed", deployed);
+            views.add(v);
+        }
+        return ApiResponse.ok(views);
     }
 
     @GetMapping("/company-products")

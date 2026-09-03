@@ -1,6 +1,37 @@
 # 凌瑶智数 · 变更日志
 
-## V2.0.56 (2026-09-03 13:50) — 官网试用产品多选 + 新建公司弹窗排版修复（主人截图反馈）
+## V2.0.57 (2026-09-03 14:35) — 报名转开通按感兴趣产品精确开通 + 未部署产品硬过滤（主人截图反馈）
+
+### Fixed
+- **转开通全量开通 bug（主人报：报名只选 GEO，四产品全亮）**：
+  - 根因 1（前端）：admin.html 转开通预填逻辑无脑勾选「自动开通全部产品」`grantAllProducts=true`，完全没读报名的 `interestedProducts` 字段
+  - 根因 2（口径）：后端 `grantAllProducts` 会授权全部 4 个 ACTIVE 产品——包括**未部署的医呈**（medppt-gen COMING_SOON）
+- **未部署产品可被开通**：医呈未部署却亮「已开通」。主人拍板：医呈永远不该亮
+
+### Feature
+- **CreateCompanyRequest 新增 `productCodes`**（List<String>）：按产品 code 精确开通，报名转开通主路径；与 grantAllProducts 二选一，productCodes 非空时优先
+- **部署就绪硬过滤 `resolveGrantableProducts`**（TenantAdminService）：开通前过滤「产品 ACTIVE + 子任务已部署（sub_task status≠COMING_SOON）」——前端误传也会被后端拦下；无子任务记录的产品视为未部署
+- **/api/admin/products 补 `deployed` 字段**：前端据此把未部署产品置灰 + 「待部署」徽标 + 禁勾
+- **新建公司弹窗产品勾选网格**：「自动开通全部产品」单 checkbox → 4 产品 checkbox 网格（2 列），未部署产品灰色不可勾；普通新建默认不勾任何产品
+- **转开通预填按报名产品**：报名行按钮带 `data-products`，预填时剔除未部署产品并 toast 提示「已按报名预填：开通 GEO（MEDPPT 待部署未含）」
+
+### 数据清理
+- 公司 123（1001）：4 产品 ACTIVE → 收敛到报名口径（仅 GEO；HPD/AIDD/MEDPPT 公司 license SUSPENDED + 用户授权 REVOKED，走 grant-products 全量同步 API 与界面同路径）
+- V2.0.57 E2E 测试数据（E2ECONV57/E2E57B/E2E57C 三家公司 + 3 个测试账号）已从 lingyao_dev 删除
+- 123_admin 密码已重置（验证口径后），新密码已告知主人
+
+### E2E 验证（dev-pg，2026-09-03 14:27）
+- `productCodes: ["GEO","MEDPPT"]` → `grantedProductCodes: ["GEO"]`（医呈被硬过滤）✅
+- company_product 仅 productId=1；123_admin `/api/auth/me` licensed/granted 仅 GEO ✅
+- /api/admin/products deployed 字段：GEO/HPD/AIDD=true，MEDPPT=false ✅
+
+### 教训
+- **「自动开通」类开关必须走部署就绪口径**：产品 ACTIVE ≠ 可用，子任务 COMING_SOON 时公司开通了也进不去（入口待部署），只会制造「看起来开通了」的假象
+- 前端预填逻辑改口径时，**后端必须同步加防线**（双重拦截），否则旧前端/脚本直接调 API 仍可绕过
+
+---
+
+
 
 ### Feature
 - **官网「申请免费试用」弹窗**：感兴趣的产品由单选 select 改为 **checkbox 多选网格**（与页脚表单同款交互），选项对齐 4 产品新目录（棱镜/皓元/源策/医呈）；顺带修掉旧 select 重复 `value="GEO"` 的 bug

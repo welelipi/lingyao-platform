@@ -3,6 +3,8 @@ package com.lingyao.platform.dto.admin;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 平台超管创建公司请求 — P1-B
  *
@@ -46,6 +48,13 @@ public class CreateCompanyRequest {
     @Size(max = 512)
     private String remark;
 
-    /** 是否自动开通全部产品（GEO/HPD/AIDD/POR） */
+    /** 是否自动开通全部产品（V2.0.57：仅部署就绪的 ACTIVE 产品，未部署产品永不自动开通） */
     private Boolean grantAllProducts = false;
+
+    /**
+     * V2.0.57：按产品 code 精确开通（报名转开通主路径）。
+     * 与 grantAllProducts 二选一：productCodes 非空时优先；两者都会被「部署就绪」硬过滤收敛。
+     */
+    @Size(max = 16, message = "productCodes 最多 16 个")
+    private List<String> productCodes;
 }

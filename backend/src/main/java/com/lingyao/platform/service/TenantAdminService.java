@@ -46,6 +46,7 @@ public class TenantAdminService {
     @Autowired private ProductRepository productRepo;
     @Autowired private CompanyProductRepository companyProductRepo;
     @Autowired private ProductUserGrantRepository grantRepo;
+    @Autowired private SubTaskRepository subTaskRepo;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private AuditLogService auditLogService;
     @Autowired private TrialInviteService trialInviteService;
@@ -76,25 +77,59 @@ public class TenantAdminService {
 
         Company saved = companyRepo.save(company);
 
-        // 可选：自动授权全部产品（V2.0.54：仅 ACTIVE 产品——DEPRECATED 软下架产品不再自动授权）
-        if (Boolean.TRUE.equals(req.getGrantAllProducts())) {
-            List<Product> products = productRepo.findByStatusOrderBySortOrderAsc(Product.Status.ACTIVE);
-            for (Product p : products) {
-                CompanyProduct cp = new CompanyProduct();
-                cp.setCompanyId(saved.getId());
-                cp.setProductId(p.getId());
-                cp.setLicenseStart(LocalDateTime.now());
-                cp.setLicenseEnd(LocalDateTime.now().plusYears(10));
-                cp.setMaxUsers(100);
-                cp.setStatus(CompanyProduct.Status.ACTIVE);
-                cp.setGrantedBy(currentUserIdOrNull());
-                companyProductRepo.save(cp);
-            }
+        // 可选：自动授权产品
+        // V2.0.57：grantAllProducts（全开）与 productCodes（按 code 精确开，报名转开通主路径）二选一，
+        // 统一经 resolveGrantableProducts —— 硬过滤「产品 ACTIVE + 子任务已部署」：
+        // 未部署产品（如医呈 medppt-gen COMING_SOON）永不自动开通（主人 2026-09-03 拍板）
+        List<Product> toGrant = resolveGrantableProducts(req);
+        for (Product p : toGrant) {
+            CompanyProduct cp = new CompanyProduct();
+            cp.setCompanyId(saved.getId());
+            cp.setProductId(p.getId());
+            cp.setLicenseStart(LocalDateTime.now());
+            cp.setLicenseEnd(LocalDateTime.now().plusYears(10));
+            cp.setMaxUsers(100);
+            cp.setStatus(CompanyProduct.Status.ACTIVE);
+            cp.setGrantedBy(currentUserIdOrNull());
+            companyProductRepo.save(cp);
         }
 
         auditLogService.record("COMPANY_CREATE", "COMPANY", String.valueOf(saved.getId()),
-                "创建公司: " + saved.getName() + " (" + saved.getCode() + ")");
+                "创建公司: " + saved.getName() + " (" + saved.getCode() + ")"
+                        + (toGrant.isEmpty() ? "" : "，开通产品 " + toGrant.stream()
+                                .map(Product::getCode).sorted().toList()));
         return saved;
+    }
+
+    /**
+     * V2.0.57：解析创建公司时应自动开通的产品（部署就绪口径）。
+     *
+     * 优先级：productCodes（按 code 精确指定，报名转开通主路径）> grantAllProducts（全开）。
+     * 硬过滤 = 产品 ACTIVE（上架）且其子任务已部署（sub_task status=ACTIVE，即部署完成）。
+     * 医呈（MEDPPT）当前 medppt-gen 子任务 COMING_SOON → 永不自动开通，即使前端误传也会被这里拦下。
+     */
+    private List<Product> resolveGrantableProducts(CreateCompanyRequest req) {
+        List<Product> candidates;
+        if (req.getProductCodes() != null && !req.getProductCodes().isEmpty()) {
+            candidates = new ArrayList<>();
+            for (String code : req.getProductCodes()) {
+                productRepo.findByCode(code).ifPresent(candidates::add);
+            }
+        } else if (Boolean.TRUE.equals(req.getGrantAllProducts())) {
+            candidates = productRepo.findByStatusOrderBySortOrderAsc(Product.Status.ACTIVE);
+        } else {
+            return List.of();
+        }
+        // 部署就绪硬过滤：ACTIVE 产品 + 子任务已部署
+        List<Product> deployable = new ArrayList<>();
+        for (Product p : candidates) {
+            if (!Product.Status.ACTIVE.equals(p.getStatus())) continue;
+            boolean deployed = subTaskRepo.findByProductId(p.getId())
+                    .map(st -> st.getStatus() != SubTask.Status.COMING_SOON)
+                    .orElse(false); // 无子任务记录的产品视为未部署，不允许自动开通
+            if (deployed) deployable.add(p);
+        }
+        return deployable;
     }
 
     /**
