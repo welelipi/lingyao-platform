@@ -1,6 +1,21 @@
 # 凌瑶智数 · 变更日志
 
-## V2.0.61 (2026-09-03 20:05) — 安全审计可视化：admin 后台新增「安全审计」tab（P1 待办落地）
+## V2.0.63 (2026-09-03 20:40) — 修复登录类审计事件公司归属缺失（V2.0.62 发现的既有缺陷，方案 A 落地）
+
+### Fixed
+- **登录类事件 companyId=null 导致公司超管不可见（V2.0.62 发现）**：
+  - 根因：登录发生时还没有 JWT 上下文 → `AuditLogService.record` 里 `CurrentUser.get()`=null → companyId/actorUsername 双双落 null → 公司超管按 companyId 过滤永远看不到本公司的登录失败记录
+  - 修复：`AuditLogService` 新增 `recordWithSubject(action, resourceType, subjectUserId, subjectUsername, summary)` 重载——按 userId 反查 `company_user` 回填 companyId（多条取第一条），username 优先显式传入否则查 sys_user；平台超管/无公司归属保持 null 不强行归属
+  - AuthService 10 个登录链路调用点全部切换：LOGIN_FAIL/LOGIN_SUCCESS/LOGIN_MUST_CHANGE_PASSWORD/PASSWORD_CHANGED/LOGOUT/REFRESH_REPLAY_DETECTED/TOKEN_REFRESH/FORGOT_PASSWORD_USER_NOT_FOUND/PASSWORD_RESET_REQUESTED/PASSWORD_RESET
+
+### E2E 验证（2026-09-03 20:38）
+- 基线 LOGIN_FAIL=0 → 制造 2 次错误密码登录 → 公司视角立刻看到 2 条（companyId=1001、actorUsername=123_admin 正确回填）✅
+- LOGIN_SUCCESS 17 条无回归；平台超管作用域不受影响 ✅
+
+### Notes
+- 历史已落库的 null 归属行无法追溯回填（无 userId 可查的行是 user==null 的登录尝试），保持原样不影响新数据
+
+## V2.0.62 (2026-09-03 20:25) — company-admin 新增审计日志 tab：业务操作审计可视化（P1 待办落地）
 
 ### Feature
 - **后端 2 端点**（AdminController，均平台超管守卫）：

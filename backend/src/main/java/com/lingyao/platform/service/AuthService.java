@@ -63,7 +63,10 @@ public class AuthService {
         SysUser user = userRepo.findByUsername(req.getUsername()).orElse(null);
         if (user == null || !passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
             attemptService.recordFailure(req.getUsername());
-            auditLogService.record("LOGIN_FAIL", "USER", String.valueOf(user == null ? -1 : user.getId()), "登录失败: " + req.getUsername());
+            // V2.0.63：显式回填公司归属（登录时无 CurrentUser，否则 companyId=null 公司视角不可见）
+            auditLogService.recordWithSubject("LOGIN_FAIL", "USER",
+                    user == null ? null : user.getId(), req.getUsername(),
+                    "登录失败: " + req.getUsername());
             // V2.0.26 P2.4：登录失败 → 记录安全审计事件
             int remaining = 5 - (attemptService.isLocked(req.getUsername()) ? 5 : 0);
             authAuditService.recordFailureWithMeta(
@@ -189,7 +192,9 @@ public class AuthService {
         CurrentUser.set(cu);
 
         // 审计
-        auditLogService.record("LOGIN_SUCCESS", "USER", String.valueOf(user.getId()), "登录成功: " + user.getUsername());
+        // V2.0.63：显式回填公司归属（同 LOGIN_FAIL）
+        auditLogService.recordWithSubject("LOGIN_SUCCESS", "USER", user.getId(), user.getUsername(),
+                "登录成功: " + user.getUsername());
         // V2.0.26 P2.4：登录成功 → 记录安全审计事件
         authAuditService.recordSuccess(
                 AuthAuditEvent.EventType.LOGIN_SUCCESS,
@@ -236,7 +241,7 @@ public class AuthService {
         boolean mustChange = Boolean.FALSE.equals(user.getPasswordChanged());
         resp.setMustChangePassword(mustChange);
         if (mustChange) {
-            auditLogService.record("LOGIN_MUST_CHANGE_PASSWORD", "USER", String.valueOf(user.getId()),
+            auditLogService.recordWithSubject("LOGIN_MUST_CHANGE_PASSWORD", "USER", user.getId(), user.getUsername(),
                     "首登触发强制改密: " + user.getUsername());
         }
 
@@ -276,7 +281,7 @@ public class AuthService {
         }
         refreshTokenRepository.saveAll(activeRefreshTokens);
 
-        auditLogService.record("PASSWORD_CHANGED", "USER", String.valueOf(user.getId()),
+        auditLogService.recordWithSubject("PASSWORD_CHANGED", "USER", user.getId(), user.getUsername(),
                 "用户修改密码成功: " + user.getUsername() + " (revokedRefreshTokens=" + activeRefreshTokens.size() + ")");
 
         // V2.0.26 P2.4：主动改密 → 记录安全审计事件
@@ -321,7 +326,7 @@ public class AuthService {
         }
         refreshTokenRepository.saveAll(activeRefreshTokens);
 
-        auditLogService.record("LOGOUT", "USER", String.valueOf(userId),
+        auditLogService.recordWithSubject("LOGOUT", "USER", userId, null,
                 "用户主动退出登录 (jti=" + jti + ", refreshTokens=" + activeRefreshTokens.size() + ")");
 
         // V2.0.26 P2.4：登出 → 记录安全审计事件
@@ -444,7 +449,7 @@ public class AuthService {
                 t.setRevokedReason("REFRESH_REPLAY_DETECTED");
             }
             refreshTokenRepository.saveAll(chainTokens);
-            auditLogService.record("REFRESH_REPLAY_DETECTED", "USER", String.valueOf(oldToken.getUserId()),
+            auditLogService.recordWithSubject("REFRESH_REPLAY_DETECTED", "USER", oldToken.getUserId(), null,
                     "refresh_token 重放检测：已 used 的 token 再次出现，已撤销用户所有 active refresh_token (chainSize=" + chainTokens.size() + ")");
             // V2.0.26 P2.4：refresh_token 重放 → 记录安全审计事件（关键攻击信号）
             authAuditService.recordFailureWithMeta(
@@ -560,7 +565,7 @@ public class AuthService {
         resp.setProducts(buildProductView(user.getId(), currentCompanyId, isPlatformAdminFlag));
         resp.setMustChangePassword(false);   // refresh 不应该触发强制改密检查
 
-        auditLogService.record("TOKEN_REFRESH", "USER", String.valueOf(user.getId()),
+        auditLogService.recordWithSubject("TOKEN_REFRESH", "USER", user.getId(), user.getUsername(),
                 "refresh_token 滑动续期成功 (oldTokenId=" + oldToken.getId() + " → newTokenId=" + newRefresh.getId() + ")");
 
         // V2.0.26 P2.4：refresh_token 续期成功 → 记录安全审计事件
@@ -616,7 +621,7 @@ public class AuthService {
 
         if (user == null) {
             // 用户不存在 → 记录 audit（可疑枚举行为）但不泄漏信息
-            auditLogService.record("FORGOT_PASSWORD_USER_NOT_FOUND", "USER", "-1",
+            auditLogService.recordWithSubject("FORGOT_PASSWORD_USER_NOT_FOUND", "USER", null, null,
                     "forgot-password 请求的用户名/邮箱不存在: " + emailOrUsername + " (ip=" + ip + ")");
             // V2.0.26 P2.4：枚举尝试 → 记录安全审计事件
             authAuditService.recordFailure(
@@ -645,7 +650,7 @@ public class AuthService {
             PasswordResetToken tokenEntity = new PasswordResetToken(user.getId(), tokenHash, expiresAt, ip);
             passwordResetTokenRepository.save(tokenEntity);
 
-            auditLogService.record("PASSWORD_RESET_REQUESTED", "USER", String.valueOf(user.getId()),
+            auditLogService.recordWithSubject("PASSWORD_RESET_REQUESTED", "USER", user.getId(), user.getUsername(),
                     "forgot-password 请求成功，邮件已发送 (ip=" + ip + ", email=" + maskEmail(user.getEmail()) + ")");
 
             // V2.0.26 P2.4：忘记密码请求 → 记录安全审计事件
@@ -752,7 +757,7 @@ public class AuthService {
         // 4) 清登录失败次数（防旧密码被锁的二次伤害）
         attemptService.recordSuccess(user.getUsername());
 
-        auditLogService.record("PASSWORD_RESET", "USER", String.valueOf(user.getId()),
+        auditLogService.recordWithSubject("PASSWORD_RESET", "USER", user.getId(), user.getUsername(),
                 "用户通过 reset_token 重置密码成功 (revokedRefreshTokens=" + activeRefreshTokens.size() + ", ip=" + ip + ")");
 
         // V2.0.26 P2.4：重置密码成功 → 记录安全审计事件
