@@ -1,5 +1,17 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.52 (2026-09-03 10:45) — 种子数据口径修正（A 药企仅 GEO，重启不再复原）
+
+### Fix
+- **管理后台开通的产品收敛被重启冲掉**（主人报：开通只剩 GEO，重启后又变成所有产品都开放）：
+  - 根因：dev 环境为 H2 内存库，每次重启重新执行 data.sql；而 data.sql 第 58~65 行把 A 药企种子写死为全 5 产品授权（company_product 1~5）+ a_admin/admin 全产品 grant + 全产品 product_user_role——界面上的收敛操作只改内存库，重启即被种子复原
+  - data.sql 修正（对齐主人拍板口径）：A 药企 company_product 仅 GEO（id=1）；product_user_grant 仅 a_admin GEO + b_admin GEO；product_user_role 仅 a_admin GEO SUPER_ADMIN；平台超管 admin 全产品 grant/role 种子同步收敛
+  - 顺带清理 V2.0.51 遗留：a_user1（已删种子用户）的孤儿授权 grant(id=3) 与 OPERATOR 角色分配(id=3)
+- **教训**：H2 内存库的「界面改数据」都是临时的——凡主人拍板的持久口径，必须同步写进 data.sql 种子，否则重启即回滚
+
+### Verified
+- （待重启后验证）admin 登录 → A 药企上下文 licensed 仅 GEO；B 药企仅 GEO 不变
+
 ## V2.0.51 (2026-09-03 10:25) — 双超管徽标区分 + 工作台用户列表只含超管
 
 ### Fix

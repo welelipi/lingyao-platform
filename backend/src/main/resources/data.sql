@@ -53,33 +53,22 @@ VALUES
   (5, 'PORM', '明枢-PORM 智能协作平台', 'POR-M 透明 × 协作中枢（看得见的协作），从 POR/GS-CoLab 衍生 v1.0.0，每张表/每条工单/每次审批都可被看见、可被追溯', '明', 5, 'ACTIVE', NOW(), NOW());
 
 -- ═══════════════════════════════════════════════════════════
--- 公司产品授权（A 药企: GEO + HPD + AIDD + DINFO + PORM；B 药企: 仅 GEO）
+-- 公司产品授权（V2.0.52：A 药企: 仅 GEO（主人 09-03 拍板）；B 药企: 仅 GEO）
+-- 历史：V2.0.51 及以前 A 药企种子为全 5 产品，导致每次 H2 重启后
+--       管理后台做的「产品开通收敛」被种子数据冲掉复原——已改。
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO company_product (id, company_id, product_id, license_start, license_end, max_users, status, created_at, updated_at)
 VALUES
   (1, 1, 1, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
-  (2, 1, 2, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
-  (3, 1, 3, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
-  (4, 1, 4, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
-  (5, 1, 5, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW()),
   (6, 2, 1, NOW(), DATEADD('YEAR', 1, NOW()), 50, 'ACTIVE', NOW(), NOW());
 
 -- ═══════════════════════════════════════════════════════════
--- 用户产品授权（A_admin 有 GEO+HPD+AIDD+DINFO+PORM 全权限；a_user1 只有 GEO；B 平台 b_admin 只有 GEO）
+-- 用户产品授权（V2.0.52：A_admin 仅 GEO；B 平台 b_admin 仅 GEO；同步清理 a_user1（已删种子用户）孤儿授权）
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO product_user_grant (id, company_id, product_id, user_id, granted_by, status, created_at)
 VALUES
   (1, 1, 1, 2, 2, 'ACTIVE', NOW()),  -- a_admin 有 GEO
-  (2, 1, 2, 2, 2, 'ACTIVE', NOW()),  -- a_admin 有 HPD（皓元-智能医院潜力预测）
-  (3, 1, 1, 3, 2, 'ACTIVE', NOW()),  -- a_user1 只有 GEO
-  (8, 1, 3, 2, 2, 'ACTIVE', NOW()),  -- a_admin 有 AIDD（AIDD 上架）
-  (9, 1, 3, 1, 1, 'ACTIVE', NOW()),  -- 平台超管 admin 也有 AIDD
-  (10, 1, 4, 2, 2, 'ACTIVE', NOW()), -- a_admin 有 DINFO（辰录 上架）
-  (11, 1, 4, 1, 1, 'ACTIVE', NOW()), -- 平台超管 admin 也有 DINFO
-  (12, 1, 5, 2, 2, 'ACTIVE', NOW()), -- a_admin 有 PORM（明枢 上架）
-  (13, 1, 5, 1, 1, 'ACTIVE', NOW()), -- 平台超管 admin 也有 PORM
-  (14, 2, 1, 4, 4, 'ACTIVE', NOW()), -- b_admin 有 GEO（B 公司换 GEO）
-  (15, 1, 2, 1, 1, 'ACTIVE', NOW()); -- 平台超管 admin 也有 HPD
+  (14, 2, 1, 4, 4, 'ACTIVE', NOW()); -- b_admin 有 GEO
 
 -- ═══════════════════════════════════════════════════════════
 -- 产品内角色
@@ -104,16 +93,7 @@ VALUES
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO product_user_role (id, company_id, product_id, user_id, role_code, assigned_by, created_at)
 VALUES
-  (1, 1, 1, 2, 'SUPER_ADMIN', 2, NOW()),    -- a_admin 在 GEO 内是超级管理员
-  (2, 1, 2, 2, 'SUPER_ADMIN', 2, NOW()),    -- a_admin 在 HPD 内是超级管理员
-  (3, 1, 1, 3, 'OPERATOR', 2, NOW()),       -- a_user1 在 GEO 内是操作员
-  (6, 1, 3, 2, 'SUPER_ADMIN', 2, NOW()),    -- a_admin 在 AIDD 内是超级管理员
-  (7, 1, 4, 2, 'SUPER_ADMIN', 2, NOW()),    -- a_admin 在 DINFO 内是超级管理员
-  (8, 1, 5, 2, 'SUPER_ADMIN', 2, NOW()),    -- a_admin 在 PORM 内是超级管理员
-  (9, 1, 5, 1, 'SUPER_ADMIN', 1, NOW()),    -- 平台超管 admin 在 PORM 内是超级管理员
-  (10, 1, 3, 1, 'SUPER_ADMIN', 1, NOW()),   -- 平台超管 admin 在 AIDD 内是超级管理员
-  (11, 1, 4, 1, 'SUPER_ADMIN', 1, NOW()),   -- 平台超管 admin 在 DINFO 内是超级管理员
-  (12, 1, 2, 1, 'SUPER_ADMIN', 1, NOW());   -- 平台超管 admin 在 HPD 内是超级管理员
+  (1, 1, 1, 2, 'SUPER_ADMIN', 2, NOW());    -- a_admin 在 GEO 内是超级管理员（V2.0.52：仅 GEO）
 
 -- ═══════════════════════════════════════════════════════════
 -- 子任务配置（5 个产品子任务接入点：GEO/HPD/AIDD/DINFO/PORM）
