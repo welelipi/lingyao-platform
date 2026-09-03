@@ -1901,6 +1901,9 @@
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + getToken(),
+            // V2.0.59：CsrfFilter Double-Submit——非 GET 必须带 X-XSRF-TOKEN 头（与 admin.html api() 同款）
+            ...(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
+              ? { 'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)[1]) } : {}),
           },
           body: JSON.stringify({ oldPassword, newPassword }),
           credentials: 'include',

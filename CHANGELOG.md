@@ -1,5 +1,32 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.59 (2026-09-03 15:20) — SSO「Signature verification failed」排查修复 + portal 改密 CSRF 漏网（主人截图反馈）
+
+### Fixed
+- **GEOM SSO 验签失败（主人报：portal 点棱镜「进入」→ 回调页「主站 token 无效 · Signature verification failed」）**：
+  - 根因：**GEOM 后端是老进程**——由旧版 `start_geom_daemon.py` 启动，env 硬编码旧默认密钥（`lingyao-platform-default-...` 87 字符）；而主站 daemon 按现行机制从 `data/.jwt_secret` 读密钥（64 字符）签发 platform_token → GEOM 拿旧钥匙验新签名必然失败
+  - 09-02 GEOM 窗口已给 supervisor.py 加密钥文件 fallback（geom data/.lingyao-jwt-secret → 主站 data/.jwt_secret），但**老进程一直没重启，修复未生效到运行中的进程**
+- **portal.html 强制改密 CSRF 漏网（浏览器 E2E 途中发现）**：`/api/auth/change-password` 请求未带 `X-XSRF-TOKEN` 头 → 被 CsrfFilter 拒绝（「CSRF token header 缺失」）。admin.html 的 `api()` V2.0.43 修过同款问题，portal.html 是漏网之鱼；portal 其余 POST 全部核对过（login/refresh/feedback 精确豁免、2fa prefix 豁免），仅此一处
+
+### Changed
+- **GEOM 后端重启（运维操作，未改 GEOM 仓代码）**：kill 8090 老进程 → supervisor.py（带文件 fallback）拉起 → `secretLength` 87→64 ✅
+- **新增 `scripts/start_geom_supervisor_daemon.py`**：supervisor.py 原本前台运行会被 sandbox 会话收割，本脚本用双重 fork+setsid（与主站 start_backend_daemon.py 同款）把它守护化；GEOM 后端从此用本脚本拉起
+- portal.html change-password 补 XSRF 头读取（与 admin.html 同款 `document.cookie` 模式）；已同步 static + mvn package + 重启
+
+### E2E 验证（2026-09-03 15:15~15:35，真实浏览器 agent-browser 全链路）
+- 123_admin 登录主站 → `/api/auth/me` granted 仅 GEO（V2.0.57 清理口径保持正确）✅
+- portal 工作台点「进入」→ **直接落地棱镜 GEO 工作台**（已登录态、超级管理员身份，截图确认）✅
+- 强制改密完整旅程：admin 重置密码 → 123_admin 登录 → 强制改密页弹出 → 提交改密 **200 成功** → 进工作台 → 新密码复登 200 ✅（修复前此步报 CSRF token header 缺失）
+- 四服务健康：主站 9091/8765 + GEOM 8090/5180
+
+### 遗留交接（GEOM 窗口）
+- ⚠️ `geo-backend-py/start_geom_daemon.py` L12-15 仍硬编码旧默认密钥——GEOM 窗口下次改启动链路时应删除该默认值、改走 supervisor.py（或同样加文件 fallback），否则用它重启会复发本 bug
+
+### 教训
+- **SSO「signature not match」排查三步**：比 secretLength（`/status` 接口）→ 比密钥文件内容 → 查进程启动时间 vs 文件 mtime；**老进程持旧密钥是最常见的隐形坑**（改了配置≠进程生效）
+- 共享密钥类问题先做「密钥指纹三方言对齐」：主站签发实际密钥 / 子平台验证实际密钥 / 磁盘文件，三方一比就现形
+- **CSRF Double-Submit 的前端接入点要全站审计**：admin.html 修了 ≠ portal.html 没事；新增带 CSRF 校验的端点时必须排查所有前端调用方
+
 ## V2.0.57 (2026-09-03 14:35) — 报名转开通按感兴趣产品精确开通 + 未部署产品硬过滤（主人截图反馈）
 
 ### Fixed
