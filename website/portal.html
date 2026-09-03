@@ -1887,40 +1887,6 @@
           }
           Object.assign(payload, d2.data);   // 用挑战后的完整响应覆盖
         }
-        // V2.0.67：管理员强制 2FA 报名 —— 密码正确但未绑定 2FA
-        if (payload.mfaEnrollRequired) {
-          const enrollCode = prompt(
-            '🔐 管理员账号必须绑定两步验证（2FA）\n\n' +
-            '第 1 步：打开 Authenticator（如 Google Authenticator）\n' +
-            '第 2 步：选择「输入设置密钥」，账户名随意，密钥粘贴：\n\n' +
-            (payload.mfaSecret || '') + '\n\n' +
-            '第 3 步：输入 Authenticator 显示的 6 位验证码：'
-          );
-          if (!enrollCode) {
-            err.textContent = '已取消——管理员账号下次登录仍会要求绑定 2FA';
-            btn.disabled = false;
-            btn.textContent = '登录控制台';
-            return;
-          }
-          btn.textContent = '绑定中...';
-          const er = await fetch(`${API_BASE}/api/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password,
-              enrollTicket: payload.enrollTicket, enrollCode: enrollCode.trim() }),
-            credentials: 'include',
-          });
-          const ed = await er.json().catch(() => ({}));
-          const ep = (ed.code === 0 && ed.data) ? ed.data : null;
-          if (!ep || !ep.token) {
-            err.textContent = ed.message || '2FA 绑定失败';
-            loadPortalCaptcha();   // 一次性消费后需刷新图形
-            btn.disabled = false;
-            btn.textContent = '登录控制台';
-            return;
-          }
-          Object.assign(payload, ep);   // 绑定完成，直接进入已登录态
-        }
         setToken(payload.token);
         // 适配后端字段 → 前端期望
         const u = payload.user || {};

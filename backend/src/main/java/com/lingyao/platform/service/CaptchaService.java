@@ -29,9 +29,6 @@ public class CaptchaService {
     /** V2.0.66：2FA 挑战凭证（绑定用户名，一次性，10 分钟）——密码+图形验证码已验过 */
     private record Ticket(String username, LocalDateTime expiresAt) {}
 
-    /** V2.0.67：强制报名凭证（绑定用户名 + 用途，一次性，10 分钟）——密码已验过、待完成 2FA 绑定 */
-    private record EnrollTicket(String username, String purpose, LocalDateTime expiresAt) {}
-
     private static final long TTL_SECONDS = 120;
     private static final long TICKET_TTL_SECONDS = 600;
     private static final int MAX_ENTRIES = 10000;
@@ -39,7 +36,6 @@ public class CaptchaService {
     private final SecureRandom random = new SecureRandom();
     private final Map<String, Entry> store = new ConcurrentHashMap<>();
     private final Map<String, Ticket> ticketStore = new ConcurrentHashMap<>();
-    private final Map<String, EnrollTicket> enrollStore = new ConcurrentHashMap<>();
     private final AtomicLong totalIssued = new AtomicLong();
     private final AtomicLong totalVerified = new AtomicLong();
     private final AtomicLong totalFailed = new AtomicLong();
@@ -103,38 +99,6 @@ public class CaptchaService {
         Ticket t = ticketStore.remove(ticket);
         if (t == null) return false;
         return t.username().equals(username) && LocalDateTime.now().isBefore(t.expiresAt());
-    }
-
-    /** V2.0.67：签发强制报名凭证（绑定用户名，10 分钟一次性；密码已验过、尚未建立会话） */
-    public String issueEnrollTicket(String username, String purpose) {
-        String ticket = newSecureId();
-        enrollStore.put(ticket, new EnrollTicket(username, purpose, LocalDateTime.now().plusSeconds(TICKET_TTL_SECONDS)));
-        return ticket;
-    }
-
-    /**
-     * V2.0.67：校验报名凭证（不消费，消费走 consumeEnrollTicket——绑定动作分两步：setup 出题 → verify 消费）
-     */
-    public boolean peekEnrollTicket(String ticket, String username, String purpose) {
-        if (ticket == null || ticket.isBlank() || username == null) return false;
-        EnrollTicket t = enrollStore.get(ticket);
-        return t != null && t.username().equals(username) && t.purpose().equals(purpose)
-                && LocalDateTime.now().isBefore(t.expiresAt());
-    }
-
-    /** V2.0.67：消费报名凭证（一次性；verify-setup 成功后调用） */
-    public boolean consumeEnrollTicket(String ticket, String username, String purpose) {
-        if (ticket == null || ticket.isBlank()) return false;
-        EnrollTicket t = enrollStore.remove(ticket);
-        return t != null && t.username().equals(username) && t.purpose().equals(purpose)
-                && LocalDateTime.now().isBefore(t.expiresAt());
-    }
-
-    /** V2.0.67：按 ticket 反查用户名（供 enroll 端点定位目标用户） */
-    public String usernameOfEnrollTicket(String ticket) {
-        if (ticket == null || ticket.isBlank()) return null;
-        EnrollTicket t = enrollStore.get(ticket);
-        return (t != null && LocalDateTime.now().isBefore(t.expiresAt())) ? t.username() : null;
     }
 
     /** 过期清理：超过半容量时全表扫一遍（懒清理，避免定时任务） */

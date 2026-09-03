@@ -537,40 +537,6 @@
           }
           Object.assign(payload, p2);   // 用挑战后的完整响应覆盖
         }
-        // V2.0.67：管理员强制 2FA 报名 —— 密码正确但未绑定 2FA，引导完成绑定
-        if (payload && payload.mfaEnrollRequired) {
-          const enrollCode = prompt(
-            '🔐 管理员账号必须绑定两步验证（2FA）\n\n' +
-            '第 1 步：打开 Authenticator（如 Google Authenticator）\n' +
-            '第 2 步：选择「输入设置密钥」，账户名随意，密钥粘贴：\n\n' +
-            (payload.mfaSecret || '') + '\n\n' +
-            '第 3 步：输入 Authenticator 显示的 6 位验证码：'
-          );
-          if (!enrollCode) {
-            showToast('已取消——管理员账号下次登录仍会要求绑定 2FA', 'error');
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-            return;
-          }
-          submitBtn.innerHTML = '绑定中...';
-          const er = await fetch(API_BASE + '/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: fd.get('username'), password: fd.get('password'),
-              enrollTicket: payload.enrollTicket, enrollCode: enrollCode.trim() })
-          });
-          const ej = await er.json().catch(() => ({}));
-          const ep = (ej.code === 0 && ej.data) ? ej.data : null;
-          if (!ep || !ep.token) {
-            showToast(ej.message || '2FA 绑定失败', 'error');
-            loadLoginCaptcha();   // 一次性消费后需刷新图形
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-            return;
-          }
-          Object.assign(payload, ep);   // 绑定完成，直接进入已登录态
-          showToast('2FA 绑定成功，账号安全已升级', 'success');
-        }
         if (payload && payload.token) {
           localStorage.setItem('lingyao_token', payload.token);
           // V2.0.21 P1.4：保存 refresh_token（30 天有效，用于静默续期）

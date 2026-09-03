@@ -34,10 +34,4 @@ public class LoginRequest {
 
     /** V2.0.66：2FA 挑战凭证（mfaRequired 响应返回，重试登录携带它可免重复过图形验证码） */
     private String captchaTicket;
-
-    /** V2.0.67：强制报名凭证——管理员未绑 2FA 时收到 mfaEnrollRequired，凭它提交 enrollTicket+enrollCode 完成绑定并直接签发 token */
-    private String enrollTicket;
-
-    /** V2.0.67：报名确认验证码（绑定时 Authenticator 显示的 6 位 TOTP） */
-    private String enrollCode;
 }

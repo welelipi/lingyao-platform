@@ -1,32 +1,19 @@
 # 凌瑶智数 · 变更日志
 
-## V2.0.67 (2026-09-03 23:00) — 管理员账号强制 2FA（enroll ticket 报名流 + 超管重置逃生通道）
+## V2.0.68 (2026-09-04 07:30) — 回滚 V2.0.67 管理员强制 2FA（主人试用后拍板「太复杂，登录不方便，不要了」）
 
-### Feature（主人拍板「管理员账号强制 2FA」——AI 时代四层防线的第 3 层从自愿升级为管理员强制）
-- **强制对象口径**（与 JWT `is_tenant_admin` 一致）：平台超管（`is_platform_admin=true`）OR 任一 ACTIVE 公司关系中 `role=SUPER_ADMIN`；普通用户不受影响（Q2 验证）
-- **enroll ticket 报名流**（`LoginRequest.enrollTicket/enrollCode` + `LoginResponse.mfaEnrollRequired/enrollTicket/mfaSecret`）：
-  - 首次撞到：密码验过后 `generateSetup` 生成 secret + 发 enrollTicket（`CaptchaService.issueEnrollTicket`，绑定用户名/10min/一次性），响应直接带 `mfaSecret` 引导绑定（密码已验过，secret 只发给账号主人）
-  - 第二歩：`enrollTicket+enrollCode` 重发 login → `peekEnrollTicket` 校验 → `verifySetup` 启用 2FA → `consumeEnrollTicket` → **`justEnrolled` 标志跳过下方 challenge**（enrollCode 刚验过 TOTP，同码防重放会误杀——首版漏此标志导致绑定后反被 challenge 拦住，token=NO）
-- **超管重置逃生通道**：`POST /api/admin/users/{userId}/reset-2fa`（AdminController，仅平台超管）→ `AuthService.adminResetTwoFactor`：删目标 user_2fa 记录 + 双表审计；管理员丢手机后由平台超管代重置，下次登录重新走报名流；目标非管理员账号拒绝（普通用户自助备份码即可）
-- **图形验证码例外扩展**：login 前置校验新增 `enrollValid` 例外（enrollTicket 有效即免图形验证码——密码在本次请求中重新验过）
+### Reverted
+- **整体 revert commit ddb2026**（git revert 反向提交，历史可追溯）：管理员登录强制 2FA 报名流（mfaEnrollRequired/enrollTicket/enrollCode/mfaSecret）、justEnrolled 直登、超管 reset-2fa 逃生端点、前端两入口绑定引导——全部摘除
+- **保留不动**：V2.0.42/.65 的自愿 2FA（绑定后照常挑战）、V2.0.66 图形验证码 + captchaTicket 机制、V2.0.61-.63 双表审计
+- git 历史中 .67 实现完整保留（revert 反向提交），未来如需「可选强制」可 cherry-pick 改造
+- 版本号同步：application.yml → 2.0.68，script.js?v=2.0.68
 
-### 前端 2 入口（script.js 首页弹窗 + portal.html）
-- 处理 `mfaEnrollRequired`：prompt 展示 secret（3 步引导：开 Authenticator → 输入设置密钥 → 输 6 位码）→ 带 enrollTicket+enrollCode 重发 login → 绑定成功直接进入已登录态
+### 主人反馈（原话要点）
+- 「太复杂了，让用户登录起来非常不方便」「先把这个回滚吧」「再想想还有什么其他的安全方式」
+- 教训：**安全措施不能以显著增加管理员日常登录摩擦为代价**——强制 2FA 每次登录都要掏手机，管理员高频登录场景体验不可接受
 
-### E2E（pyotp 全链路，主 E2E 8/11 + 专项 2/2，11 场景全绿）
-- admin（未绑）登录 → 报名响应带 secret/ticket ✅ → 错报名码拒（ticket 不消费）✅ → 对码绑定成功直接签发 token（P6，justEnrolled 修复后）✅
-- 再登录走正常 2FA 挑战 ✅ → captchaTicket+TOTP 登录成功 ✅ → reset-2fa 逃生 ✅ → reset 后登录重新触发报名（闭环）✅
-- 普通用户登录不触发报名（Q2）✅；已绑管理员不再触发报名（P8 隐式验证）✅
-
-### 踩坑（已记 memory）
-1. **enroll 第二歩被图形验证码拦截**：报名重发 login 不带 captchaId/answer/ticket → 落 verify(null,null) 抛「验证码错误」→ 修复：enrollValid 例外
-2. **绑定后被自家 challenge 拦截**：绑定成功落入正常流程 → isEnabled=true + 无 totpCode → 返回 challenge（token=NO）→ 修复：justEnrolled 标志跳过（防重放机制与刚验过的 enrollCode 天然冲突）
-3. **唯一平台超管自锁风险**：E2E 中 admin 绑定后 secret 丢失 → 死锁，靠直连 dev 库解救。生产预案 = reset-2fa 逃生（需另一超管）或 DB 运维通道；**验证了强制 2FA 的真实强度**（密码知道也进不去）
-4. `peekEnrollTicket`（peek 不消费）与 `consumeEnrollTicket`（消费）分离：报名分两步，setup 校验不能消费掉 ticket
-
-### Notes
-- 报名响应记审计动作 LOGIN_FAIL（口径：登录未完成）；绑定完成记 LOGIN_SUCCESS
-- verify-setup 响应含 backupCodes 但绑定后 login 响应未透传（管理员后续可登录后在 portal 重生成备份码；如需报名即展示备份码，二期补透传）
+### 替代方向（待主人拍板，非本次实施）
+- 见当日会话方案清单：IP 白名单、设备指纹信任期、风险自适应二次验证、异地/新设备告警、Passkeys 等
 
 ## V2.0.66 (2026-09-03 22:00) — 登录图形验证码：算术题 SVG（防撞库/暴力破解，主人拍板「输入密码时增加验证码」）
 
