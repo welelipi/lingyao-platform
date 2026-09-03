@@ -1,5 +1,30 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.66 (2026-09-03 22:00) — 登录图形验证码：算术题 SVG（防撞库/暴力破解，主人拍板「输入密码时增加验证码」）
+
+### Feature（零外部依赖、纯自研）
+- **后端 CaptchaService**：算术验证码（a±b 非负 / a×b，答案 0~90）；SecureRandom 32 字节 captchaId；ConcurrentHashMap 内存存储 **2 分钟过期 + 一次性消费**（对错都作废，防重放）；超半容量懒清理；SVG 渲染随机旋转 ±25°/6 色/y 偏移/5 干扰线
+- **后端 2 处接线**：
+  - `GET /api/auth/captcha` 出题端点（AuthController，公开）
+  - `SecurityConfig` 白名单加 `/api/auth/captcha`（初版遗漏 → 401「未登录」——登录前置端点必须匿名可达）
+  - `AuthService.login()` **最前端**校验（在锁定检查之前——锁定态也要先过验证码，防无脑重试）；失败记 `CAPTCHA_INVALID` 安全事件
+- **前端 2 个登录入口**（主人 AskUserQuestion 拍板：算术图形验证码 × 两个入口）：
+  - index.html 登录弹窗 + js/script.js：验证码输入框 + SVG 图（点击刷新），提交带 captchaId/captchaAnswer，验证码失败自动刷新图形
+  - portal.html 登录页：同款；**2FA 挑战重试是新登录请求 → 重试前自动重新取验证码**（一次性消费决定的必然要求）
+- 顺手修既有 bug：index.html 登录 email 输入框缺 `name="username"`（此前 `fd.get('username')` 恒为 null）
+
+### E2E 验证（2026-09-03 21:50，6 项全过）
+- 出题 → SVG 合规（干扰线×5 + 算式数字）✅；空/错/假 captchaId 统一「验证码错误或已过期」防枚举 ✅
+- 一次性消费：错答案后同 id 用对答案仍拒 ✅
+- **解题机器人端到端**：SVG 提算式 `4-1=?` → 算答案 3 → 正确密码 → 登录成功签发 token ✅
+
+### Fixed（踩坑）
+- **SVG 渲染 bug**：`append(ch).append("'</text>")` 把单引号写进文本节点（用户看到 `3' x' 4'`）→ 去掉多余 `'`；E2E 首轮 5 次全败即此因——**解题机器人测试的价值正在于它模拟真实解析**
+- 初版 SecurityConfig 漏放行 captcha → 端点 401；公开端点新增必查 SecurityConfig + CsrfFilter 双白名单
+
+### Notes
+- 2FA 与图形验证码并存口径：先过图形验证码（人机），再过密码，最后过 2FA（账号主）；错图形验证码不计入 Bug-09 失败锁定
+
 ## V2.0.65 (2026-09-03 21:30) — 2FA 逃生通道全链路补全：首页登录接入 MFA 挑战 + MFA 审计归属
 
 ### 评估结论（先摸底后动手）

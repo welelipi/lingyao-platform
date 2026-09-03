@@ -25,4 +25,10 @@ public class LoginRequest {
 
     /** 可选：2FA TOTP 6 位验证码 / 备份码（V2.0.42：启用 2FA 的用户必须携带） */
     private String totpCode;
+
+    /** V2.0.66：图形验证码 id（GET /api/auth/captcha 返回） */
+    private String captchaId;
+
+    /** V2.0.66：图形验证码答案（算术题计算结果） */
+    private String captchaAnswer;
 }

@@ -45,8 +45,20 @@ public class AuthService {
     @Autowired private PasswordResetTokenRepository passwordResetTokenRepository;
     // V2.0.42：2FA 登录 challenge
     @Autowired private TwoFactorService twoFactorService;
+    // V2.0.66：算术图形验证码
+    @Autowired private CaptchaService captchaService;
 
     public LoginResponse login(LoginRequest req, String ip) {
+        // ═══ V2.0.66：图形验证码校验（在锁定检查前——锁定态也要先过验证码，防无脑重试）═══
+        if (!captchaService.verify(req.getCaptchaId(), req.getCaptchaAnswer())) {
+            authAuditService.recordFailure(
+                    AuthAuditEvent.EventType.LOGIN_FAIL,
+                    null, req.getUsername(), ip,
+                    "/api/auth/login", "POST",
+                    "CAPTCHA_INVALID", "图形验证码错误或已过期");
+            throw new IllegalArgumentException("验证码错误或已过期，请点击图片刷新后重试");
+        }
+
         // Bug-09：登录前先检查是否锁定
         if (attemptService.isLocked(req.getUsername())) {
             String msg = attemptService.getLockMessage(req.getUsername());

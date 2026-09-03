@@ -1192,11 +1192,20 @@
     <form class="modal-form" id="loginForm">
       <div class="form-field">
         <label>企业邮箱</label>
-        <input type="email" placeholder="name@company.com" required>
+        <input type="email" name="username" placeholder="name@company.com" required>
       </div>
       <div class="form-field">
         <label>密码</label>
         <input type="password" placeholder="请输入密码" required>
+      </div>
+      <!-- V2.0.66：图形验证码 -->
+      <div class="form-field">
+        <label>验证码</label>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="text" name="captchaAnswer" placeholder="计算结果" autocomplete="off" required
+                 style="flex:1;min-width:0;">
+          <div id="captchaImg" style="flex:0 0 130px;height:44px;border:1px solid #e0e4ea;border-radius:6px;overflow:hidden;background:#f5f7fa;"></div>
+        </div>
       </div>
       <div class="form-options">
         <label><input type="checkbox"> 记住我</label>
@@ -1272,6 +1281,6 @@
   <div class="toast-msg">提交成功！专属顾问将在 24 小时内与您联系</div>
 </div>
 
-<script src="js/script.js?v=2.0.65"></script>
+<script src="js/script.js?v=2.0.66"></script>
 </body>
 </html>

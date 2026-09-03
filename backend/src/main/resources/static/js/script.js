@@ -491,11 +491,17 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: fd.get('username'),
-            password: fd.get('password')
+            password: fd.get('password'),
+            captchaId: loginForm.dataset.captchaId || '',
+            captchaAnswer: fd.get('captchaAnswer') || ''
           })
         });
         const json = await resp.json();
         const payload = (json.code === 0 && json.data) ? json.data : null;
+        // V2.0.66：验证码失败后自动刷新图形
+        if (!payload && /验证码/.test(json.message || '')) {
+          loadLoginCaptcha();
+        }
         // V2.0.65：2FA challenge —— 密码正确但需要验证码（TOTP 6 位或备份码，即逃生通道）
         if (payload && payload.mfaRequired) {
           const tip = payload.mfaReason === 'MFA_REQUIRED'
@@ -515,6 +521,8 @@
             body: JSON.stringify({
               username: fd.get('username'),
               password: fd.get('password'),
+              captchaId: loginForm.dataset.captchaId || '',
+              captchaAnswer: fd.get('captchaAnswer') || '',
               totpCode: code.trim()
             })
           });
@@ -522,6 +530,7 @@
           const p2 = (j2.code === 0 && j2.data && !j2.data.mfaRequired) ? j2.data : null;
           if (!p2) {
             showToast((j2.data && j2.data.mfaRequired) ? '2FA 验证码错误' : (j2.message || '2FA 验证失败'), 'error');
+            if (/验证码错误或已过期/.test(j2.message || '')) loadLoginCaptcha();   // V2.0.66：图形验证码过期自动刷新
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
             return;
@@ -564,6 +573,32 @@
         tab.classList.remove('product-granted');
       }
     });
+  }
+
+  // ═══ V2.0.66：登录图形验证码（算术题 SVG，2 分钟有效，一次性）═══
+  async function loadLoginCaptcha() {
+    const form = document.getElementById('loginForm');
+    if (!form) return;
+    const img = document.getElementById('captchaImg');
+    const input = document.getElementById('captchaAnswer');
+    try {
+      const res = await fetch(API_BASE + '/api/auth/captcha');
+      const json = await res.json();
+      if (json.code === 0 && json.data) {
+        form.dataset.captchaId = json.data.captchaId;
+        if (img) img.innerHTML = json.data.svg;
+        if (input) input.value = '';
+      }
+    } catch (_) { /* 验证码加载失败不阻塞登录表单显示 */ }
+  }
+  window.loadLoginCaptcha = loadLoginCaptcha;
+
+  const captchaImg = document.getElementById('captchaImg');
+  if (captchaImg) {
+    captchaImg.addEventListener('click', loadLoginCaptcha);
+    captchaImg.style.cursor = 'pointer';
+    captchaImg.title = '点击刷新验证码';
+    loadLoginCaptcha();
   }
 
   // 退出登录 — V2.0.20 P1 阶段 A

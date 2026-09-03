@@ -7,6 +7,7 @@ import com.lingyao.platform.security.CurrentUser;
 import com.lingyao.platform.security.JwtAuthFilter;
 import com.lingyao.platform.security.JwtUtil;
 import com.lingyao.platform.service.AuthService;
+import com.lingyao.platform.service.CaptchaService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -22,9 +23,19 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    // V2.0.66：算术图形验证码
+    @Autowired
+    private CaptchaService captchaService;
+
     // V2.0.20 P1 阶段 A：解析 token 拿 jti
     @Autowired
     private JwtUtil jwtUtil;
+
+    /** V2.0.66：获取图形验证码（公开端点，登录页加载/点击刷新时调用） */
+    @GetMapping("/captcha")
+    public ApiResponse<Map<String, Object>> captcha() {
+        return ApiResponse.ok(captchaService.generate());
+    }
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest req, HttpServletRequest httpReq) {

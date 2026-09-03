@@ -53,6 +53,7 @@ public class SecurityConfig {
                     "/api/_diag/**",            // V2.0.3: 开发者诊断 endpoint（无需 JWT 自检版本/PID/启动时间）
                     "/api/public/**",
                     "/api/auth/login",
+                    "/api/auth/captcha",          // V2.0.66：图形验证码出题（登录前置，公开）
                     "/api/auth/logout",           // V2.0.20 P1 阶段 A：logout 幂等，允许未登录调用（前端清 token）
                     "/api/auth/refresh",          // V2.0.21 P1.4 阶段 B：refresh 本身用 refresh_token 鉴权（不需 access_token）
                     "/api/auth/forgot-password",  // V2.0.21 P1.5 阶段 B：忘记密码（公开）
