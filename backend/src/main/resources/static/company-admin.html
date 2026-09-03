@@ -4,8 +4,8 @@
   <meta charset="UTF-8" data-page-node-id="auiTgYX4IJxtECjjaDChxO">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="49XOtBPqD4wzFqIoRjfjGL">
   <title>凌瑶智数 · 公司管理后台</title>
-  <meta name="app-version" content="V2.0.55">
-  <script>console.log('%c company-admin.html V2.0.55 · 产品名更新 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <meta name="app-version" content="V2.0.60">
+  <script>console.log('%c company-admin.html V2.0.60 · 英文标签中文化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css" data-page-node-id="niMXLtvcDrCVI7MhTHu5BY">
   <style>
     .ca-shell { min-height: 100vh; padding: 96px 32px 64px; max-width: 1320px; margin: 0 auto; }
@@ -59,7 +59,7 @@
     <div class="ca-header" data-page-node-id="WujVgsuWz90HL77fbsGePY">
       <div data-page-node-id="RteJ5KQl5G72QNHNSMd6wB">
         <h1 id="companyName" data-page-node-id="mUeet4NTJzYE3v6W10WI9M">公司管理后台</h1>
-        <p id="companySub" data-page-node-id="QBt3BjlqjyXNnD5uYBw61B">公司超管视角 · 管理本公司用户、产品授权与 license</p>
+        <p id="companySub" data-page-node-id="QBt3BjlqjyXNnD5uYBw61B">公司超管视角 · 管理本公司用户、产品授权与许可证</p>
       </div>
       <div class="right" style="display:flex;gap:12px;align-items:center;" data-page-node-id="fpGacR8Gzi9HkzjEYS1g5C">
         <span class="user-badge" id="userBadge" style="font-size:13px;color:var(--text-dim);" data-page-node-id="vMQomvpvskqAF7o4l4zbjZ">-</span>
@@ -85,7 +85,7 @@
           <div class="progress-bar" data-page-node-id="Yqvoe8F3nloTWmTOjDIZql"><div class="progress-fill" id="usersProgress" style="width:0%" data-page-node-id="IjmDMdHOEVvmtGTvStT5J4"></div></div>
         </div>
         <div class="stat-card" id="licenseStatCard" data-page-node-id="AsD4wDghUV3momvp9hDicL">
-          <div class="stat-label" data-page-node-id="u7N3rda2Jj1ODy44qCDp66">license 剩余天数</div>
+          <div class="stat-label" data-page-node-id="u7N3rda2Jj1ODy44qCDp66">许可证剩余天数</div>
           <div class="stat-value" id="statDays" data-page-node-id="TmIIdMK0nhQ14ymCY3xQUH">-</div>
           <div class="stat-sub" id="licenseEnd" data-page-node-id="hc9ChMgaYzZ75Wd833aZuy">-</div>
         </div>
@@ -95,7 +95,7 @@
           <div class="stat-sub" data-page-node-id="BaDY63UiW76IP33YNytLL1">本公司可授权的产品数</div>
         </div>
         <div class="stat-card" data-page-node-id="KdjMetVArlERZZtcUMSaDD">
-          <div class="stat-label" data-page-node-id="po11R6ghFC2QkC0sm2Xasz">license 计划</div>
+          <div class="stat-label" data-page-node-id="po11R6ghFC2QkC0sm2Xasz">许可证计划</div>
           <div class="stat-value" id="statPlan" style="font-size:18px;" data-page-node-id="OAsI2EI94DLlYUZqAzBbGt">-</div>
           <div class="stat-sub" id="statCompanyStatus" data-page-node-id="HvItiraagoRTBkyky8P9MF">-</div>
         </div>
@@ -418,6 +418,29 @@
       catch (_) { return s; }
     }
 
+    // ── V2.0.60：英文枚举标签中文化映射（显示层翻译，CSS 类名仍用英文枚举）──────────────
+    const STATUS_ZH = {
+      // 通用状态（公司/用户/产品授权/审批共用）
+      ACTIVE: '已启用', PENDING: '待处理', SUSPENDED: '已停用',
+      EXPIRED: '已过期', REMOVED: '已移除', CANCELLED: '已取消', DELETED: '已删除',
+      // 审批状态
+      APPROVED: '已通过', REJECTED: '已拒绝',
+      // 许可证计划
+      TRIAL: '试用版', STANDARD: '标准版', ENTERPRISE: '企业版',
+      // 部署模式
+      SAAS: 'SaaS（共享云）', PRIVATE: '私有化'
+    };
+    function zh(s, fallback) {
+      if (s == null || s === '') return fallback || '-';
+      return STATUS_ZH[String(s)] || (fallback !== undefined ? fallback : s);
+    }
+    // 审批类型 → 中文
+    const APPROVAL_TYPE_ZH = {
+      SUBTASK_INVOKE: '子任务调用', PRODUCT_GRANT: '产品授权', SSO_LINK_REQUEST: 'SSO 专属链接', OTHER: '其他'
+    };
+    // 公司内角色 → 中文
+    const ROLE_ZH = { SUPER_ADMIN: '公司超管', OPERATOR: '操作员', VIEWER: '访客' };
+
     function copyText(inputId) {
       const el = document.getElementById(inputId);
       el.select();
@@ -483,8 +506,8 @@
       document.getElementById('licenseEnd').textContent = o.companyProducts[0] ? `到期：${fmtDate(o.companyProducts[0].licenseEnd)}` : '';
 
       document.getElementById('statProducts').textContent = o.license.activeProducts;
-      document.getElementById('statPlan').textContent = o.company.licensePlan;
-      document.getElementById('statCompanyStatus').textContent = `公司状态：${o.company.status}`;
+      document.getElementById('statPlan').textContent = zh(o.company.licensePlan, '标准版');
+      document.getElementById('statCompanyStatus').textContent = `公司状态：${zh(o.company.status, '已启用')}`;
 
       const op = document.getElementById('overviewProducts');
       op.innerHTML = (o.companyProducts || []).map(p => `
@@ -497,7 +520,7 @@
                 <div class="product-code">${escapeHtml(p.code)}</div>
               </div>
             </div>
-            <span class="status-tag ${p.status}">${p.status}</span>
+            <span class="status-tag ${p.status}">${zh(p.status)}</span>
           </div>
         </div>
       `).join('');
@@ -519,7 +542,7 @@
             <td><strong>${escapeHtml(u.username)}</strong>${isMe ? ' <span style="color:var(--accent);font-size:11px;">（你）</span>' : ''}</td>
             <td>${escapeHtml(u.displayName || '-')}</td>
             <td>${roleBadge}</td>
-            <td><span class="status-tag ${u.status}">${u.status}</span></td>
+            <td><span class="status-tag ${u.status}">${zh(u.status)}</span></td>
             <td style="font-size:12px;color:var(--text-dim);">${fmtDate(u.joinedAt)}</td>
             <td style="font-size:12px;color:var(--text-dim);">${fmtDate(u.lastLoginAt)}</td>
             <td>
@@ -549,7 +572,7 @@
               <div class="product-icon">${escapeHtml(p.icon || p.code?.charAt(0) || '?')}</div>
               <div>
                 <div class="product-name">${escapeHtml(p.name)}</div>
-                <div class="product-code">${escapeHtml(p.code)} · ${escapeHtml(p.status)}</div>
+                <div class="product-code">${escapeHtml(p.code)} · ${zh(p.status)}</div>
               </div>
             </div>
           </div>
@@ -661,7 +684,7 @@
             <div>
               <strong>${escapeHtml(u.username)}</strong>
               ${isMe ? '<span style="color:var(--accent);font-size:11px;margin-left:6px;">（你）</span>' : ''}
-              <span class="role-tag ${u.role}" style="margin-left:8px;">${u.role}</span>
+              <span class="role-tag ${u.role}" style="margin-left:8px;">${ROLE_ZH[u.role] || u.role}</span>
               <span style="color:var(--text-dim);font-size:12px;margin-left:8px;">${escapeHtml(u.displayName || '')}</span>
             </div>
             <div>
@@ -907,12 +930,12 @@
       }
       tb.innerHTML = approvalsCache.map(a => `
         <tr>
-          <td><span class="role-tag ${escapeHtml(a.type || 'UNKNOWN')}">${escapeHtml(a.type || '-')}</span></td>
+          <td><span class="role-tag ${escapeHtml(a.type || 'UNKNOWN')}">${APPROVAL_TYPE_ZH[a.type] || escapeHtml(a.type || '-')}</span></td>
           <td><strong>${escapeHtml(a.requester || a.applicant || '-')}</strong></td>
           <td>${escapeHtml(a.productCode || a.targetProduct || '-')}</td>
           <td style="font-size:12px;color:var(--text-dim);">${escapeHtml(a.reason || a.description || '-')}</td>
           <td style="font-size:12px;color:var(--text-dim);">${fmtDate(a.submittedAt || a.createdAt)}</td>
-          <td><span class="status-tag ${escapeHtml(a.status || 'PENDING')}">${escapeHtml(a.status || 'PENDING')}</span></td>
+          <td><span class="status-tag ${escapeHtml(a.status || 'PENDING')}">${zh(a.status, '待处理')}</span></td>
           <td>
             <button class="btn-success-sm" data-action="approve-item" data-id="${escapeHtml(a.id || a.taskId)}" data-type="${escapeHtml(a.type || 'sub_task')}">通过</button>
             <button class="btn-warn-sm" data-action="reject-item" data-id="${escapeHtml(a.id || a.taskId)}" data-type="${escapeHtml(a.type || 'sub_task')}">拒绝</button>

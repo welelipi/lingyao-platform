@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 产品门户</title>
-  <meta name="app-version" content="V2.0.55">
-  <script>console.log('%c portal.html V2.0.55 · 产品名更新（源策/医呈） ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <meta name="app-version" content="V2.0.60">
+  <script>console.log('%c portal.html V2.0.60 · 英文标签中文化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css">
   <style>
     /* ── Portal 专属样式（复用凌瑶 CSS 变量） ─────── */
@@ -821,7 +821,7 @@
         <div class="kpi-sub" id="kpiUsersSub">-</div>
       </div>
       <div class="kpi-card" id="kpiLicenseCard">
-        <div class="kpi-label">License 剩余</div>
+        <div class="kpi-label">许可证剩余</div>
         <div class="kpi-value" id="kpiLicense">-</div>
         <div class="kpi-sub" id="kpiLicenseSub">-</div>
       </div>
@@ -1478,7 +1478,7 @@
       const licCard = document.getElementById('kpiLicenseCard');
       const days = o.license.remainingDays;
       document.getElementById('kpiLicense').textContent = days < 0 ? '已过期' : days + ' 天';
-      document.getElementById('kpiLicenseSub').textContent = o.companyProducts[0] ? `至 ${fmtDateLocal(o.companyProducts[0].licenseEnd)}` : `计划 ${o.company.licensePlan}`;
+      document.getElementById('kpiLicenseSub').textContent = o.companyProducts[0] ? `至 ${fmtDateLocal(o.companyProducts[0].licenseEnd)}` : `许可证计划：${zh(o.company.licensePlan, '标准版')}`;
       licCard.classList.remove('warning', 'danger');
       if (days < 0) licCard.classList.add('danger');
       else if (days < 30) licCard.classList.add('danger');
@@ -1494,6 +1494,18 @@
 
     function esc(s) {
       return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // ── V2.0.60：英文枚举标签中文化映射（显示层翻译，CSS 类名仍用英文枚举）──────────────
+    const STATUS_ZH = {
+      ACTIVE: '已启用', PENDING: '待处理', SUSPENDED: '已停用',
+      EXPIRED: '已过期', REMOVED: '已移除', CANCELLED: '已取消', DELETED: '已删除',
+      APPROVED: '已通过', REJECTED: '已拒绝',
+      TRIAL: '试用版', STANDARD: '标准版', ENTERPRISE: '企业版'
+    };
+    function zh(s, fallback) {
+      if (s == null || s === '') return fallback || '-';
+      return STATUS_ZH[String(s)] || (fallback !== undefined ? fallback : s);
     }
 
     // ── Tab 切换 + 按需加载 ──
@@ -1533,7 +1545,7 @@
                   <td><strong>${esc(u.username)}</strong>${u.username === me?.username ? ' <span style="color:var(--accent);font-size:11px;">（你）</span>' : ''}</td>
                   <td>${esc(u.displayName || '-')}</td>
                   <td>${roleBadge}</td>
-                  <td><span class="ws-tag ${esc(u.status)}">${esc(u.status)}</span></td>
+                  <td><span class="ws-tag ${esc(u.status)}">${zh(u.status, '已启用')}</span></td>
                   <td style="color:var(--text-dim);">${fmtDateLocal(u.lastLoginAt)}</td>
                 </tr>`;}).join('') || '<tr><td colspan="5" class="ws-empty">暂无用户</td></tr>'}
             </tbody>
@@ -1742,7 +1754,7 @@
             <div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;color:#dc2626;font-size:24px;font-weight:bold;">⊘</div>
             <div>
               <div style="font-size:18px;font-weight:600;color:#111;">无法访问「${productName}」</div>
-              <div style="font-size:13px;color:#6b7280;margin-top:2px;">Access Denied</div>
+              <div style="font-size:13px;color:#6b7280;margin-top:2px;">无访问权限</div>
             </div>
           </div>
           <div style="background:#fef3f2;border:1px solid #fecaca;border-radius:8px;padding:12px 14px;color:#7f1d1d;font-size:14px;line-height:1.6;margin-bottom:16px;">

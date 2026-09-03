@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 平台超管后台</title>
-  <link rel="stylesheet" href="/css/style.css?v=2.0.56">
+  <link rel="stylesheet" href="/css/style.css?v=2.0.60">
   <style>
     /* ── 管理后台专属样式 ───────────── */
     .admin-shell {
@@ -338,7 +338,7 @@
             <tr>
               <th>ID</th>
               <th>公司名称</th>
-              <th>Code</th>
+              <th>公司代码</th>
               <th>部署模式</th>
               <th>许可证</th>
               <th>状态</th>
@@ -906,6 +906,19 @@
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // ── V2.0.60：英文枚举标签中文化映射（显示层翻译，CSS 类名仍用英文枚举）──────────────
+    const STATUS_ZH = {
+      ACTIVE: '已启用', PENDING: '待处理', SUSPENDED: '已停用',
+      EXPIRED: '已过期', REMOVED: '已移除', CANCELLED: '已取消', DELETED: '已删除',
+      CONSUMED: '已使用', REVOKED: '已撤销',
+      TRIAL: '试用版', STANDARD: '标准版', ENTERPRISE: '企业版',
+      SAAS: 'SaaS（共享云）', PRIVATE: '私有化'
+    };
+    function zh(s, fallback) {
+      if (s == null || s === '') return fallback || '-';
+      return STATUS_ZH[String(s)] || (fallback !== undefined ? fallback : s);
+    }
+
     // ── V2.0.57：新建公司弹窗「开通产品」勾选网格 ──────────────
     // deployed=false（子任务 COMING_SOON，如医呈）→ 置灰禁勾 + 「待部署」徽标
     function renderCompanyProductCheckboxes(checkedCodes) {
@@ -1122,9 +1135,9 @@
           <td>${c.id}</td>
           <td><strong>${escapeHtml(c.name)}</strong></td>
           <td><code>${escapeHtml(c.code)}</code></td>
-          <td><span class="badge ${dm.toLowerCase()}">${dm}</span></td>
-          <td>${lp}</td>
-          <td><span class="badge ${st.toLowerCase()}">${st}</span></td>
+          <td><span class="badge ${dm.toLowerCase()}">${zh(dm)}</span></td>
+          <td>${zh(lp)}</td>
+          <td><span class="badge ${st.toLowerCase()}">${zh(st)}</span></td>
           <td><span class="badge-pill" data-cp-cid="${c.id}">加载中…</span></td>
           <td>${escapeHtml(c.contactEmail || '-')}</td>
           <td>
@@ -1176,7 +1189,7 @@
           <td>${escapeHtml(u.email || '-')}</td>
           <td>${u.isPlatformAdmin ? '<span class="badge private">平台超管</span>' : '<span class="badge active">公司超管</span>'}</td>
           <td><span data-mem-uid="${u.id}">-</span></td>
-          <td><span class="badge ${(u.status||'ACTIVE').toLowerCase()}">${u.status||'ACTIVE'}</span></td>
+          <td><span class="badge ${(u.status||'ACTIVE').toLowerCase()}">${zh(u.status, '已启用')}</span></td>
           <td>
             <button class="btn-ghost-sm" data-action="grant-user" data-uid="${u.id}" data-uname="${escapeHtml(u.username)}">授权产品</button>
             <button class="btn-ghost-sm" data-action="reset-password" data-uid="${u.id}" data-uname="${escapeHtml(u.username)}" style="border-color:#FF8C42;color:#FF8C42;">重置密码</button>

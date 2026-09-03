@@ -1,5 +1,23 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.60 (2026-09-03 19:30) — 门户三页英文枚举标签全面中文化（主人截图反馈）
+
+### Fixed
+- **company-admin.html 公司管理后台英文标签（主人报：概览页 license/TRIAL/ACTIVE/SUSPENDED 等英文裸露）**：
+  - 静态文案：副标题「与 license」→「与许可证」；统计卡「license 剩余天数/计划」→「许可证剩余天数/许可证计划」
+  - 动态枚举：产品/用户/公司状态（ACTIVE/SUSPENDED/PENDING/EXPIRED/REMOVED/CANCELLED）、许可证计划（TRIAL/STANDARD/ENTERPRISE → 试用版/标准版/企业版）、部署模式（SAAS/PRIVATE）、公司内角色（SUPER_ADMIN/OPERATOR/VIEWER → 公司超管/操作员/访客）、审批类型（SUBTASK_INVOKE/PRODUCT_GRANT/SSO_LINK_REQUEST → 子任务调用/产品授权/SSO 专属链接）、审批状态（APPROVED/REJECTED → 已通过/已拒绝）全部映射中文
+- **admin.html 平台超管后台同类漏网**：公司列表部署模式/许可证计划/公司状态三列裸英文 → 中文；用户列表状态标签 → 中文
+- **portal.html 主门户同类漏网**：许可证 KPI「计划 TRIAL」→「许可证计划：试用版」；成员列表用户状态标签 → 中文
+
+### Changed
+- 三页各加 `STATUS_ZH` 映射表 + `zh()` 工具函数（admin/portal 亦含邀请状态 CONSUMED/REVOKED）；**CSS 类名保留英文枚举**（如 `.status-tag.ACTIVE`）不影响配色逻辑，仅翻译显示层
+- 版本印章同步：company-admin/portal meta+console V2.0.55→V2.0.60，admin css v=2.0.60，application.yml 2.0.59→2.0.60
+
+### 枚举依据（后端实体核对）
+- Company：DeploymentMode{SAAS,PRIVATE} / LicensePlan{TRIAL,STANDARD,ENTERPRISE} / CompanyStatus{PENDING,ACTIVE,EXPIRED,SUSPENDED,DELETED}
+- CompanyProduct.Status{ACTIVE,EXPIRED,SUSPENDED,CANCELLED}；CompanyUser.Status{ACTIVE,REMOVED}
+- SubTaskApproval：Type{SUBTASK_INVOKE,PRODUCT_GRANT,SSO_LINK_REQUEST,OTHER} / Status{PENDING,APPROVED,REJECTED}；Invitation.Status{PENDING,CONSUMED,EXPIRED,REVOKED}
+
 ## V2.0.59 (2026-09-03 15:20) — SSO「Signature verification failed」排查修复 + portal 改密 CSRF 漏网（主人截图反馈）
 
 ### Fixed
