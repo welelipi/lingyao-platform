@@ -198,18 +198,35 @@ public class CompanyAdminController {
 
     // ═══════════════════════ 4. 审计日志（本公司） ═══════════════════════
 
+    /**
+     * V2.0.62 升级：真分页 + action 筛选（替代 Bug-21 内存全表过滤版）
+     * 数据源：company_audit_log（业务操作审计：建用户/改授权/审批/登录等）
+     */
     @GetMapping("/audit-logs")
-    public ApiResponse<List<CompanyAuditLog>> auditLogs(@RequestParam(defaultValue = "20") int limit) {
+    public ApiResponse<Map<String, Object>> auditLogs(
+            @RequestParam(required = false) String action,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         ApiResponse<?> deny = requireTenantAdmin();
         if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         Long companyId = getScopedCompanyId();
         if (companyId == null) return ApiResponse.fail(403, "未关联公司");
-        // 简化版：取最近的 limit 条（后续可加过滤 + 分页）
-        List<CompanyAuditLog> logs = companyAuditLogRepo.findAll().stream()
-                .filter(l -> l.getCompanyId() != null && l.getCompanyId().equals(companyId))
-                .sorted(Comparator.comparing(CompanyAuditLog::getCreatedAt).reversed())
-                .limit(Math.min(limit, 100))
-                .toList();
-        return ApiResponse.ok(logs);
+
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(
+                        Math.max(0, page), Math.min(Math.max(1, size), 100));
+        org.springframework.data.domain.Page<CompanyAuditLog> result =
+                (action == null || action.isBlank())
+                        ? companyAuditLogRepo.findByCompanyIdOrderByCreatedAtDesc(companyId, pageable)
+                        : companyAuditLogRepo.findByCompanyIdAndActionOrderByCreatedAtDesc(
+                                companyId, action.trim().toUpperCase(), pageable);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("items", result.getContent());
+        data.put("page", result.getNumber());
+        data.put("size", result.getSize());
+        data.put("total", result.getTotalElements());
+        data.put("totalPages", result.getTotalPages());
+        return ApiResponse.ok(data);
     }
 }

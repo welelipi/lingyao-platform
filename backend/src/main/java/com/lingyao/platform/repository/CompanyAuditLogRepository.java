@@ -15,4 +15,8 @@ public interface CompanyAuditLogRepository extends JpaRepository<CompanyAuditLog
     // ═══════════════════════ V2.0.42 审计归档 ═══════════════════════
     List<CompanyAuditLog> findByCreatedAtBefore(LocalDateTime cutoff);
     long deleteByCreatedAtBefore(LocalDateTime cutoff);
+
+    // ═══════════════════════ V2.0.62 审计日志可视化 ═══════════════════════
+    Page<CompanyAuditLog> findByCompanyIdAndActionOrderByCreatedAtDesc(
+            Long companyId, String action, Pageable pageable);
 }

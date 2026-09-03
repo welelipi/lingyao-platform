@@ -4,8 +4,8 @@
   <meta charset="UTF-8" data-page-node-id="auiTgYX4IJxtECjjaDChxO">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="49XOtBPqD4wzFqIoRjfjGL">
   <title>凌瑶智数 · 公司管理后台</title>
-  <meta name="app-version" content="V2.0.60">
-  <script>console.log('%c company-admin.html V2.0.60 · 英文标签中文化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <meta name="app-version" content="V2.0.62">
+  <script>console.log('%c company-admin.html V2.0.62 · 审计日志 tab ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css" data-page-node-id="niMXLtvcDrCVI7MhTHu5BY">
   <style>
     .ca-shell { min-height: 100vh; padding: 96px 32px 64px; max-width: 1320px; margin: 0 auto; }
@@ -74,6 +74,7 @@
       <button class="ca-tab" data-tab="products" data-page-node-id="a6BlGPEHsaCuHgaByWayL4">产品授权</button>
       <button class="ca-tab" data-tab="sso-config" data-page-node-id="SsoCfgTabBtn">SSO 配置</button>
       <button class="ca-tab" data-tab="approvals" data-page-node-id="ApvlTabBtn">集中审批</button>
+      <button class="ca-tab" data-tab="audit">审计日志</button>
     </div>
 
     <!-- Tab 1: 概览 -->
@@ -175,6 +176,52 @@
           </thead>
           <tbody id="approvalsTbody" data-page-node-id="ApvlTbody"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Tab 6: 审计日志（V2.0.62 新增：company_audit_log 业务操作审计可视化） -->
+    <div class="ca-tab-content" id="tab-audit">
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">
+        本公司业务操作审计：谁在何时对什么资源做了什么操作（用户管理/产品授权/登录/审批等）。
+      </p>
+      <div class="ca-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <h3 style="font-size:16px;">操作记录</h3>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <select id="auditActionFilter" style="background:var(--glass-light);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px;">
+              <option value="">全部动作</option>
+              <option value="LOGIN_SUCCESS">登录成功</option>
+              <option value="LOGIN_FAIL">登录失败</option>
+              <option value="LOGOUT">登出</option>
+              <option value="PASSWORD_CHANGED">修改密码</option>
+              <option value="COMPANY_INVITE_EMPLOYEE">邀请员工</option>
+              <option value="COMPANY_CHANGE_ROLE">变更角色</option>
+              <option value="COMPANY_REMOVE_USER">移除用户</option>
+              <option value="COMPANY_GRANT_PRODUCT">授权产品</option>
+              <option value="COMPANY_REVOKE_PRODUCT">撤销产品</option>
+            </select>
+            <button class="btn-ghost-sm" id="auditRefreshBtn">🔄 查询</button>
+          </div>
+        </div>
+        <table class="data-table" id="auditTable">
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>动作</th>
+              <th>操作人</th>
+              <th>资源</th>
+              <th>说明</th>
+            </tr>
+          </thead>
+          <tbody id="auditTbody"></tbody>
+        </table>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+          <div style="color:var(--text-dim);font-size:12px;">共 <span id="auditTotal">0</span> 条 · 第 <span id="auditPage">1</span> / <span id="auditTotalPages">1</span> 页</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-ghost-sm" id="auditPrevBtn">← 上一页</button>
+            <button class="btn-ghost-sm" id="auditNextBtn">下一页 →</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -440,6 +487,73 @@
     };
     // 公司内角色 → 中文
     const ROLE_ZH = { SUPER_ADMIN: '公司超管', OPERATOR: '操作员', VIEWER: '访客' };
+    // 业务审计动作 → 中文（V2.0.62；全集 45 个，表格内未映射的回退原值）
+    const AUDIT_ACTION_ZH = {
+      LOGIN_SUCCESS: '登录成功', LOGIN_FAIL: '登录失败', LOGIN_MUST_CHANGE_PASSWORD: '登录·强制改密',
+      LOGOUT: '登出', TOKEN_REFRESH: 'Token 续期', REFRESH_REPLAY_DETECTED: 'Token 重放攻击',
+      PASSWORD_CHANGED: '修改密码', PASSWORD_RESET_REQUESTED: '申请重置密码', PASSWORD_RESET: '重置密码成功',
+      FORGOT_PASSWORD_USER_NOT_FOUND: '重置·用户不存在',
+      COMPANY_INVITE_EMPLOYEE: '邀请员工', COMPANY_CHANGE_ROLE: '变更角色', COMPANY_REMOVE_USER: '移除用户',
+      COMPANY_GRANT_PRODUCT: '授权产品', COMPANY_REVOKE_PRODUCT: '撤销产品',
+      COMPANY_CREATE: '创建公司', COMPANY_UPDATE: '更新公司', COMPANY_SUSPEND: '停用公司', COMPANY_ACTIVATE: '激活公司',
+      COMPANY_GRANT: '公司开通产品', COMPANY_SUB_PRODUCT_LINK_GENERATED: '生成专属链接', COMPANY_SUB_PRODUCT_LINK_VERIFIED: '验证专属链接',
+      USER_CREATE: '创建用户', USER_BIND_COMPANY: '绑定用户到公司', USER_RESET_PASSWORD: '重置用户密码',
+      PRODUCT_GRANT: '产品授权', PRODUCT_GRANT_AUTO: '自动开通产品',
+      REGISTRATION_CREATE: '报名提交', REGISTRATION_STATUS: '报名状态变更', REGISTRATION_CONVERT: '报名转开通',
+      INV_CREATE: '创建邀请', INV_REDEEM: '邀请兑换', INV_REVOKE: '撤销邀请',
+      SUBTASK_APPROVAL_APPROVE: '审批通过', SUBTASK_APPROVAL_REJECT: '审批拒绝',
+      SUBTASK_ENTER: '进入子任务', SUBTASK_INVOKE: '调用子任务',
+      SSO_LOGIN_LINK_GENERATED: '生成 SSO 链接',
+      CHANNEL_CREATE: '创建通知通道', CHANNEL_UPDATE: '更新通知通道', CHANNEL_DELETE: '删除通知通道',
+      PUSH_HEALTH_ALERT: '推送通道告警',
+      INTERNAL_GRANT_SYNC: '内部授权同步', INTERNAL_GRANT_REVOKE: '内部授权撤销', INTERNAL_NOTIFY_EMAIL: '内部邮件通知'
+    };
+    // 资源类型 → 中文
+    const AUDIT_RESOURCE_ZH = {
+      USER: '用户', COMPANY: '公司', PRODUCT: '产品', REGISTRATION: '报名',
+      INVITATION: '邀请', SUBTASK: '子任务', SUB_TASK: '子任务', CHANNEL: '通知通道', PUSH: '推送', SSO: 'SSO'
+    };
+
+    // ── V2.0.62：审计日志 Tab ─────────────────
+    let auditPage = 0;
+    let auditLoaded = false;
+
+    async function loadAuditLogs(page) {
+      try {
+        if (page !== undefined) auditPage = Math.max(0, page);
+        const action = document.getElementById('auditActionFilter').value;
+        const qs = new URLSearchParams({ page: auditPage, size: 20 });
+        if (action) qs.set('action', action);
+        const d = await api('GET', '/api/company-admin/audit-logs?' + qs.toString());
+        const body = document.getElementById('auditTbody');
+        body.innerHTML = (d.items || []).map(l => {
+          const zhAction = AUDIT_ACTION_ZH[l.action] || l.action;
+          const fail = !l.action?.includes('FAIL') === false || l.action === 'LOGIN_FAIL';
+          return `
+          <tr>
+            <td style="font-size:12px;color:var(--text-dim);">${fmtDate(l.createdAt)}</td>
+            <td><span class="status-tag ${l.action === 'LOGIN_FAIL' ? 'SUSPENDED' : 'ACTIVE'}" style="white-space:nowrap;">${escapeHtml(zhAction)}</span></td>
+            <td>${escapeHtml(l.actorUsername || '-')}</td>
+            <td style="font-size:12px;">${escapeHtml(AUDIT_RESOURCE_ZH[l.resourceType] || l.resourceType || '-')}${l.resourceId && l.resourceId !== '-' ? ' #' + escapeHtml(l.resourceId) : ''}</td>
+            <td style="font-size:12px;color:var(--text-dim);">${escapeHtml(l.summary || '-')}</td>
+          </tr>`;
+        }).join('') || '<tr><td colspan="5" class="empty-state">暂无审计记录</td></tr>';
+        document.getElementById('auditTotal').textContent = d.total ?? 0;
+        document.getElementById('auditPage').textContent = (d.page ?? 0) + 1;
+        document.getElementById('auditTotalPages').textContent = Math.max(1, d.totalPages ?? 1);
+        auditLoaded = true;
+      } catch (e) { /* api() 已 toast */ }
+    }
+
+    // 审计筛选/翻页事件绑定
+    const auditRefresh = document.getElementById('auditRefreshBtn');
+    if (auditRefresh) auditRefresh.addEventListener('click', () => loadAuditLogs(0));
+    const auditFilter = document.getElementById('auditActionFilter');
+    if (auditFilter) auditFilter.addEventListener('change', () => loadAuditLogs(0));
+    const auditPrev = document.getElementById('auditPrevBtn');
+    if (auditPrev) auditPrev.addEventListener('click', () => loadAuditLogs(auditPage - 1));
+    const auditNext = document.getElementById('auditNextBtn');
+    if (auditNext) auditNext.addEventListener('click', () => loadAuditLogs(auditPage + 1));
 
     function copyText(inputId) {
       const el = document.getElementById(inputId);
@@ -993,6 +1107,8 @@
           loadSsoConfig();
         } else if (tab.dataset.tab === 'approvals' && approvalsCache.length === 0) {
           loadApprovals();
+        } else if (tab.dataset.tab === 'audit' && !auditLoaded) {
+          loadAuditLogs(0);
         }
       });
     });
