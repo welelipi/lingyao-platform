@@ -79,4 +79,29 @@ public interface AuthAuditEventRepository extends JpaRepository<AuthAuditEvent, 
     /** 告警扫描：最近 N 分钟内 TOKEN_REFRESH_REPLAY（重放攻击检测，不看 success） */
     long countByEventTypeAndCreatedAtAfter(
             AuthAuditEvent.EventType eventType, LocalDateTime since);
+
+    /** V2.0.61：近 N 时间失败事件总数（跨类型，KPI 用） */
+    long countByCreatedAtAfterAndSuccessFalse(LocalDateTime since);
+
+    // ═══════════════════════ V2.0.61 安全审计可视化 ═══════════════════════
+
+    /**
+     * 管理后台复合筛选查询（全部条件可空，null = 不筛选）
+     * 索引覆盖：idx_auth_audit_type_created / idx_auth_audit_user_created / idx_auth_audit_created
+     * 注意：CONCAT 必须显式 CAST(:username AS string)，否则 PG 在 null 参数时按 bytea 处理报 lower(bytea) 不存在
+     */
+    @Query("""
+           SELECT e FROM AuthAuditEvent e
+           WHERE (:eventType IS NULL OR e.eventType = :eventType)
+             AND (CAST(:username AS string) IS NULL OR LOWER(e.username) LIKE LOWER(CONCAT('%', CAST(:username AS string), '%')))
+             AND (:success IS NULL OR e.success = :success)
+             AND (:companyId IS NULL OR e.companyId = :companyId)
+           ORDER BY e.createdAt DESC
+           """)
+    Page<AuthAuditEvent> findByFilters(
+            @Param("eventType") AuthAuditEvent.EventType eventType,
+            @Param("username") String username,
+            @Param("success") Boolean success,
+            @Param("companyId") Long companyId,
+            Pageable pageable);
 }

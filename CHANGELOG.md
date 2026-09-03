@@ -1,5 +1,22 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.61 (2026-09-03 20:05) — 安全审计可视化：admin 后台新增「安全审计」tab（P1 待办落地）
+
+### Feature
+- **后端 2 端点**（AdminController，均平台超管守卫）：
+  - `GET /api/admin/security-events`：AuthAuditEvent 复合筛选分页（eventType/username 模糊/success/companyId 全可空）
+  - `GET /api/admin/security-events/summary`：近 24h 聚合（总数/失败数/按类型计数）
+  - AuthAuditEventRepository 新增 `findByFilters`（@Query 复合）+ `countByCreatedAtAfterAndSuccessFalse`
+- **前端「安全审计」tab**（admin.html 第 6 个 tab）：KPI 三卡（近 24h 总量/失败量[红色高亮]/最高频类型）+ 三筛选器（类型下拉 13 项中文/结果/用户名回车触发）+ 7 列表格（时间/类型/结果/用户名/IP/路径/错误）+ 上一页/下一页分页；事件类型全中文映射（SEC_EVENT_ZH 18 值）
+
+### Fixed
+- **PG `lower(bytea) does not exist`**：JPQL `CONCAT('%', :username, '%')` 在 null 参数时 Hibernate 把参数推成 bytea → `CONCAT('%', CAST(:username AS string), '%')` 显式转型修复
+
+### E2E 验证（2026-09-03 20:00~20:10）
+- API 7 项断言全绿：admin 登录 → summary（total=56/failed=6/top=LOGIN_SUCCESS）→ 分页 → success=false 筛选（6 条全失败）→ eventType 筛选（48 条全匹配）→ 非超管 403（JSON code）→ 非法类型 400
+- 浏览器全链路：admin 登录 → 安全审计 tab → KPI 渲染 → 筛选「登录失败」表格实时刷新（失败行红色/错误消息中文）→ 分页控件正常（截图确认）
+- 教训：本代码库失败约定是 HTTP 200 + `code≠0`，E2E 断言勿用 HTTPError
+
 ## V2.0.60 (2026-09-03 19:30) — 门户三页英文枚举标签全面中文化（主人截图反馈）
 
 ### Fixed

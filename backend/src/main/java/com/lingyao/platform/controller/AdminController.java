@@ -345,6 +345,82 @@ public class AdminController {
         return ApiResponse.ok(auditLogService.listForCurrentCompany(page, size));
     }
 
+    // ═══════════════════════ V2.0.61 安全审计可视化 ═══════════════════════
+
+    @Autowired
+    private com.lingyao.platform.repository.AuthAuditEventRepository authAuditEventRepo;
+
+    /**
+     * 安全事件分页查询（平台超管专用）
+     * 筛选：eventType / username（模糊）/ success / companyId，全部可空
+     */
+    @GetMapping("/security-events")
+    public ApiResponse<?> listSecurityEvents(
+            @RequestParam(required = false) String eventType,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) Boolean success,
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        ApiResponse<?> guard = requirePlatformAdmin();
+        if (guard != null) return guard;
+
+        AuthAuditEvent.EventType type = null;
+        if (eventType != null && !eventType.isBlank()) {
+            try {
+                type = AuthAuditEvent.EventType.valueOf(eventType.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ApiResponse.fail(400, "未知事件类型: " + eventType);
+            }
+        }
+        String uname = (username != null && !username.isBlank()) ? username.trim() : null;
+        Long cid = companyId;
+        Pageable pageable = PageableValidator.safeOf(page, size);
+
+        Page<AuthAuditEvent> result = authAuditEventRepo.findByFilters(type, uname, success, cid, pageable);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("items", result.getContent());
+        data.put("page", result.getNumber());
+        data.put("size", result.getSize());
+        data.put("total", result.getTotalElements());
+        data.put("totalPages", result.getTotalPages());
+        return ApiResponse.ok(data);
+    }
+
+    /**
+     * 安全事件近 24h 聚合（KPI 行）：按事件类型计数 + 总数 + 失败数
+     */
+    @GetMapping("/security-events/summary")
+    public ApiResponse<?> securityEventsSummary() {
+        ApiResponse<?> guard = requirePlatformAdmin();
+        if (guard != null) return guard;
+
+        java.time.LocalDateTime since = java.time.LocalDateTime.now().minusHours(24);
+        List<AuthAuditEventRepository.EventTypeCount> counts =
+                authAuditEventRepo.countByEventTypeSince(since);
+
+        long total = 0;
+        long failed = 0;
+        List<Map<String, Object>> byType = new java.util.ArrayList<>();
+        for (AuthAuditEventRepository.EventTypeCount c : counts) {
+            long n = c.getCount() == null ? 0 : c.getCount();
+            total += n;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("eventType", c.getEventType().name());
+            row.put("count", n);
+            byType.add(row);
+        }
+        // 失败数单独统计（跨类型）
+        failed = authAuditEventRepo.countByCreatedAtAfterAndSuccessFalse(since);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("since", since);
+        data.put("total", total);
+        data.put("failed", failed);
+        data.put("byType", byType);
+        return ApiResponse.ok(data);
+    }
+
     /**
      * Bug-03：推送通道健康监控
      */
