@@ -102,7 +102,9 @@ VALUES
   (11, 4, 'SUPER_ADMIN', 'DINFO 超级管理员', '["*"]', 1, NOW()),
   (12, 4, 'OPERATOR', 'DINFO 操作员', '["read", "write", "fill"]', 2, NOW()),
   (13, 5, 'SUPER_ADMIN', 'PORM 超级管理员', '["*"]', 1, NOW()),
-  (14, 5, 'OPERATOR', 'PORM 操作员', '["read", "task"]', 2, NOW())
+  (14, 5, 'OPERATOR', 'PORM 操作员', '["read", "task"]', 2, NOW()),
+  (15, 6, 'SUPER_ADMIN', '医呈 超级管理员', '["*"]', 1, NOW()),
+  (16, 6, 'OPERATOR', '医呈 操作员', '["read", "generate"]', 2, NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════

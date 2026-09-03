@@ -50,7 +50,7 @@ INSERT INTO product (id, code, name, description, icon, sort_order, status, crea
 VALUES
   (1, 'GEO', '棱镜-智能GEO监测', 'AI 品牌监测与内容优化，监测 8 大 AI 平台', 'G', 1, 'ACTIVE', NOW(), NOW()),
   (2, 'HPD', '皓元-智能医院潜力预测', '医院销售潜力模型预测，WMAPE 6.6%', 'H', 2, 'ACTIVE', NOW(), NOW()),
-  (3, 'AIDD', '源策-AI 立项 Copilot', 'AI 辅助药物研发立项 Copilot（双种子方向：肿瘤 + 自免），含 CDE 中国监管数据 + 商业测算（PDB/米内）双增强', 'A', 3, 'ACTIVE', NOW(), NOW()),
+  (3, 'AIDD', '源策-医药研发信息智能体', 'AI 辅助药物研发立项 Copilot（双种子方向：肿瘤 + 自免），含 CDE 中国监管数据 + 商业测算（PDB/米内）双增强', 'A', 3, 'ACTIVE', NOW(), NOW()),
   (4, 'DINFO', '辰录 · 智能信息填报系统', 'Dinfo 基于 GH-Department info V1.5.23 继承的 9 实体 + 9 Controller + 10 前端页面 + 飞书 OAuth + JWT 鉴权 + Excel 重载，新增 LLM 智能填写 + 多任务架构', 'D', 4, 'DEPRECATED', NOW(), NOW()),
   (5, 'PORM', '明枢-PORM 智能协作平台', 'POR-M 透明 × 协作中枢（看得见的协作），从 POR/GS-CoLab 衍生 v1.0.0，每张表/每条工单/每次审批都可被看见、可被追溯', '明', 5, 'DEPRECATED', NOW(), NOW()),
   (6, 'MEDPPT', '医呈-智能医学PPT生成智能体', '智能医学PPT生成智能体，一键生成专业医学演示文稿', 'M', 6, 'ACTIVE', NOW(), NOW());
@@ -89,7 +89,9 @@ VALUES
   (11, 4, 'SUPER_ADMIN', 'DINFO 超级管理员', '["*"]', 1, NOW()),
   (12, 4, 'OPERATOR', 'DINFO 操作员', '["read", "write", "fill"]', 2, NOW()),
   (13, 5, 'SUPER_ADMIN', 'PORM 超级管理员', '["*"]', 1, NOW()),
-  (14, 5, 'OPERATOR', 'PORM 操作员', '["read", "task"]', 2, NOW());
+  (14, 5, 'OPERATOR', 'PORM 操作员', '["read", "task"]', 2, NOW()),
+  (15, 6, 'SUPER_ADMIN', '医呈 超级管理员', '["*"]', 1, NOW()),
+  (16, 6, 'OPERATOR', '医呈 操作员', '["read", "generate"]', 2, NOW());
 
 -- ═══════════════════════════════════════════════════════════
 -- 产品内用户角色分配
