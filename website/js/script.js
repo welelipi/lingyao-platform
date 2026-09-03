@@ -495,16 +495,49 @@
           })
         });
         const json = await resp.json();
-        if (json.success) {
-          localStorage.setItem('lingyao_token', json.data.token);
-          // V2.0.21 P1.4：保存 refresh_token（30 天有效，用于静默续期）
-          if (json.data.refreshToken) {
-            localStorage.setItem('lingyao_refresh_token', json.data.refreshToken);
+        const payload = (json.code === 0 && json.data) ? json.data : null;
+        // V2.0.65：2FA challenge —— 密码正确但需要验证码（TOTP 6 位或备份码，即逃生通道）
+        if (payload && payload.mfaRequired) {
+          const tip = payload.mfaReason === 'MFA_REQUIRED'
+            ? '该账号已启用两步验证'
+            : '验证码错误，请重试';
+          const code = prompt(`🔐 ${tip}\n\n请输入 Authenticator 中的 6 位验证码（或备份码）：`);
+          if (!code) {
+            showToast('已取消登录', 'error');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            return;
           }
-          localStorage.setItem('lingyao_user', JSON.stringify(json.data.user));
+          submitBtn.innerHTML = '验证中...';
+          const r2 = await fetch(API_BASE + '/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: fd.get('username'),
+              password: fd.get('password'),
+              totpCode: code.trim()
+            })
+          });
+          const j2 = await r2.json().catch(() => ({}));
+          const p2 = (j2.code === 0 && j2.data && !j2.data.mfaRequired) ? j2.data : null;
+          if (!p2) {
+            showToast((j2.data && j2.data.mfaRequired) ? '2FA 验证码错误' : (j2.message || '2FA 验证失败'), 'error');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            return;
+          }
+          Object.assign(payload, p2);   // 用挑战后的完整响应覆盖
+        }
+        if (payload && payload.token) {
+          localStorage.setItem('lingyao_token', payload.token);
+          // V2.0.21 P1.4：保存 refresh_token（30 天有效，用于静默续期）
+          if (payload.refreshToken) {
+            localStorage.setItem('lingyao_refresh_token', payload.refreshToken);
+          }
+          localStorage.setItem('lingyao_user', JSON.stringify(payload.user));
           closeModal('login');
-          showToast('登录成功！欢迎 ' + (json.data.user.displayName || json.data.user.username), 'success');
-          renderUserProducts(json.data);
+          showToast('登录成功！欢迎 ' + (payload.user.displayName || payload.user.username), 'success');
+          renderUserProducts(payload);
         } else {
           showToast(json.message || '登录失败', 'error');
         }

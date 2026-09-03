@@ -1,5 +1,27 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.65 (2026-09-03 21:30) — 2FA 逃生通道全链路补全：首页登录接入 MFA 挑战 + MFA 审计归属
+
+### 评估结论（先摸底后动手）
+- **后端 2FA 早已闭环（V2.0.42 已完成，此前 grep 误判"未接线"）**：`AuthService.login()` L94-119 密码正确后检查 `twoFactorService.isEnabled` → 无码返回 `mfaRequired=true/MFA_REQUIRED`、错码返回 `MFA_INVALID`；`verifyLoginCode` 对非 6 位输入自动 fallback `verifyBackupCode`（一次性消费）——逃生通道后端本就存在
+- **真实缺口 2 个**：
+  1. **js/script.js（官网首页登录弹窗）不处理 `mfaRequired`**——2FA 用户在首页登录收到 code=0 + `{mfaRequired:true}`（无 token），前端却存 undefined token 进入损坏状态
+  2. MFA 挑战失败只有安全事件表（auth_audit_event）记录，company-audit 审计 tab 看不到（对比：普通密码失败 V2.0.63 已有 recordWithSubject）
+
+### Fixed
+- **js/script.js 首页登录接入 2FA 挑战**：mfaRequired=true → prompt 输入（TOTP 6 位或备份码）→ 带 totpCode 重试登录 → 成功后才落 token/localStorage；顺带修复该处 `json.success` 旧写法为 `json.code === 0`（对齐 ApiResponse 真实序列化字段）
+- **AuthService MFA 挑战失败补公司审计归属**：`recordWithSubject("LOGIN_FAIL","USER",...)` 回填 companyId，区分「缺少验证码/验证码错误」两种 summary
+
+### E2E 验证（2026-09-03 21:25，Python pyotp，10/10 PASS）
+- 创建测试用户 → 2FA setup（secret+otpauth）→ verify-setup 发 8 个备份码 ✅
+- 无码登录 → `mfaRequired=true/MFA_REQUIRED` ✅；TOTP 正确码 → token 签发 ✅；错误码 → `MFA_INVALID` ✅
+- **备份码登录成功 + 复用同一备份码被拒（一次性消费正确）** ✅ ——逃生通道闭环
+- 超管查他人 2FA 状态 enabled=true ✅；cleanup：disable 2FA 成功
+- 踩坑记录：①CSRF Double-Submit——先 GET 拿 XSRF-TOKEN cookie 再 POST 回传 header；②`/api/admin/users` 创建用户字段是 `initialPassword`（非 password）；③TOTP 防重放——verify-setup 消费过的 30s 窗口码不能立即再用于登录（等新窗口即可，是安全特性）；④RateLimit 短时高频登录触发 429，脚本需退避重试
+
+### Notes
+- AdminController 无删除用户端点（DELETE/RESTATUS 均不存在），测试用户仅能 disable 语义收尾——dev 库残留 e2e2fa_* 用户无害；门户登录页（portal.html）挑战逻辑 V2.0.42 已有，本版未动
+
 ## V2.0.64 (2026-09-03 20:50) — 报名转化漏斗（P1 待办落地）
 
 ### Feature

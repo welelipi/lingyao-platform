@@ -111,6 +111,12 @@ public class AuthService {
                         "/api/auth/login", "POST",
                         failReason,
                         "MFA_REQUIRED".equals(failReason) ? "已启用 2FA，请携带验证码登录" : "2FA 验证码错误");
+                // V2.0.65：MFA 挑战失败同样回填公司归属（company-admin 审计 tab 可见）
+                auditLogService.recordWithSubject("LOGIN_FAIL", "USER",
+                        user.getId(), user.getUsername(),
+                        "MFA_REQUIRED".equals(failReason)
+                                ? "2FA 挑战（缺少验证码）: " + user.getUsername()
+                                : "2FA 挑战失败（验证码错误）: " + user.getUsername());
                 LoginResponse challenge = new LoginResponse();
                 challenge.setMfaRequired(true);
                 challenge.setMfaReason(failReason);
