@@ -355,7 +355,7 @@
       if (!j.success) throw new Error(j.message || '邀请校验失败');
       const data = j.data;
       if (!data.usable) {
-        showInvalid(`邀请已${data.status}，无法使用`);
+        showInvalid(`邀请已${({PENDING:'待处理',CONSUMED:'使用',EXPIRED:'过期',REVOKED:'撤销'})[data.status] || data.status}，无法使用`);
         return;
       }
       // 填充 banner

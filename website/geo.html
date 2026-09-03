@@ -100,6 +100,7 @@
   </div>
 
   <script>
+  const SUBTASK_STATUS_ZH = { REGISTERED: '已注册', ACTIVE: '运行中', MAINTENANCE: '维护中', OFFLINE: '已下线', COMING_SOON: '待部署' };
     // === 同源相对路径：prod(80→Nginx→9091) 与 staging(9092) 自动走对的后端 ===
     const API_BASE = '';
     const TOKEN_KEY = 'lingyao_token';
@@ -134,7 +135,7 @@
         if (data.code === 0 && data.data) {
           const d = data.data;
           banner.classList.add('ok');
-          banner.innerHTML = `✓ 子任务路由层正常：<b>${d.taskName}</b>（${d.taskStatus}）`
+          banner.innerHTML = `✓ 子任务路由层正常：<b>${d.taskName}</b>（${SUBTASK_STATUS_ZH[d.taskStatus] || d.taskStatus}）`
             + (d.baseUrl ? ` · 引擎地址：<code>${d.baseUrl}</code>` : ' · 引擎尚未部署（占位页模式）');
         } else {
           banner.innerHTML = `⚠ 子任务状态异常：${data.message || '未知错误'}`;
