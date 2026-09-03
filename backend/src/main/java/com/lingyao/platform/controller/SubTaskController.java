@@ -142,6 +142,11 @@ public class SubTaskController {
         java.util.List<Map<String, Object>> rows = new java.util.ArrayList<>();
         for (SubTask t : tasks) {
             productRepo.findById(t.getProductId()).ifPresent(p -> {
+                // V2.0.54：产品目录收敛——DEPRECATED 软下架产品（辰录/明枢）不出现在工作台产品列表；
+                // 产品 ACTIVE 但子任务 COMING_SOON（医呈）保留展示（显示「⏳ 待部署」）
+                if (p.getStatus() != Product.Status.ACTIVE) {
+                    return;
+                }
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("productCode", p.getCode());
                 row.put("productName", p.getName());

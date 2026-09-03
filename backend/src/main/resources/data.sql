@@ -42,15 +42,18 @@ INSERT INTO company_user (id, company_id, user_id, role, status, created_at)
 VALUES (5, 2, 4, 'SUPER_ADMIN', 'ACTIVE', NOW());
 
 -- ═══════════════════════════════════════════════════════════
--- 产品目录
+-- 产品目录（V2.0.54 主人拍板：前端只展示 4 产品——棱镜/皓元/源策/医呈；
+-- 辰录(DINFO)/明枢(PORM) 置 DEPRECATED 软下架，鉴权与历史数据不受影响，随时可恢复）
+-- MEDPPT = 医呈 · 智能医学PPT（智能医学PPT生成智能体，MED-PPT 平台未部署 → 子任务 COMING_SOON）
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO product (id, code, name, description, icon, sort_order, status, created_at, updated_at)
 VALUES
   (1, 'GEO', '棱镜-智能GEO监测', 'AI 品牌监测与内容优化，监测 8 大 AI 平台', 'G', 1, 'ACTIVE', NOW(), NOW()),
   (2, 'HPD', '皓元-智能医院潜力预测', '医院销售潜力模型预测，WMAPE 6.6%', 'H', 2, 'ACTIVE', NOW(), NOW()),
   (3, 'AIDD', '源策-AI 立项 Copilot', 'AI 辅助药物研发立项 Copilot（双种子方向：肿瘤 + 自免），含 CDE 中国监管数据 + 商业测算（PDB/米内）双增强', 'A', 3, 'ACTIVE', NOW(), NOW()),
-  (4, 'DINFO', '辰录 · 智能信息填报系统', 'Dinfo 基于 GH-Department info V1.5.23 继承的 9 实体 + 9 Controller + 10 前端页面 + 飞书 OAuth + JWT 鉴权 + Excel 重载，新增 LLM 智能填写 + 多任务架构', 'D', 4, 'ACTIVE', NOW(), NOW()),
-  (5, 'PORM', '明枢-PORM 智能协作平台', 'POR-M 透明 × 协作中枢（看得见的协作），从 POR/GS-CoLab 衍生 v1.0.0，每张表/每条工单/每次审批都可被看见、可被追溯', '明', 5, 'ACTIVE', NOW(), NOW());
+  (4, 'DINFO', '辰录 · 智能信息填报系统', 'Dinfo 基于 GH-Department info V1.5.23 继承的 9 实体 + 9 Controller + 10 前端页面 + 飞书 OAuth + JWT 鉴权 + Excel 重载，新增 LLM 智能填写 + 多任务架构', 'D', 4, 'DEPRECATED', NOW(), NOW()),
+  (5, 'PORM', '明枢-PORM 智能协作平台', 'POR-M 透明 × 协作中枢（看得见的协作），从 POR/GS-CoLab 衍生 v1.0.0，每张表/每条工单/每次审批都可被看见、可被追溯', '明', 5, 'DEPRECATED', NOW(), NOW()),
+  (6, 'MEDPPT', '医呈-智能医学PPT', '智能医学PPT生成智能体，一键生成专业医学演示文稿', 'M', 6, 'ACTIVE', NOW(), NOW());
 
 -- ═══════════════════════════════════════════════════════════
 -- 公司产品授权（V2.0.52：A 药企: 仅 GEO（主人 09-03 拍板）；B 药企: 仅 GEO）
@@ -96,7 +99,8 @@ VALUES
   (1, 1, 1, 2, 'SUPER_ADMIN', 2, NOW());    -- a_admin 在 GEO 内是超级管理员（V2.0.52：仅 GEO）
 
 -- ═══════════════════════════════════════════════════════════
--- 子任务配置（5 个产品子任务接入点：GEO/HPD/AIDD/DINFO/PORM）
+-- 子任务配置（V2.0.54：4 展示产品的子任务 ACTIVE；DINFO/PORM 子任务随产品软下架置 COMING_SOON；
+-- MEDPPT 医呈尚未部署 → COMING_SOON，工作台显示「⏳ 待部署」，部署后置 ACTIVE 即上线）
 -- V2.0.11 起 base_url / health_url 优先读 application.yml 的 lingyao.subtask.routes.<code>
 -- 字段保留作 fallback（dev 环境快速回滚用），生产环境强烈建议用环境变量覆盖
 -- ═══════════════════════════════════════════════════════════
@@ -105,8 +109,9 @@ VALUES
   (1, 1, 'GEO 监测子任务', 'geo-monitor', '/subtask/geo', '/api/sub/geo', 'ACTIVE', 'GEO 品牌监测核心引擎（已对接 OEG 子任务）· V0.9.12.32 C47 W5 P1-SSO 接入凌瑶主站', 'http://localhost:5180/#/auth/lingyao/sso-callback', 'http://127.0.0.1:8090/api/health', NOW(), NOW()),
   (2, 2, 'HPD 医院潜力预测子任务', 'hpd-predictor', '/subtask/hpd', '/api/sub/hpd', 'ACTIVE', 'HPD 智能医院潜力预测（指向 MPD-myself 独立站 http://localhost:3100）', 'http://localhost:3100/#/sso/callback', 'http://localhost:3100/api/health', NOW(), NOW()),
   (3, 3, 'AIDD 研发子任务', 'aidd-engine', '/subtask/aidd', '/api/sub/aidd', 'ACTIVE', 'AI 立项 Copilot 双种子方向（肿瘤 + 自免），CDE + 商业测算双增强（C47 W5 P1-SSO 已对接）', 'http://localhost:13000/sso-callback.html', 'http://localhost:18080/api/_diag/version', NOW(), NOW()),
-  (4, 4, '辰录 DINFO 填报子任务', 'dinfo-fill', '/subtask/dinfo', '/api/sub/dinfo', 'ACTIVE', 'Dinfo 智能信息填报系统（基于 GH-Department info V1.5.23），含 LLM 智能填写 + 多任务架构 · D1.1.0 C47 W5 P1-SSO 接入凌瑶主站', 'http://localhost:5181/auth/lingyao/callback', 'http://localhost:8281/api/_diag/version', NOW(), NOW()),
-  (5, 5, '明枢 PORM 协作子任务', 'porm-collab', '/subtask/porm', '/api/sub/porm', 'ACTIVE', 'POR-M 明枢智能协作平台（v1.0.0，源头 GS-CoLab v0.4.0+），透明 × 协作中枢 · v0.8.152 C47 W5 P1-SSO 接入凌瑶主站', 'http://localhost:8280/api/sso/callback-redirect', 'http://localhost:8280/api/_diag/version', NOW(), NOW());
+  (4, 4, '辰录 DINFO 填报子任务', 'dinfo-fill', '/subtask/dinfo', '/api/sub/dinfo', 'COMING_SOON', 'Dinfo 智能信息填报系统（基于 GH-Department info V1.5.23），含 LLM 智能填写 + 多任务架构 · D1.1.0 C47 W5 P1-SSO 接入凌瑶主站', 'http://localhost:5181/auth/lingyao/callback', 'http://localhost:8281/api/_diag/version', NOW(), NOW()),
+  (5, 5, '明枢 PORM 协作子任务', 'porm-collab', '/subtask/porm', '/api/sub/porm', 'COMING_SOON', 'POR-M 明枢智能协作平台（v1.0.0，源头 GS-CoLab v0.4.0+），透明 × 协作中枢 · v0.8.152 C47 W5 P1-SSO 接入凌瑶主站', 'http://localhost:8280/api/sso/callback-redirect', 'http://localhost:8280/api/_diag/version', NOW(), NOW()),
+  (6, 6, '医呈 医学PPT子任务', 'medppt-gen', '/subtask/medppt', '/api/sub/medppt', 'COMING_SOON', '医呈 · 智能医学PPT生成智能体（MED-PPT 平台部署后置 ACTIVE 上线）', '', '', NOW(), NOW());
 
 -- ═══════════════════════════════════════════════════════════
 -- 默认推送通道配置

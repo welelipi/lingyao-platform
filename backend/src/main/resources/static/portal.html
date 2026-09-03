@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 产品门户</title>
-  <meta name="app-version" content="V2.0.53">
-  <script>console.log('%c portal.html V2.0.53 · dev-pg 持久化 profile ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <meta name="app-version" content="V2.0.54">
+  <script>console.log('%c portal.html V2.0.54 · 产品目录收敛4产品+医呈上架 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css">
   <style>
     /* ── Portal 专属样式（复用凌瑶 CSS 变量） ─────── */
@@ -981,10 +981,10 @@
       </div>
 
       <div class="walkthrough-step" id="wt-step-3" style="display:none;">
-        <div class="step-icon">🅓</div>
-        <h2>第 3 步 · 辰录 · 智能信息填报系统</h2>
-        <p>Dinfo 基于 GH-Department info 9 实体 + 9 Controller + 10 前端页面 + 飞书 OAuth + JWT 鉴权</p>
-        <div class="step-tip">💡 行政/HR：把部门填表从 Excel 搬到飞书，AI 帮你智能填字段</div>
+        <div class="step-icon">🅐</div>
+        <h2>第 3 步 · 源策-AI 立项 Copilot</h2>
+        <p>面向药物研发立项，提供研发方向智能检索、数据分析与立项评估辅助</p>
+        <div class="step-tip">💡 研发人员：输入目标疾病领域，快速获得研发情报与立项参考</div>
         <div class="walkthrough-actions">
           <button class="btn-secondary" onclick="prevStep(2)">← 上一步</button>
           <button class="btn-primary" onclick="nextStep(4)">下一步 →</button>
@@ -1000,10 +1000,10 @@
       </div>
 
       <div class="walkthrough-step" id="wt-step-4" style="display:none;">
-        <div class="step-icon">🅟</div>
-        <h2>第 4 步 · 明枢-PORM 智能协作平台</h2>
-        <p>透明 × 协作中枢，每张表/每条工单/每次审批都可被看见、可被追溯</p>
-        <div class="step-tip">💡 PMO/部门经理：在同一个透明工作台上让业务方、PMO、老板、BP 协同</div>
+        <div class="step-icon">🅜</div>
+        <h2>第 4 步 · 医呈-智能医学PPT</h2>
+        <p>智能医学PPT生成智能体，输入主题一键生成结构完整、排版专业的医学演示文稿</p>
+        <div class="step-tip">💡 医学部/市场部：学术会议、产品宣讲的PPT初稿，几分钟搞定</div>
         <div class="walkthrough-actions">
           <button class="btn-secondary" onclick="prevStep(3)">← 上一步</button>
           <button class="btn-primary" onclick="nextStep(5)">下一步 →</button>
@@ -1452,7 +1452,7 @@
     // 简单图标映射
     function iconFor(code) {
       return {
-        geo: '🅖', hpd: '🅗', aidd: '🅐', dinfo: '🅓', porm: '🅟'
+        geo: '🅖', hpd: '🅗', aidd: '🅐', medppt: '🅜', dinfo: '🅓', porm: '🅟'
       }[code] || '◉';
     }
 

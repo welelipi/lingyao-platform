@@ -763,7 +763,9 @@ public class AuthService {
     }
 
     private List<LoginResponse.ProductView> buildProductView(Long userId, Long companyId, Boolean isPlatformAdmin) {
-        List<Product> allProducts = productRepo.findAll();
+        // V2.0.54：产品目录收敛（主人拍板）——只下发 ACTIVE 产品（棱镜/皓元/源策/医呈），
+        // DEPRECATED（辰录/明枢）不再出现在 me/登录/工作台/JWT claim 中（软下架，历史授权保留可恢复）
+        List<Product> allProducts = productRepo.findByStatusOrderBySortOrderAsc(Product.Status.ACTIVE);
         // V2.0.50：licensed/granted 一律按「公司真实授权 + 用户个人授权」口径，
         // 平台超管不再短路放行（此前 5 产品全显已开通，与 KPI 已开通数矛盾）。
         // 平台超管的进入能力由 /api/sub/{code}/enter 服务端鉴权（isPlatformAdmin 直通）保证，不依赖本视图。

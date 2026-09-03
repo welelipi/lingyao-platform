@@ -76,9 +76,9 @@ public class TenantAdminService {
 
         Company saved = companyRepo.save(company);
 
-        // 可选：自动授权全部产品
+        // 可选：自动授权全部产品（V2.0.54：仅 ACTIVE 产品——DEPRECATED 软下架产品不再自动授权）
         if (Boolean.TRUE.equals(req.getGrantAllProducts())) {
-            List<Product> products = productRepo.findAll();
+            List<Product> products = productRepo.findByStatusOrderBySortOrderAsc(Product.Status.ACTIVE);
             for (Product p : products) {
                 CompanyProduct cp = new CompanyProduct();
                 cp.setCompanyId(saved.getId());

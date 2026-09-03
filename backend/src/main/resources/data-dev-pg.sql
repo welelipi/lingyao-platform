@@ -48,16 +48,23 @@ VALUES (1, 1, 1, 'SUPER_ADMIN', 'ACTIVE', NOW()),
 ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
--- 产品目录（5 产品，与主站对外产品线一致）
+-- 产品目录（V2.0.54 主人拍板：展示 4 产品——棱镜/皓元/源策/医呈；
+-- DINFO/PORM 置 DEPRECATED 软下架；MEDPPT=医呈 · 智能医学PPT 新增）
+-- ON CONFLICT 只保护全新初始化；存量库口径靠下方 UPDATE 强制对齐
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO product (id, code, name, description, icon, sort_order, status, created_at, updated_at)
 VALUES
   (1, 'GEO', '棱镜-智能GEO监测', 'AI 品牌监测与内容优化，监测 8 大 AI 平台', 'G', 1, 'ACTIVE', NOW(), NOW()),
   (2, 'HPD', '皓元-智能医院潜力预测', '医院销售潜力模型预测，WMAPE 6.6%', 'H', 2, 'ACTIVE', NOW(), NOW()),
   (3, 'AIDD', '源策-AI 立项 Copilot', 'AI 辅助药物研发立项 Copilot（双种子方向：肿瘤 + 自免），含 CDE 中国监管数据 + 商业测算（PDB/米内）双增强', 'A', 3, 'ACTIVE', NOW(), NOW()),
-  (4, 'DINFO', '辰录 · 智能信息填报系统', 'Dinfo 智能信息填报系统，LLM 智能填写 + 多任务架构 + 飞书 OAuth', 'D', 4, 'ACTIVE', NOW(), NOW()),
-  (5, 'PORM', '明枢-PORM 智能协作平台', 'POR-M 透明 × 协作中枢（看得见的协作），每张表/每条工单/每次审批可被看见、可被追溯', '明', 5, 'ACTIVE', NOW(), NOW())
+  (4, 'DINFO', '辰录 · 智能信息填报系统', 'Dinfo 智能信息填报系统，LLM 智能填写 + 多任务架构 + 飞书 OAuth', 'D', 4, 'DEPRECATED', NOW(), NOW()),
+  (5, 'PORM', '明枢-PORM 智能协作平台', 'POR-M 透明 × 协作中枢（看得见的协作），每张表/每条工单/每次审批可被看见、可被追溯', '明', 5, 'DEPRECATED', NOW(), NOW()),
+  (6, 'MEDPPT', '医呈-智能医学PPT', '智能医学PPT生成智能体，一键生成专业医学演示文稿', 'M', 6, 'ACTIVE', NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
+
+-- 存量库对齐 V2.0.54 口径（幂等：无论是否新库都强制置位）
+UPDATE product SET status = 'DEPRECATED', updated_at = NOW() WHERE id IN (4, 5) AND status <> 'DEPRECATED';
+UPDATE product SET status = 'ACTIVE', updated_at = NOW() WHERE id = 6 AND status <> 'ACTIVE';
 
 -- ═══════════════════════════════════════════════════════════
 -- 公司产品授权（V2.0.52 口径：A 药企仅 GEO；B 药企仅 GEO）
@@ -105,7 +112,8 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
--- 子任务配置（5 个产品子任务接入点）
+-- 子任务配置（V2.0.54：4 展示产品 ACTIVE；DINFO/PORM 随产品软下架 COMING_SOON；
+-- MEDPPT 医呈未部署 COMING_SOON）
 -- base_url / health_url 优先读 application.yml 的 lingyao.subtask.routes.<code>
 -- ═══════════════════════════════════════════════════════════
 INSERT INTO sub_task (id, product_id, task_name, task_code, entry_path, api_prefix, status, description, base_url, health_url, created_at, updated_at)
@@ -113,9 +121,13 @@ VALUES
   (1, 1, 'GEO 监测子任务', 'geo-monitor', '/subtask/geo', '/api/sub/geo', 'ACTIVE', 'GEO 品牌监测核心引擎（已对接 OEG 子任务）· SSO 接入凌瑶主站', 'http://localhost:5180/#/auth/lingyao/sso-callback', 'http://127.0.0.1:8090/api/health', NOW(), NOW()),
   (2, 2, 'HPD 医院潜力预测子任务', 'hpd-predictor', '/subtask/hpd', '/api/sub/hpd', 'ACTIVE', 'HPD 智能医院潜力预测（指向 MPD-myself 独立站 http://localhost:3100）', 'http://localhost:3100/#/sso/callback', 'http://localhost:3100/api/health', NOW(), NOW()),
   (3, 3, 'AIDD 研发子任务', 'aidd-engine', '/subtask/aidd', '/api/sub/aidd', 'ACTIVE', 'AI 立项 Copilot 双种子方向（肿瘤 + 自免）· SSO 已对接', 'http://localhost:13000/sso-callback.html', 'http://localhost:18080/api/_diag/version', NOW(), NOW()),
-  (4, 4, '辰录 DINFO 填报子任务', 'dinfo-fill', '/subtask/dinfo', '/api/sub/dinfo', 'ACTIVE', 'Dinfo 智能信息填报系统 · SSO 接入凌瑶主站', 'http://localhost:5181/auth/lingyao/callback', 'http://localhost:8281/api/_diag/version', NOW(), NOW()),
-  (5, 5, '明枢 PORM 协作子任务', 'porm-collab', '/subtask/porm', '/api/sub/porm', 'ACTIVE', 'POR-M 明枢智能协作平台 · SSO 接入凌瑶主站', 'http://localhost:8280/api/sso/callback-redirect', 'http://localhost:8280/api/_diag/version', NOW(), NOW())
+  (4, 4, '辰录 DINFO 填报子任务', 'dinfo-fill', '/subtask/dinfo', '/api/sub/dinfo', 'COMING_SOON', 'Dinfo 智能信息填报系统 · SSO 接入凌瑶主站', 'http://localhost:5181/auth/lingyao/callback', 'http://localhost:8281/api/_diag/version', NOW(), NOW()),
+  (5, 5, '明枢 PORM 协作子任务', 'porm-collab', '/subtask/porm', '/api/sub/porm', 'COMING_SOON', 'POR-M 明枢智能协作平台 · SSO 接入凌瑶主站', 'http://localhost:8280/api/sso/callback-redirect', 'http://localhost:8280/api/_diag/version', NOW(), NOW()),
+  (6, 6, '医呈 医学PPT子任务', 'medppt-gen', '/subtask/medppt', '/api/sub/medppt', 'COMING_SOON', '医呈 · 智能医学PPT生成智能体（MED-PPT 平台部署后置 ACTIVE 上线）', '', '', NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
+
+-- 存量库子任务状态对齐（幂等）
+UPDATE sub_task SET status = 'COMING_SOON', updated_at = NOW() WHERE id IN (4, 5) AND status <> 'COMING_SOON';
 
 -- ═══════════════════════════════════════════════════════════
 -- 默认推送通道配置（3 个占位通道；EMAIL 报名通道 dev 惯例 id=1000 在下方单独种）
@@ -150,15 +162,14 @@ INSERT INTO company_user (id, company_id, user_id, role, status, created_at)
 VALUES (1000, 1000, 5, 'SUPER_ADMIN', 'ACTIVE', NOW())
 ON CONFLICT (id) DO NOTHING;
 
--- 凌瑶自营开通全部 5 产品
-INSERT INTO company_product (id, company_id, product_id, license_start, license_end, max_users, status, created_at, updated_at)
-VALUES
-  (1000, 1000, 1, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()),
-  (1001, 1000, 2, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()),
-  (1002, 1000, 3, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()),
-  (1003, 1000, 4, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()),
-  (1004, 1000, 5, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW())
-ON CONFLICT (id) DO NOTHING;
+-- 凌瑶自营开通全部产品（V2.0.54：6 产品目录；MEDPPT 含其中，子任务未部署显示待部署）
+-- 注意：不用显式 id——id=1005 已被 V2.0.53 持久化测试占用（A 药企 HPD SUSPENDED 软删留痕），
+-- ON CONFLICT (id) DO NOTHING 会静默跳过导致医呈授权缺失。改按唯一约束 (company_id, product_id) upsert
+INSERT INTO company_product (company_id, product_id, license_start, license_end, max_users, status, created_at, updated_at)
+SELECT 1000, p.id, NOW(), NOW() + INTERVAL '10 years', 100, 'ACTIVE', NOW(), NOW()
+FROM product p WHERE p.id IN (1,2,3,4,5,6)
+ON CONFLICT (company_id, product_id) DO UPDATE
+  SET status = 'ACTIVE', updated_at = NOW();
 
 -- pc_admin 全产品个人授权
 INSERT INTO product_user_grant (id, company_id, product_id, user_id, granted_by, status, created_at)
@@ -167,7 +178,8 @@ VALUES
   (1001, 1000, 2, 5, 5, 'ACTIVE', NOW()),
   (1002, 1000, 3, 5, 5, 'ACTIVE', NOW()),
   (1003, 1000, 4, 5, 5, 'ACTIVE', NOW()),
-  (1004, 1000, 5, 5, 5, 'ACTIVE', NOW())
+  (1004, 1000, 5, 5, 5, 'ACTIVE', NOW()),
+  (1005, 1000, 6, 5, 5, 'ACTIVE', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- FEISHU SSO 配置（dev 测试凭据；生产/staging 需真实凭据在 SSO 配置界面重配）

@@ -268,7 +268,8 @@ public class AdminController {
 
     @GetMapping("/products")
     public ApiResponse<List<Product>> listProducts() {
-        return ApiResponse.ok(productRepo.findAll());
+        // V2.0.54：产品目录收敛——管理后台授权下拉/邀请产品选择也只展示 ACTIVE（棱镜/皓元/源策/医呈）
+        return ApiResponse.ok(productRepo.findByStatusOrderBySortOrderAsc(Product.Status.ACTIVE));
     }
 
     @GetMapping("/company-products")

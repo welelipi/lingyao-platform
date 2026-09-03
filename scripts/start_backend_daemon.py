@@ -74,10 +74,13 @@ if PROFILE == "dev":
         "--spring.profiles.active=dev",
     ])
 else:
+    # V2.0.54 修复：config.location 会【整体替换】默认配置清单，jar 内 application.yml
+    # 的共享段（app.version / lingyao.* / security.* 等）全部丢失 → /api/version 回落 1.0.0。
+    # 改用 config.additional-location【叠加】：外部 profile 文件优先级更高，共享段仍从 jar 内读取
     os.execv(JAVA_BIN, [
         JAVA_BIN,
         "-jar", JAR_PATH,
         "--server.port=9091",
         "--spring.profiles.active=" + PROFILE,
-        f"--spring.config.location={CONFIG_PATH}",
+        f"--spring.config.additional-location={CONFIG_PATH}",
     ])

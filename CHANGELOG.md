@@ -1,5 +1,25 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.54 (2026-09-03 12:05) — 产品目录收敛 4 产品 + MED PPT 定名「医呈」上架
+
+### Feature
+- **主人拍板**：前端不再展示 5+ 产品，只留 **棱镜(GEO)/皓元(HPD)/源策(AIDD)/医呈(MEDPPT)** 四个
+- **MED PPT 定名「医呈」**（两字名，智能医学PPT生成智能体）：医学+呈现，与源策/皓元命名风格一致；code=MEDPPT，icon 🅜，全名「医呈-智能医学PPT」
+- 软下架方案：DINFO（辰录）/PORM（明枢）product.status=DEPRECATED + sub_task.status=COMING_SOON——鉴权链路与历史授权数据不受影响，随时可恢复
+- 医呈子任务 `medppt-gen` 已注册（COMING_SOON 待部署，工作台显示「⏳ 待部署」，部署后置 ACTIVE 即上线）
+
+### Changed
+- 后端 4 处口径收敛到 ACTIVE：`buildProductView`（me/登录/JWT claim 共用）、`/api/admin/products`（管理后台+邀请产品下拉）、`grantAllProducts`（组合开通）
+- `PRODUCT_CATALOG` 增加医呈条目（试用邀请邮件可用）
+- 种子同步：data.sql（H2）+ data-dev-pg.sql（PG，含存量库 UPDATE 强制对齐 + INSERT 1005 医呈授权）
+- portal.html 新手引导 5 产品步骤 → 4 产品（辰录/明枢步骤替换为源策/医呈）；iconFor 增 medppt
+- 版本 2.0.54 三端同步（application.yml / admin.html cache-bust / portal+company-admin 印章）
+
+### 影响面
+- 存量 dev-pg 库：重启后 UPDATE 幂等对齐（辰录/明枢自动隐藏，医呈自动出现）
+- 邀请页产品下拉、管理后台授权弹窗、工作台产品列表、JWT sub_product_grants 全部只含 4 产品
+- DINFO/PORM 恢复上架：product.status 改回 ACTIVE + sub_task.status 改 ACTIVE 即可（无数据损失）
+
 ## V2.0.53 (2026-09-03 11:40) — dev-pg profile：本地开发切 PG 持久化（界面修改重启保留）
 
 ### Feature
