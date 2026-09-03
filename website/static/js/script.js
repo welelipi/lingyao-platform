@@ -515,14 +515,14 @@
             return;
           }
           submitBtn.innerHTML = '验证中...';
+          // V2.0.66：重试凭 captchaTicket（密码+图形验证码已验过），无需重复取验证码
           const r2 = await fetch(API_BASE + '/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               username: fd.get('username'),
               password: fd.get('password'),
-              captchaId: loginForm.dataset.captchaId || '',
-              captchaAnswer: fd.get('captchaAnswer') || '',
+              captchaTicket: payload.captchaTicket || '',
               totpCode: code.trim()
             })
           });

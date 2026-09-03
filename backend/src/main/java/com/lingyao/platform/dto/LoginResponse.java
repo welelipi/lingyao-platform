@@ -43,6 +43,9 @@ public class LoginResponse {
     /** V2.0.42：MFA_REQUIRED（未携带验证码）/ MFA_INVALID（验证码错误） */
     private String mfaReason;
 
+    /** V2.0.66：2FA 挑战凭证——密码+验证码已验过，重试登录只需 totpCode + 此 ticket（免重复过图形验证码） */
+    private String captchaTicket;
+
     @Data
     @Builder
     @NoArgsConstructor

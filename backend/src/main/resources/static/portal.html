@@ -1868,22 +1868,19 @@
             return;
           }
           btn.textContent = '验证中...';
-          // V2.0.66：2FA 重试是新的登录请求——需重新取验证码（一次性消费）
-          await loadPortalCaptcha();
+          // V2.0.66：重试凭 captchaTicket（密码+图形验证码已验过），无需重复取验证码
           const r2 = await fetch(`${API_BASE}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               username, password, totpCode: code.trim(),
-              captchaId: document.getElementById('loginForm').dataset.captchaId || '',
-              captchaAnswer: document.getElementById('captchaAnswer') ? document.getElementById('captchaAnswer').value.trim() : ''
+              captchaTicket: payload.captchaTicket || ''
             }),
             credentials: 'include',
           });
           const d2 = await r2.json().catch(() => ({}));
           if (!r2.ok || d2.code !== 0 || !d2.data || d2.data.mfaRequired) {
             err.textContent = d2.data && d2.data.mfaRequired ? '2FA 验证码错误' : (d2.message || '2FA 验证失败');
-            if (/验证码错误或已过期/.test(d2.message || '')) loadPortalCaptcha();
             btn.disabled = false;
             btn.textContent = '登录控制台';
             return;

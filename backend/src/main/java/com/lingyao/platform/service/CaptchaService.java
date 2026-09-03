@@ -26,11 +26,16 @@ public class CaptchaService {
     /** 验证码条目 */
     private record Entry(String answer, LocalDateTime expiresAt) {}
 
+    /** V2.0.66：2FA 挑战凭证（绑定用户名，一次性，10 分钟）——密码+图形验证码已验过 */
+    private record Ticket(String username, LocalDateTime expiresAt) {}
+
     private static final long TTL_SECONDS = 120;
+    private static final long TICKET_TTL_SECONDS = 600;
     private static final int MAX_ENTRIES = 10000;
 
     private final SecureRandom random = new SecureRandom();
     private final Map<String, Entry> store = new ConcurrentHashMap<>();
+    private final Map<String, Ticket> ticketStore = new ConcurrentHashMap<>();
     private final AtomicLong totalIssued = new AtomicLong();
     private final AtomicLong totalVerified = new AtomicLong();
     private final AtomicLong totalFailed = new AtomicLong();
@@ -79,6 +84,21 @@ public class CaptchaService {
         boolean ok = e.answer().equals(answer.trim());
         if (ok) totalVerified.incrementAndGet(); else totalFailed.incrementAndGet();
         return ok;
+    }
+
+    /** V2.0.66：签发 2FA 挑战凭证（绑定用户名，10 分钟一次性） */
+    public String issueTicket(String username) {
+        String ticket = newSecureId();
+        ticketStore.put(ticket, new Ticket(username, LocalDateTime.now().plusSeconds(TICKET_TTL_SECONDS)));
+        return ticket;
+    }
+
+    /** V2.0.66：校验挑战凭证（一次性消费 + 绑定用户名防挪用） */
+    public boolean verifyTicket(String ticket, String username) {
+        if (ticket == null || ticket.isBlank() || username == null) return false;
+        Ticket t = ticketStore.remove(ticket);
+        if (t == null) return false;
+        return t.username().equals(username) && LocalDateTime.now().isBefore(t.expiresAt());
     }
 
     /** 过期清理：超过半容量时全表扫一遍（懒清理，避免定时任务） */

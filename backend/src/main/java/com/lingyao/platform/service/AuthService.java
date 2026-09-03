@@ -50,7 +50,10 @@ public class AuthService {
 
     public LoginResponse login(LoginRequest req, String ip) {
         // ═══ V2.0.66：图形验证码校验（在锁定检查前——锁定态也要先过验证码，防无脑重试）═══
-        if (!captchaService.verify(req.getCaptchaId(), req.getCaptchaAnswer())) {
+        // captchaTicket 例外：2FA 挑战重试时密码+验证码已验过，凭 ticket（10 分钟一次性）免重复过验证码
+        boolean ticketValid = req.getCaptchaTicket() != null
+                && captchaService.verifyTicket(req.getCaptchaTicket(), req.getUsername());
+        if (!ticketValid && !captchaService.verify(req.getCaptchaId(), req.getCaptchaAnswer())) {
             authAuditService.recordFailure(
                     AuthAuditEvent.EventType.LOGIN_FAIL,
                     null, req.getUsername(), ip,
@@ -132,6 +135,8 @@ public class AuthService {
                 LoginResponse challenge = new LoginResponse();
                 challenge.setMfaRequired(true);
                 challenge.setMfaReason(failReason);
+                // V2.0.66：发 2FA 挑战凭证（绑定用户名，10 分钟一次性）——重试免重复过图形验证码
+                challenge.setCaptchaTicket(captchaService.issueTicket(user.getUsername()));
                 return challenge;   // HTTP 200 + mfa_required=true（前端弹验证码输入）
             }
         }

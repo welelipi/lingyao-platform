@@ -31,4 +31,7 @@ public class LoginRequest {
 
     /** V2.0.66：图形验证码答案（算术题计算结果） */
     private String captchaAnswer;
+
+    /** V2.0.66：2FA 挑战凭证（mfaRequired 响应返回，重试登录携带它可免重复过图形验证码） */
+    private String captchaTicket;
 }
