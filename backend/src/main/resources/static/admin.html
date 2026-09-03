@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 平台超管后台</title>
-  <link rel="stylesheet" href="/css/style.css?v=2.0.61">
+  <link rel="stylesheet" href="/css/style.css?v=2.0.64">
   <style>
     /* ── 管理后台专属样式 ───────────── */
     .admin-shell {
@@ -428,6 +428,38 @@
 
       <!-- Tab 5：报名管理（V2.0.27 Bug-22 新增） -->
       <div class="tab-content" data-pane="registrations">
+        <!-- V2.0.64：报名转化漏斗 -->
+        <div class="ca-funnel" id="regFunnel" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <div class="kpi-card" style="flex:1;min-width:110px;">
+            <div class="kpi-label">待处理</div>
+            <div class="kpi-value" id="funnelPending" style="font-size:22px;">-</div>
+          </div>
+          <div style="align-self:center;color:var(--text-dim);">→</div>
+          <div class="kpi-card" style="flex:1;min-width:110px;">
+            <div class="kpi-label">已联系</div>
+            <div class="kpi-value" id="funnelContacted" style="font-size:22px;">-</div>
+          </div>
+          <div style="align-self:center;color:var(--text-dim);">→</div>
+          <div class="kpi-card" style="flex:1;min-width:110px;">
+            <div class="kpi-label">已转化</div>
+            <div class="kpi-value" id="funnelQualified" style="font-size:22px;">-</div>
+          </div>
+          <div style="align-self:center;color:var(--text-dim);">→</div>
+          <div class="kpi-card" style="flex:1;min-width:110px;">
+            <div class="kpi-label">已开通</div>
+            <div class="kpi-value" id="funnelConverted" style="font-size:22px;color:#4ADE80;">-</div>
+          </div>
+          <div style="align-self:center;color:var(--text-dim);">→</div>
+          <div class="kpi-card" style="flex:1;min-width:110px;">
+            <div class="kpi-label">已关闭</div>
+            <div class="kpi-value" id="funnelClosed" style="font-size:22px;color:var(--text-dim);">-</div>
+          </div>
+          <div class="kpi-card" style="flex:1.2;min-width:130px;border-color:rgba(74,222,128,0.4);">
+            <div class="kpi-label">报名→开通转化率</div>
+            <div class="kpi-value" id="funnelRate" style="font-size:22px;color:#4ADE80;">-</div>
+            <div class="kpi-hint">已开通 ÷ 总报名</div>
+          </div>
+        </div>
         <div class="toolbar">
           <div class="left">共 <span id="registrationCount">0</span> 条报名</div>
           <div class="right">
@@ -1089,9 +1121,26 @@
         const page = await api('GET', '/api/registrations' + qs);
         registrationsCache = (page && page.content) || [];
         renderRegistrations();
+        await loadRegFunnel();
       } catch (e) {
         console.error('加载报名失败:', e);
       }
+    }
+
+    // ── V2.0.64：报名转化漏斗 ─────────────────
+    async function loadRegFunnel() {
+      try {
+        const s = await api('GET', '/api/registrations/stats');
+        document.getElementById('funnelPending').textContent = s.pending ?? 0;
+        document.getElementById('funnelContacted').textContent = s.contacted ?? 0;
+        document.getElementById('funnelQualified').textContent = s.qualified ?? 0;
+        document.getElementById('funnelConverted').textContent = s.converted ?? 0;
+        document.getElementById('funnelClosed').textContent = s.closed ?? 0;
+        const total = s.total ?? 0;
+        const converted = s.converted ?? 0;
+        document.getElementById('funnelRate').textContent =
+          total > 0 ? Math.round(converted / total * 100) + '%' : '-';
+      } catch (e) { /* stats 端点异常不阻塞列表 */ }
     }
 
     function renderRegistrations() {

@@ -51,12 +51,15 @@ public class RegistrationController {
         long contacted = service.countByStatus("CONTACTED");
         long qualified = service.countByStatus("QUALIFIED");
         long closed = service.countByStatus("CLOSED");
+        // V2.0.64：补 CONVERTED（终态）——之前漏斗缺最后一环
+        long converted = service.countByStatus("CONVERTED");
         java.util.Map<String, Long> data = new java.util.LinkedHashMap<>();
         data.put("pending", pending);
         data.put("contacted", contacted);
         data.put("qualified", qualified);
         data.put("closed", closed);
-        data.put("total", pending + contacted + qualified + closed);
+        data.put("converted", converted);
+        data.put("total", pending + contacted + qualified + closed + converted);
         return ApiResponse.ok(data);
     }
 
