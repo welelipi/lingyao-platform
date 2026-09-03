@@ -23,11 +23,12 @@ import java.util.Set;
 public class RegistrationService {
 
     /**
-     * Bug-19 修复：与 data.sql 中 4 个产品 code 对齐（大写简称）
+     * Bug-19 修复：与 data.sql 中产品 code 对齐（大写简称）
      * ——与登录响应、AdminController、SubTaskController、InvitationController 保持一致
+     * V2.0.55：目录收敛 4 产品（POR 已下架、MEDPPT 上架）
      */
     private static final Set<String> VALID_PRODUCTS = new HashSet<>(Arrays.asList(
-            "GEO", "HPD", "AIDD", "POR"
+            "GEO", "HPD", "AIDD", "MEDPPT"
     ));
 
     @Autowired

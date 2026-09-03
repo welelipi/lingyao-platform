@@ -432,7 +432,7 @@
       position: (fd.get('position') || '').toString().trim() || null,
       phone: (fd.get('phone') || '').toString().trim(),
       email: (fd.get('email') || '').toString().trim(),
-      interestedProducts: interested.length > 0 ? interested : ['geo-monitor'],
+      interestedProducts: interested.length > 0 ? interested : ['GEO'],
       companySize: (fd.get('size') || '').toString().trim() || null,
       source: (fd.get('source') || '').toString().trim() || null,
       message: (fd.get('message') || '').toString().trim() || null

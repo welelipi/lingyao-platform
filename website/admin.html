@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 平台超管后台</title>
-  <link rel="stylesheet" href="/css/style.css?v=2.0.55">
+  <link rel="stylesheet" href="/css/style.css?v=2.0.56">
   <style>
     /* ── 管理后台专属样式 ───────────── */
     .admin-shell {
@@ -184,6 +184,14 @@
     }
     .modal-form .product-row:hover { background: var(--glass-light); }
     .modal-form .product-row input[type="checkbox"] { flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; margin: 0; }
+    /* V2.0.55：全局 .form-field input 会把 checkbox 拉成 100% 宽长条 → 一律豁免复位 */
+    .form-field input[type="checkbox"] {
+      width: 16px; height: 16px; flex-shrink: 0;
+      padding: 0; margin: 0; accent-color: var(--accent);
+      cursor: pointer; appearance: auto;
+    }
+    .form-field label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .form-field label input[type="checkbox"] { margin: 0; }
     .modal-form input,
     .modal-form select,
     .modal-form textarea {
@@ -532,16 +540,16 @@
           <label>备注</label>
           <textarea name="remark" placeholder="可选"></textarea>
         </div>
-        <div class="form-field">
-          <label>
-            <input type="checkbox" name="grantAllProducts">
-            自动开通全部产品（GEO/HPD/AIDD/POR）
+        <div class="form-field" style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.35);border-radius:8px;padding:12px 14px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-bright);">
+            <input type="checkbox" name="grantAllProducts" style="width:16px;height:16px;flex-shrink:0;margin:0;accent-color:var(--accent);cursor:pointer;">
+            自动开通全部产品（GEO/HPD/AIDD/MEDPPT）
           </label>
         </div>
         <!-- V2.0.29：试用邀请邮件（按实际开通的产品生成介绍） -->
         <div class="form-field" style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.35);border-radius:8px;padding:12px 14px;">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-            <input type="checkbox" name="trialInvite" id="trialInviteToggle">
+            <input type="checkbox" name="trialInvite" id="trialInviteToggle" style="width:16px;height:16px;flex-shrink:0;margin:0;accent-color:var(--accent);cursor:pointer;">
             <strong style="font-size:13px;">📧 发送试用邀请邮件（默认 30 天）</strong>
           </label>
           <span class="help" style="margin-top:6px;display:block;">
@@ -798,7 +806,7 @@
   </div>
 
   <script>
-    console.log("%c V2.0.49 · KPI 五卡一行根治（CSS 缓存修复+断点收敛）", 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');
+    console.log("%c V2.0.55 · 新建公司弹窗排版修复+产品目录口径 ", 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');
     // ── 数据层 ─────────────────────────
     const TOKEN_KEY = 'lingyao_token';
     const USER_KEY = 'lingyao_user';

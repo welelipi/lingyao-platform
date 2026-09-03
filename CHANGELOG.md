@@ -1,5 +1,19 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.56 (2026-09-03 13:50) — 官网试用产品多选 + 新建公司弹窗排版修复（主人截图反馈）
+
+### Feature
+- **官网「申请免费试用」弹窗**：感兴趣的产品由单选 select 改为 **checkbox 多选网格**（与页脚表单同款交互），选项对齐 4 产品新目录（棱镜/皓元/源策/医呈）；顺带修掉旧 select 重复 `value="GEO"` 的 bug
+
+### Fixed
+- **admin.html 新建公司弹窗排版**（截图红框）：`style.css` 全局 `.form-field input` 规则（width:100%+padding:12px）把 checkbox 拉成大长条导致勾选框与文字错位 → 内嵌样式加 `.form-field input[type="checkbox"]` 豁免复位（16px 方框 + flex 布局对齐），两个复选框（自动开通全部产品 / 发送试用邀请邮件）排版归正
+- 「自动开通全部产品」文案：GEO/HPD/AIDD/POR → **GEO/HPD/AIDD/MEDPPT**（V2.0.54 目录口径）
+- 官网页脚试用表单选项同步：删已下架 POR、加医呈、名称对齐；默认勾选从 GEO+HPD 收敛为仅 GEO
+- script.js 报名兜底值 `geo-monitor`（旧代号，后端白名单会拒）→ `GEO`
+- 后端 RegistrationService.VALID_PRODUCTS 白名单：GEO/HPD/AIDD/POR → **GEO/HPD/AIDD/MEDPPT**（多选提交MedPPT 不再报"非法产品"）
+
+---
+
 ## V2.0.55 (2026-09-03 12:15) — 产品对外名称更新（主人拍板）
 
 ### Changed
