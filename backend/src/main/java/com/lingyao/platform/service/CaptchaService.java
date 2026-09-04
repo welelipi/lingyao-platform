@@ -88,6 +88,7 @@ public class CaptchaService {
 
     /** V2.0.66：签发 2FA 挑战凭证（绑定用户名，10 分钟一次性） */
     public String issueTicket(String username) {
+        cleanupTicketStoreIfNeeded();
         String ticket = newSecureId();
         ticketStore.put(ticket, new Ticket(username, LocalDateTime.now().plusSeconds(TICKET_TTL_SECONDS)));
         return ticket;
@@ -106,6 +107,17 @@ public class CaptchaService {
         if (store.size() < MAX_ENTRIES / 2) return;
         LocalDateTime now = LocalDateTime.now();
         store.entrySet().removeIf(en -> now.isAfter(en.getValue().expiresAt()));
+    }
+
+    /** PRD-2.1：ticketStore 同款懒清理 + 容量上限，防刷 challenge 无限积累撑内存 */
+    private void cleanupTicketStoreIfNeeded() {
+        if (ticketStore.size() < MAX_ENTRIES / 2) return;
+        LocalDateTime now = LocalDateTime.now();
+        ticketStore.entrySet().removeIf(t -> now.isAfter(t.getValue().expiresAt()));
+        if (ticketStore.size() >= MAX_ENTRIES) {
+            log.warn("[Captcha] ticketStore 清理后仍达容量上限（{}），拒绝签发新 ticket", MAX_ENTRIES);
+            throw new IllegalStateException("验证码服务繁忙，请稍后再试");
+        }
     }
 
     private String newSecureId() {
