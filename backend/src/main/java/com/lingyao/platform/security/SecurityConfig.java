@@ -3,6 +3,7 @@ package com.lingyao.platform.security;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -34,6 +35,17 @@ public class SecurityConfig {
     @Autowired
     private org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource;
 
+    // V2.0.71 PRD-2.7：_diag 与 h2-console 按 profile 收敛（dev 保留，private/staging/prod 关闭）
+    @Autowired
+    private Environment env;
+
+    private boolean isDevProfile() {
+        for (String p : env.getActiveProfiles()) {
+            if (p.startsWith("dev")) return true;
+        }
+        return false;
+    }
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -41,52 +53,60 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        boolean dev = isDevProfile();
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource))   // V2.0.31：filter 层 CORS（错误响应也带 CORS 头）
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    // ── 公开 API（不需登录） ─────
-                    "/api/health",
-                    "/api/version",
-                    "/api/_diag/**",            // V2.0.3: 开发者诊断 endpoint（无需 JWT 自检版本/PID/启动时间）
-                    "/api/public/**",
-                    "/api/auth/login",
-                    "/api/auth/captcha",          // V2.0.66：图形验证码出题（登录前置，公开）
-                    "/api/auth/device-otp/send",  // V2.0.69 D：新设备登录邮箱码发送（登录前置，公开）
-                    "/api/auth/logout",           // V2.0.20 P1 阶段 A：logout 幂等，允许未登录调用（前端清 token）
-                    "/api/auth/refresh",          // V2.0.21 P1.4 阶段 B：refresh 本身用 refresh_token 鉴权（不需 access_token）
-                    "/api/auth/forgot-password",  // V2.0.21 P1.5 阶段 B：忘记密码（公开）
-                    "/api/auth/reset-password",   // V2.0.21 P1.5 阶段 B：重置密码（公开，token 鉴权）
-                    "/api/auth/register",
-                    "/api/registrations",         // 公开报名提交
-                    "/api/registrations/stats",   // 公开统计（仅数量）
-                    "/api/invitations/token/*",   // 公开：校验邀请 token
-                    "/api/invitations/redeem",    // 公开：通过邀请注册
-                    "/api/feedback",              // 公开：反馈提交（前端兜底本地存储）
-                    "/api/sub-product/*/verify-link",  // V2.0.19 W6 阶段 2：专属链接验签（子平台调用，员工可能还没账号）
-                    "/api/internal/**",           // V2.0.39：服务间接口（grants sync），接口内自验 service JWT（audience=lingyao-service）
-                    "/api/sso/**",                // V2.0.48：公司 SSO 发起+回调（员工未登录/飞书回跳均无会话；login 校验 company_code，callback 验 state+code，均自防伪造）
-                    // ── 静态资源（全部放行） ─────
-                    "/",
-                    "/index.html",
-                    "/portal.html",
-                    "/admin.html",
-                    "/invite.html",
-                    "/404.html",
-                    "/admin/**",
-                    "/static/**",
-                    "/css/**",
-                    "/js/**",
-                    "/assets/**",
-                    "/error",
-                    "/h2-console/**"
-                ).permitAll()
-                // ── 业务 API 必须登录（其他业务鉴权由 @PreAuthorize / requireXxx() 处理） ─────
-                .requestMatchers("/api/**").authenticated()
-                .anyRequest().permitAll()
-            )
+            .authorizeHttpRequests(auth -> {
+                var chain = auth
+                    .requestMatchers(
+                        // ── 公开 API（不需登录） ─────
+                        "/api/health",
+                        "/api/version",
+                        "/api/public/**",
+                        "/api/auth/login",
+                        "/api/auth/captcha",          // V2.0.66：图形验证码出题（登录前置，公开）
+                        "/api/auth/device-otp/send",  // V2.0.69 D：新设备登录邮箱码发送（登录前置，公开）
+                        "/api/auth/logout",           // V2.0.20 P1 阶段 A：logout 幂等，允许未登录调用（前端清 token）
+                        "/api/auth/refresh",          // V2.0.21 P1.4 阶段 B：refresh 本身用 refresh_token 鉴权（不需 access_token）
+                        "/api/auth/forgot-password",  // V2.0.21 P1.5 阶段 B：忘记密码（公开）
+                        "/api/auth/reset-password",   // V2.0.21 P1.5 阶段 B：重置密码（公开，token 鉴权）
+                        "/api/auth/register",
+                        "/api/registrations",         // 公开报名提交
+                        "/api/registrations/stats",   // 公开统计（仅数量）
+                        "/api/invitations/token/*",   // 公开：校验邀请 token
+                        "/api/invitations/redeem",    // 公开：通过邀请注册
+                        "/api/feedback",              // 公开：反馈提交（前端兜底本地存储）
+                        "/api/sub-product/*/verify-link",  // V2.0.19 W6 阶段 2：专属链接验签（子平台调用，员工可能还没账号）
+                        "/api/internal/**",           // V2.0.39：服务间接口（grants sync），接口内自验 service JWT（audience=lingyao-service）
+                        "/api/sso/**",                // V2.0.48：公司 SSO 发起+回调（员工未登录/飞书回跳均无会话；login 校验 company_code，callback 验 state+code，均自防伪造）
+                        // ── 静态资源（全部放行） ─────
+                        "/",
+                        "/index.html",
+                        "/portal.html",
+                        "/admin.html",
+                        "/invite.html",
+                        "/404.html",
+                        "/admin/**",
+                        "/static/**",
+                        "/css/**",
+                        "/js/**",
+                        "/assets/**",
+                        "/error"
+                    ).permitAll();
+                if (dev) {
+                    // PRD-2.7：dev 保留 _diag 匿名自检（E2E 依赖 /api/_diag/version）与 h2-console
+                    chain = chain
+                        .requestMatchers("/api/_diag/**").permitAll()
+                        .requestMatchers("/h2-console/**").permitAll();
+                }
+                // 非 dev（private/staging/prod）：_diag 需认证（落入下方 /api/** authenticated），
+                // h2-console 不放行且 spring.h2.console.enabled=false（各 profile yml 已显式关闭）
+                chain
+                    .requestMatchers("/api/**").authenticated()
+                    .anyRequest().permitAll();
+            })
             .headers(h -> h.disable())  // V2.0.23 P2.1：禁用 Spring Security 默认 headers，由 SecurityHeadersFilter 统一管理
             .exceptionHandling(eh -> eh
                 .authenticationEntryPoint((req, resp, ex) -> {
