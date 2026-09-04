@@ -246,6 +246,8 @@ public class AdminController {
 
     @GetMapping("/companies")
     public ApiResponse<List<Company>> listCompanies() {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         return ApiResponse.ok(companyRepo.findAll());
     }
 
@@ -253,6 +255,8 @@ public class AdminController {
     public ApiResponse<Page<SysUser>> listUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         Pageable pageable = PageableValidator.safeOf(page, size);
         // V2.0.46：只返回「平台超管 + 公司超管（SUPER_ADMIN·ACTIVE）」，
         // 公司普通用户不进平台超管后台 —— 普通用户由公司超管在子平台内管理
@@ -264,11 +268,15 @@ public class AdminController {
      */
     @GetMapping("/users/count")
     public ApiResponse<Long> countAdminUsers() {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         return ApiResponse.ok(userRepo.countPlatformAndTenantAdmins());
     }
 
     @GetMapping("/products")
     public ApiResponse<List<Map<String, Object>>> listProducts() {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         // V2.0.54：产品目录收敛——管理后台授权下拉/邀请产品选择也只展示 ACTIVE（棱镜/皓元/源策/医呈）
         // V2.0.57：补 deployed 字段（子任务已部署 = 非 COMING_SOON），前端据此把未部署产品置灰
         List<Map<String, Object>> views = new java.util.ArrayList<>();
@@ -292,20 +300,26 @@ public class AdminController {
 
     @GetMapping("/company-products")
     public ApiResponse<?> listCompanyProducts(@RequestParam Long companyId) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         return ApiResponse.ok(companyProductRepo.findByCompanyIdAndStatus(
                 companyId, CompanyProduct.Status.ACTIVE));
     }
 
     @GetMapping("/channels")
     public ApiResponse<List<NotificationChannel>> listChannels() {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         return ApiResponse.ok(channelRepo.findAll());
     }
 
     /**
-     * Bug-18：创建推送通道（无需超管权限，仅需登录 — 兼容老逻辑）
+     * Bug-18：创建推送通道
      */
     @PostMapping("/channels")
     public ApiResponse<NotificationChannel> createChannel(@RequestBody NotificationChannel channel) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         channel.setId(null);
         NotificationChannel saved = channelRepo.save(channel);
         auditLogService.record("CHANNEL_CREATE", "CHANNEL", String.valueOf(saved.getId()),
@@ -315,6 +329,8 @@ public class AdminController {
 
     @PutMapping("/channels/{id}")
     public ApiResponse<NotificationChannel> updateChannel(@PathVariable Long id, @RequestBody NotificationChannel body) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         NotificationChannel ch = channelRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("通道不存在: " + id));
         ch.setName(body.getName());
@@ -329,6 +345,8 @@ public class AdminController {
 
     @DeleteMapping("/channels/{id}")
     public ApiResponse<?> deleteChannel(@PathVariable Long id) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         channelRepo.deleteById(id);
         auditLogService.record("CHANNEL_DELETE", "CHANNEL", String.valueOf(id), "删除推送通道");
         return ApiResponse.ok("通道已删除", null);
