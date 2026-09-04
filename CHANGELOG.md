@@ -1,5 +1,13 @@
 # 凌瑶智数 · 变更日志
 
+# 凌瑶智数 · 变更日志
+
+## V2.0.70 (2026-09-04 15:28) — GEO SSO 回跳端口修正（主人实测「无法访问此网站 ERR_CONNECTION_REFUSED」）
+- **根因**：主站 SSO 签发跳转正常，但 GEO 回调硬编码 `localhost:5180`；5180 已被 WorkBuddy sandbox broker 占用，GEOM 前端守护（scripts/start_geom_frontend_daemon.py）实跑 **5182**（vite host 0.0.0.0）
+- **修复**：SsoCallbackController.buildSubProductCallbackUrl GEO case 5180→5182；WebConfig CORS 此前已含 5182 无需改；geom 仓零改动（窗口边界遵守）
+- **E2E**：5182 回调路由 GET 200；9091 重启至 2.0.70；dist jar 已同步
+- **运维提示**：若未来用 `bash scripts/deploy-jar.sh` 部署 prod，prod 环境 5180 正常时需将此映射改回或配置化（当前硬编码仅 dev 口径）
+
 ## V2.0.69 (2026-09-04 08:30) — A+D+B 邮件版安全方案：替代强制 2FA（主人拍板「可以，这样做吧」）
 
 ### 背景
