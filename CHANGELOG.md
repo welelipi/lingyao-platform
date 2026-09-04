@@ -1,6 +1,24 @@
 # 凌瑶智数 · 变更日志
 
-# 凌瑶智数 · 变更日志
+## V2.0.71 (2026-09-04) — 质量环 run `2026-09-04-v269-security-review` 落地（阶段 3~6 反修收官）
+
+### 阶段 3 开发（Batch1 6 commit + Batch2 6 commit + 2 补丁）
+- **PRD-1.1 HTML 注入防御**：SecurityAlertService 暴力破解/新设备告警模板收口 `HtmlUtils.htmlEscape`（F1 P0 回归由测试抓出后 9340b40 反修，javap 字节码验证 5/5 转义齐全）
+- **PRD-1.2 reset_token 生产旁路关闭**：forgotPassword 三字段（devModeToken/resetUrl/expiresIn）全部包进 devMode 门禁（1702a85）；devMode 判定与 EmailOtpService 同语义
+- **PRD-1.4 CaptchaService ticketStore 治理**（1d91abb）：发券前懒清理 + 10000 硬上限拒签
+- **PRD-1.5 OTP 明文日志屏蔽**：EmailOtpService 生产走 maskEmail INFO 无 code；efdff7e 补丁保留 dev profile WARN 级 E2E 取码钩子
+- **PRD-2.4 平台超管守卫**：companies/users/products/company-products/channels 八端点补齐（58e1f4e）
+- **PRD-2.5 测试端点清理**：/api/test/audit-all 删除（bcd0fdc）
+- **PRD-2.6 JWT secret fail-fast**：非 dev 空 secret 拒启 + dev 弱密钥识别（ac4bc54）；app.jwt.secret 残留默认串清空（b09c01d）
+- **PRD-2.7 _diag/h2-console profile 收敛**：dev 保留、非 dev 需认证（9828353）
+
+### 阶段 5 验收反修（b09c01d）
+- **PRD-1.3/N1 IP 口径统一**：AuthController login/logout/forgot/reset 4 处 `getRemoteAddr()` → `clientIp()`（验收抓出 c62d3cb 自述「五处全替换」实际仅 1 处），AuthController 全部 8 处 IP 取值收口完成
+- **P1-1 EmailOtpService compute() 原子化**（本次提交）：sendOtp 频控/锁定检查、verifyOtp 读-判-写全部合并为 `ConcurrentHashMap.compute()` 单步原子——封死并发同码双过、并发错码漏计数、并发发码绕频控三条竞态
+- **N2 版本号同步**：script.js?v= 2.0.69 → 2.0.71（三处 index.html 同步）
+
+### 质量环判定
+- 架构师验收 7.5 / 安全验收 8.0；regression=0；incomplete 2 项全部反修闭环
 
 ## V2.0.70 (2026-09-04 15:28) — GEO SSO 回跳端口修正（主人实测「无法访问此网站 ERR_CONNECTION_REFUSED」）
 - **根因**：主站 SSO 签发跳转正常，但 GEO 回调硬编码 `localhost:5180`；5180 已被 WorkBuddy sandbox broker 占用，GEOM 前端守护（scripts/start_geom_frontend_daemon.py）实跑 **5182**（vite host 0.0.0.0）

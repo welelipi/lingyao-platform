@@ -84,22 +84,37 @@ public class EmailOtpService {
         }
         String key = purpose + "|" + username;
 
-        // 频控：60 秒内不重发
-        LocalDateTime last = lastSentAt.get(key);
-        if (last != null && last.plusSeconds(SEND_INTERVAL_SECONDS).isAfter(LocalDateTime.now())) {
-            long waitSec = java.time.Duration.between(LocalDateTime.now(), last.plusSeconds(SEND_INTERVAL_SECONDS)).getSeconds();
-            return Map.of("ok", false, "message", "发送过于频繁，请 " + Math.max(waitSec, 1) + " 秒后再试");
+        // V2.0.71 PRD-1.4/P1-1：频控判定+写入合并为单次原子 compute（同 key 互斥，封死并发抢发窗口）
+        final boolean[] allowed = {false};
+        final long[] waitSec = {0};
+        lastSentAt.compute(key, (k, last) -> {
+            LocalDateTime now = LocalDateTime.now();
+            if (last != null && last.plusSeconds(SEND_INTERVAL_SECONDS).isAfter(now)) {
+                waitSec[0] = Math.max(java.time.Duration.between(now, last.plusSeconds(SEND_INTERVAL_SECONDS)).getSeconds(), 1);
+                return last;
+            }
+            allowed[0] = true;
+            return now;
+        });
+        if (!allowed[0]) {
+            return Map.of("ok", false, "message", "发送过于频繁，请 " + waitSec[0] + " 秒后再试");
         }
 
-        // 锁定检查
-        OtpEntry existing = otpStore.get(key);
-        if (existing != null && existing.lockedUntil() != null && existing.lockedUntil().isAfter(LocalDateTime.now())) {
-            return Map.of("ok", false, "message", "错误次数过多，已锁定，请 " + LOCK_MINUTES + " 分钟后再试");
-        }
-
+        // V2.0.71 PRD-1.4/P1-1：锁定检查+新码写入合并为单次原子 compute（防并发覆盖 verifyOtp 已写入的锁定态）
         String code = String.format("%06d", random.nextInt(1_000_000));
-        otpStore.put(key, new OtpEntry(code, LocalDateTime.now().plusMinutes(OTP_TTL_MINUTES), 0, null));
-        lastSentAt.put(key, LocalDateTime.now());
+        final String[] lockErr = {null};
+        otpStore.compute(key, (k, existing) -> {
+            LocalDateTime now = LocalDateTime.now();
+            if (existing != null && existing.lockedUntil() != null && existing.lockedUntil().isAfter(now)) {
+                lockErr[0] = "错误次数过多，已锁定，请 " + LOCK_MINUTES + " 分钟后再试";
+                return existing;
+            }
+            return new OtpEntry(code, now.plusMinutes(OTP_TTL_MINUTES), 0, null);
+        });
+        if (lockErr[0] != null) {
+            lastSentAt.remove(key);
+            return Map.of("ok", false, "message", lockErr[0]);
+        }
 
         boolean devMode = (mailSender == null) || !emailProps.isEnabled();
         if (devMode) {
@@ -128,30 +143,44 @@ public class EmailOtpService {
     public String verifyOtp(String purpose, String username, String code) {
         if (code == null || code.isBlank()) return "请输入邮箱验证码";
         String key = purpose + "|" + username;
-        OtpEntry entry = otpStore.get(key);
-        if (entry == null) return "请先获取邮箱验证码";
-        if (entry.lockedUntil() != null && entry.lockedUntil().isAfter(LocalDateTime.now())) {
-            return "错误次数过多已锁定，请稍后再试";
-        }
-        if (entry.expiresAt().isBefore(LocalDateTime.now())) {
-            otpStore.remove(key);
-            return "验证码已过期，请重新获取";
-        }
-        if (!entry.code().equals(code.trim())) {
-            int failed = entry.failedAttempts() + 1;
-            if (failed >= MAX_ATTEMPTS) {
-                otpStore.put(key, new OtpEntry(entry.code(), entry.expiresAt(), failed,
-                        LocalDateTime.now().plusMinutes(LOCK_MINUTES)));
-                log.warn("📧 邮箱验证码连续错误 {} 次，锁定 {} 分钟：purpose={}, user={}", failed, LOCK_MINUTES, purpose, username);
-                return "验证码错误次数过多，已锁定 " + LOCK_MINUTES + " 分钟";
+        final String[] err = {null};
+        final boolean[] passed = {false};
+
+        // V2.0.71 PRD-1.4/P1-1：读-判-写合并为单次原子 compute（同 key 互斥：
+        // 封死并发同码双过（一次性失效）与并发错码漏计数（爆破窗口）两条竞态）
+        otpStore.compute(key, (k, entry) -> {
+            LocalDateTime now = LocalDateTime.now();
+            if (entry == null) {
+                err[0] = "请先获取邮箱验证码";
+                return null;
             }
-            otpStore.put(key, new OtpEntry(entry.code(), entry.expiresAt(), failed, null));
-            return "验证码错误，剩余尝试次数 " + (MAX_ATTEMPTS - failed);
+            if (entry.lockedUntil() != null && entry.lockedUntil().isAfter(now)) {
+                err[0] = "错误次数过多已锁定，请稍后再试";
+                return entry;
+            }
+            if (entry.expiresAt().isBefore(now)) {
+                err[0] = "验证码已过期，请重新获取";
+                return null;
+            }
+            if (!entry.code().equals(code.trim())) {
+                int failed = entry.failedAttempts() + 1;
+                if (failed >= MAX_ATTEMPTS) {
+                    log.warn("📧 邮箱验证码连续错误 {} 次，锁定 {} 分钟：purpose={}, user={}", failed, LOCK_MINUTES, purpose, username);
+                    err[0] = "验证码错误次数过多，已锁定 " + LOCK_MINUTES + " 分钟";
+                    return new OtpEntry(entry.code(), entry.expiresAt(), failed, now.plusMinutes(LOCK_MINUTES));
+                }
+                err[0] = "验证码错误，剩余尝试次数 " + (MAX_ATTEMPTS - failed);
+                return new OtpEntry(entry.code(), entry.expiresAt(), failed, null);
+            }
+            // 通过 → 一次性作废（compute 返回 null 即移除，同刻并发重放无码可命中）
+            passed[0] = true;
+            return null;
+        });
+        if (passed[0]) {
+            lastSentAt.remove(key);
+            return null;
         }
-        // 通过 → 一次性作废
-        otpStore.remove(key);
-        lastSentAt.remove(key);
-        return null;
+        return err[0];
     }
 
     /** A：通用告警/通知邮件（SecurityAlertService 用） */
