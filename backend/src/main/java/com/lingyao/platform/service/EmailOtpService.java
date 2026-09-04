@@ -98,8 +98,8 @@ public class EmailOtpService {
         }
         try {
             sendOtpMail(toEmail, code, purpose);
-            // E2E 钩子：dev/测试环境日志含完整验证码供自动化取用；生产环境建议 logging 屏蔽本 logger
-            log.info("📧 邮箱验证码已发送：purpose={}, user={}, to={}, code={}", purpose, username, toEmail, code);
+            // V2.0.71 PRD-1.5：生产日志不落明文验证码（取码走 dev 分支 devCode 或用户邮箱）
+            log.info("📧 邮箱验证码已发送：purpose={}, user={}, to={}", purpose, username, maskEmail(toEmail));
             return Map.of("ok", true, "message", "验证码已发送至邮箱 " + maskEmail(toEmail));
         } catch (Exception e) {
             log.error("📧 邮箱验证码发送失败：purpose={}, user={}, to={}, error={}", purpose, username, toEmail, e.getMessage(), e);
