@@ -79,7 +79,7 @@ public class SecurityAlertService {
                       </table>
                       <p style="color:#64748B;font-size:13px;">已由登录锁定 + 图形验证码 + 限流拦截。可在管理后台「安全事件」查看详情；如确认攻击，建议在防火墙封禁该 IP。</p>
                     </div>
-                    """, ip, fails, BRUTE_FORCE_THRESHOLD, username == null ? "-" : username, LocalDateTime.now());
+                    """, HtmlUtils.htmlEscape(ip), fails, BRUTE_FORCE_THRESHOLD, username == null ? "-" : HtmlUtils.htmlEscape(username), LocalDateTime.now());
 
             // 收件人：所有平台超管邮箱 + EMAIL 通知通道（超管邮箱兜底）
             boolean sentAny = false;
