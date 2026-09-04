@@ -51,14 +51,19 @@ public class LingyaoApplication {
      * V2.0.14 PRD-1.2：fail-fast 校验 LINGYAO_JWT_SECRET
      * - dev profile：secret 为空/默认值仅 WARN（保持 dev 友好）
      * - 非 dev profile（private/staging/prod）：secret 空或默认值必须抛 IllegalStateException 退出
+     * V2.0.71 PRD-2.6：application.yml 默认兜底串已收口为空串；校验改读解析后的配置值
+     * （兼容 profile 段注入的 dev 专用兜底密钥），密钥实际来源单一真理源 data/.jwt_secret env
      */
     @PostConstruct
     public void validateJwtSecret() {
-        String secret = System.getenv("LINGYAO_JWT_SECRET");
+        String secret = env.getProperty("lingyao.jwt.secret");
         String[] profiles = env.getActiveProfiles();
         boolean isDev = Arrays.asList(profiles).contains("dev");
 
-        if (secret == null || secret.isBlank() || secret.startsWith("lingyao-platform-default")) {
+        boolean missing = secret == null || secret.isBlank()
+                || secret.startsWith("lingyao-platform-default")
+                || secret.startsWith("lingyao-dev-only-secret-key");
+        if (missing) {
             if (!isDev) {
                 throw new IllegalStateException(
                     "LINGYAO_JWT_SECRET 未配置或仍为默认值（activeProfiles=" + Arrays.toString(profiles) + "）。"

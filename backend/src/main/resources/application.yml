@@ -76,7 +76,7 @@ lingyao:
       from: 188407408@qq.com
       ssl: true
   jwt:
-    secret: ${LINGYAO_JWT_SECRET:DMZiAxUx0rtt3s72qAcdntXa0fWgw93LBrpDfCs7RpT4o-ZC611ditS0k4cnePDNrbJGNc8lQ1zkPfqq6vvllA==}
+    secret: ${LINGYAO_JWT_SECRET:}
     expiration-hours: 24
     issuer: lingyao-platform
     # V2.0.16 W1：JWT claims 平铺字段（子产品 DINFO M2 直接读，无需解嵌套）
@@ -132,7 +132,7 @@ lingyao:
 sso:
   protocol-version: "1.0"
   jwt:
-    secret: ${LINGYAO_JWT_SECRET:DMZiAxUx0rtt3s72qAcdntXa0fWgw93LBrpDfCs7RpT4o-ZC611ditS0k4cnePDNrbJGNc8lQ1zkPfqq6vvllA==}
+    secret: ${LINGYAO_JWT_SECRET:}
     token-ttl-seconds: 7200
 
 # ---------- Dev 配置（H2 + H2 Console + DDL）----------
@@ -174,3 +174,26 @@ logging:
   level:
     root: INFO
     com.lingyao.platform: INFO
+
+---
+
+# PRD-2.6：dev profile 弱密钥兜底——默认值已收口为空串，dev 无 env 注入时
+# 用固定 dev 专用密钥放行（仅 dev profile 生效；private/staging/prod 缺 env
+# 由 LingyaoApplication.validateJwtSecret fail-fast 拒启）
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+app:
+  jwt:
+    secret: ${LINGYAO_JWT_SECRET:lingyao-dev-only-secret-key-min-32-bytes-padding!!}
+
+lingyao:
+  jwt:
+    secret: ${LINGYAO_JWT_SECRET:lingyao-dev-only-secret-key-min-32-bytes-padding!!}
+
+sso:
+  jwt:
+    secret: ${LINGYAO_JWT_SECRET:lingyao-dev-only-secret-key-min-32-bytes-padding!!}
