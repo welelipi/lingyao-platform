@@ -8,6 +8,7 @@ import com.lingyao.platform.security.CurrentUser;
 import com.lingyao.platform.security.JwtUtil;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +52,10 @@ public class AuthService {
     @Autowired private SecurityAlertService securityAlertService;
     @Autowired private EmailOtpService emailOtpService;
     @Autowired private DeviceTrustRepository deviceTrustRepository;
+    // V2.0.71 PRD-1.2：forgotPassword devModeToken 环境门禁（dev 判定与 EmailOtpService 同语义）
+    @Autowired(required = false)
+    private JavaMailSender mailSender;
+    @Autowired private com.lingyao.platform.config.NotifyEmailProperties emailProps;
 
     /** V2.0.69 D：登录请求上下文（UA 从 controller 传入） */
     public LoginResponse login(LoginRequest req, String ip, String userAgent) {
@@ -781,11 +786,13 @@ public class AuthService {
                     user.getId(), user.getUsername(), ip,
                     "/api/auth/forgot-password", "POST");
 
-            // 开发模式：邮件通道未配置时直接返回 token 给前端（V2.0.21 仅本地开发使用）
-            // 生产环境邮件通道启用后，应该删除这行
-            resp.put("devModeToken", plainToken);
-            resp.put("resetUrl", "/reset-password.html?token=" + plainToken);
-            resp.put("expiresIn", RESET_TOKEN_TTL_SECONDS);
+            // V2.0.71 PRD-1.2：仅 dev 模式（邮件通道未配置）回显 token，生产不回显（与 EmailOtpService dev 判定同语义）
+            boolean devMode = (mailSender == null) || !emailProps.isEnabled();
+            if (devMode) {
+                resp.put("devModeToken", plainToken);
+                resp.put("resetUrl", "/reset-password.html?token=" + plainToken);
+                resp.put("expiresIn", RESET_TOKEN_TTL_SECONDS);
+            }
         }
 
         return resp;
