@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -118,7 +119,7 @@ public class SecurityAlertService {
                       </table>
                       <p style="color:#64748B;font-size:13px;">该设备 30 天内再次登录将免验证。若这不是您本人的操作，请立即修改密码并联系管理员。</p>
                     </div>
-                    """, user.getUsername(), LocalDateTime.now(), ip, ua);
+                    """, HtmlUtils.htmlEscape(user.getUsername()), LocalDateTime.now(), HtmlUtils.htmlEscape(ip), HtmlUtils.htmlEscape(ua));
             emailOtpService.sendMail(user.getEmail(), subject, html);
             log.info("📧 [SecurityAlert] 新设备登录通知已发：user={}", user.getUsername());
         } catch (Exception e) {
