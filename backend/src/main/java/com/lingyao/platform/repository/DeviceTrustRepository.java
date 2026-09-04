@@ -15,12 +15,7 @@ public interface DeviceTrustRepository extends JpaRepository<DeviceTrust, Long> 
 
     Optional<DeviceTrust> findByUserIdAndDeviceFp(Long userId, String deviceFp);
 
-    /** V2.0.69：信任期续期（重复验证过的新设备再次出现时刷新过期时间） */
-    @Modifying
-    @Query("UPDATE DeviceTrust d SET d.expiresAt = :expiresAt WHERE d.id = :id")
-    void renew(@Param("id") Long id, @Param("expiresAt") LocalDateTime expiresAt);
-
-    /** V2.0.69：清理过期信任记录（登录时顺手调，惰性清理） */
+    /** V2.0.69：清理过期信任记录（每日调度清理） */
     @Modifying
     @Query("DELETE FROM DeviceTrust d WHERE d.expiresAt < :now")
     int deleteExpired(@Param("now") LocalDateTime now);
