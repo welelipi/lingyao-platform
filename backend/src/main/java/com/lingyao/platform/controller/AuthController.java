@@ -58,7 +58,7 @@ public class AuthController {
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest req, HttpServletRequest httpReq) {
         try {
             // V2.0.69 D：透传 User-Agent（设备指纹用）
-            LoginResponse data = authService.login(req, httpReq.getRemoteAddr(), httpReq.getHeader("User-Agent"));
+            LoginResponse data = authService.login(req, clientIp(httpReq), httpReq.getHeader("User-Agent"));
             return ApiResponse.ok(data.isMustChangePassword() ? "登录成功，请修改初始密码" : "登录成功", data);
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());
@@ -176,7 +176,7 @@ public class AuthController {
         String token = authHeader.substring(7);
         try {
             Claims claims = jwtUtil.parse(token);
-            authService.logout(cu.getUserId(), claims, httpReq.getRemoteAddr());
+            authService.logout(cu.getUserId(), claims, clientIp(httpReq));
             return ApiResponse.ok("已退出登录", Map.of("loggedOut", true, "jti", String.valueOf(claims.getId())));
         } catch (Exception e) {
             // token 已过期或无效 → 仍然返回 200（前端清 token 就够了）
@@ -236,7 +236,7 @@ public class AuthController {
             return ApiResponse.fail(400, "请提供 email 或 username");
         }
         try {
-            Map<String, Object> data = authService.forgotPassword(emailOrUsername, httpReq.getRemoteAddr());
+            Map<String, Object> data = authService.forgotPassword(emailOrUsername, clientIp(httpReq));
             return ApiResponse.ok(data.getOrDefault("message", "已处理").toString(), data);
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());
@@ -260,7 +260,7 @@ public class AuthController {
             return ApiResponse.fail(400, "newPassword 不能为空");
         }
         try {
-            authService.resetPassword(token, newPassword, httpReq.getRemoteAddr());
+            authService.resetPassword(token, newPassword, clientIp(httpReq));
             return ApiResponse.ok("密码重置成功，请使用新密码登录", null);
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());

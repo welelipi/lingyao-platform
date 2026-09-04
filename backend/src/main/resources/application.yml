@@ -61,7 +61,7 @@ app:
   registration:
     duplicate-check-enabled: false
   jwt:
-    secret: ${LINGYAO_JWT_SECRET:DMZiAxUx0rtt3s72qAcdntXa0fWgw93LBrpDfCs7RpT4o-ZC611ditS0k4cnePDNrbJGNc8lQ1zkPfqq6vvllA==}
+    secret: ${LINGYAO_JWT_SECRET:}
     expiration-seconds: 86400
 
 lingyao:
