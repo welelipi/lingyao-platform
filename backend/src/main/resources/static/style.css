@@ -2279,10 +2279,10 @@ body {
   color: var(--text-dim);
   margin-top: 6px;
 }
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .kpi-grid { grid-template-columns: repeat(3, 1fr); }
 }
-@media (max-width: 768px) {
+@media (max-width: 600px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -2325,3 +2325,21 @@ body {
   line-height: 1;
 }
 .toast .toast-msg { line-height: 1.4; }
+
+/* ═══════════════════════ V2.0.73 · 产品开发中角标 ═══════════════════════ */
+.product-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.product-badge.coming-soon {
+  background: linear-gradient(135deg, rgba(255, 140, 66, 0.15), rgba(255, 94, 148, 0.15));
+  color: #FF8C42;
+  border: 1px solid rgba(255, 140, 66, 0.35);
+}
