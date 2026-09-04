@@ -51,6 +51,16 @@ public class EmailOtpService {
     @Autowired
     private NotifyEmailProperties emailProps;
 
+    @Autowired
+    private org.springframework.core.env.Environment env;
+
+    private boolean isDevProfile() {
+        for (String p : env.getActiveProfiles()) {
+            if (p.startsWith("dev")) return true;
+        }
+        return false;
+    }
+
     /** OTP 记录：key = purpose + "|" + 目标（用户名或邮箱），value = 码/过期/错误数/锁定时间 */
     private final Map<String, OtpEntry> otpStore = new ConcurrentHashMap<>();
 
@@ -99,7 +109,11 @@ public class EmailOtpService {
         try {
             sendOtpMail(toEmail, code, purpose);
             // V2.0.71 PRD-1.5：生产日志不落明文验证码（取码走 dev 分支 devCode 或用户邮箱）
-            log.info("📧 邮箱验证码已发送：purpose={}, user={}, to={}", purpose, username, maskEmail(toEmail));
+            if (isDevProfile()) {
+                log.warn("📧 [DEV profile E2E 钩子] 邮箱验证码已真实发送。purpose={}, user={}, to={}, code={}", purpose, username, maskEmail(toEmail), code);
+            } else {
+                log.info("📧 邮箱验证码已发送：purpose={}, user={}, to={}", purpose, username, maskEmail(toEmail));
+            }
             return Map.of("ok", true, "message", "验证码已发送至邮箱 " + maskEmail(toEmail));
         } catch (Exception e) {
             log.error("📧 邮箱验证码发送失败：purpose={}, user={}, to={}, error={}", purpose, username, toEmail, e.getMessage(), e);
