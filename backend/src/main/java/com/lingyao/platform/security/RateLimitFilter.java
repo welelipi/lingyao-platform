@@ -64,6 +64,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int CHANGE_PWD_MAX_PER_HOUR = 3;
     private static final long CHANGE_PWD_WINDOW_MS = 60 * 60 * 1000L;
 
+    // V2.0.71 PRD-1.4：device-otp/send 公开端点按 IP 节流（防第三方邮箱骚扰/发信配额消耗）
+    private static final int DEVICE_OTP_MAX_PER_HOUR = 10;
+    private static final long DEVICE_OTP_WINDOW_MS = 60 * 60 * 1000L;
+
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse resp, FilterChain chain)
             throws ServletException, IOException {
@@ -118,6 +122,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
             String userKey = "user:" + userId;
             if (!rateLimiterService.allow("change-password", userKey, CHANGE_PWD_MAX_PER_HOUR, CHANGE_PWD_WINDOW_MS)) {
                 writeRateLimitResponse(resp, "change-password", userKey, CHANGE_PWD_MAX_PER_HOUR, CHANGE_PWD_WINDOW_MS);
+                return;
+            }
+        }
+
+        // ─── 5) /api/auth/device-otp/send（按 IP，V2.0.71 PRD-1.4）───
+        else if (path.equals("/api/auth/device-otp/send")) {
+            String clientIp = getClientIp(req);
+            if (!rateLimiterService.allow("device-otp-send", clientIp, DEVICE_OTP_MAX_PER_HOUR, DEVICE_OTP_WINDOW_MS)) {
+                writeRateLimitResponse(resp, "device-otp-send", clientIp, DEVICE_OTP_MAX_PER_HOUR, DEVICE_OTP_WINDOW_MS);
                 return;
             }
         }
