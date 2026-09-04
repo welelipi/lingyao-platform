@@ -49,6 +49,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Autowired
     private AuthAuditService authAuditService;
 
+    // V2.0.71 PRD-1.3：统一 IP 口径
+    @Autowired
+    private ClientIpResolver clientIpResolver;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
@@ -193,17 +197,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 提取客户端 IP（与 CsrfFilter / RateLimitFilter 保持一致）
+     * 提取客户端 IP（V2.0.71 PRD-1.3：统一走 ClientIpResolver，与业务层同源同值）
      */
     private String getClientIp(HttpServletRequest req) {
-        String xff = req.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
-        }
-        String xri = req.getHeader("X-Real-IP");
-        if (xri != null && !xri.isBlank()) {
-            return xri.trim();
-        }
-        return req.getRemoteAddr();
+        return clientIpResolver.resolve(req);
     }
 }

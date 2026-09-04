@@ -37,6 +37,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Autowired
     private RateLimiterService rateLimiterService;
 
+    // V2.0.71 PRD-1.3：统一 IP 口径（仅 forward-headers-strategy 启用时采信 XFF）
+    @Autowired
+    private ClientIpResolver clientIpResolver;
+
     // V2.0.24 P2.2 修复：自己解析 token 拿 userId（不依赖 JwtAuthFilter 设置 CurrentUser）
     @Autowired
     private JwtUtil jwtUtil;
@@ -195,19 +199,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 提取客户端 IP（优先 X-Forwarded-For，然后 X-Real-IP，最后 RemoteAddr）
+     * 提取客户端 IP（V2.0.71 PRD-1.3：统一走 ClientIpResolver，与业务层同源同值）
      */
     private String getClientIp(HttpServletRequest req) {
-        String xff = req.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            // X-Forwarded-For 格式："client, proxy1, proxy2"，第一个是真 IP
-            return xff.split(",")[0].trim();
-        }
-        String xri = req.getHeader("X-Real-IP");
-        if (xri != null && !xri.isBlank()) {
-            return xri.trim();
-        }
-        return req.getRemoteAddr();
+        return clientIpResolver.resolve(req);
     }
 
     /**

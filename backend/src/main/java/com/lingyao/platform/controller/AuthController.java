@@ -3,6 +3,7 @@ package com.lingyao.platform.controller;
 import com.lingyao.platform.dto.ApiResponse;
 import com.lingyao.platform.dto.LoginRequest;
 import com.lingyao.platform.dto.LoginResponse;
+import com.lingyao.platform.security.ClientIpResolver;
 import com.lingyao.platform.security.CurrentUser;
 import com.lingyao.platform.security.JwtAuthFilter;
 import com.lingyao.platform.security.JwtUtil;
@@ -35,6 +36,17 @@ public class AuthController {
     // V2.0.20 P1 阶段 A：解析 token 拿 jti
     @Autowired
     private JwtUtil jwtUtil;
+
+    // V2.0.71 PRD-1.3：统一 IP 口径
+    @Autowired
+    private ClientIpResolver clientIpResolver;
+
+    /**
+     * V2.0.71 PRD-1.3：统一客户端 IP 取值（Filter 链与业务层同源同值）
+     */
+    private String clientIp(HttpServletRequest httpReq) {
+        return clientIpResolver.resolve(httpReq);
+    }
 
     /** V2.0.66：获取图形验证码（公开端点，登录页加载/点击刷新时调用） */
     @GetMapping("/captcha")
@@ -194,7 +206,7 @@ public class AuthController {
             return ApiResponse.fail(400, "refreshToken 不能为空");
         }
         try {
-            LoginResponse resp = authService.refresh(refreshToken, httpReq.getRemoteAddr());
+            LoginResponse resp = authService.refresh(refreshToken, clientIp(httpReq));
             return ApiResponse.ok("续期成功", resp);
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(401, e.getMessage());
