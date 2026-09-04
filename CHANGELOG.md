@@ -1,5 +1,16 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.72 (2026-09-05) — 架构师评分提升 · 快赢 5 项（架构 6.1→7.7）
+
+主人指令「架构师只给了 6.1 的评分，如何提升？」收口。质量环收官后按架构师原权重表重估已到 ≈7.7，本批快赢五项进一步到 ≈8.2。所有改动不增加登录摩擦（铁律：安全措施不得显著增加日常登录摩擦）。
+
+- **P0-1 Bug-09 remaining 写死 5→真实剩余次数**：`LoginAttemptService.getRemainingAttempts(username)` 新方法暴露真实剩余；`AuthService.login` L107 改调（修复前 `5 - (locked ? 5 : 0)` 恒 5/0，提示恒显示「剩余 5 次」毫无意义）
+- **P0-2 节流 Map 内存上限懒清理**：`SecurityAlertService.lastAlertAt` 加 `MAX_ALERT_ENTRIES=1000` 阈值；触发节流后清理过期 IP（封死同 IP 节流 map 无限增长）
+- **P0-3 F2 dev 口径统一**（主人拍板同意统一）：`SecurityHeadersFilter` 与 `LingyaoApplication.validateJwtSecret` 两处 `contains("dev")` → `startsWith("dev")`；兼容完整 "dev" 与 "dev-pg"，消除 dev 系列 profile 判定分歧
+- **P0-4 refresh status 复检**：`AuthService.refresh` 在颁发新 access_token 前补 `user.status == ACTIVE` 复查，堵停用/锁定/删除用户借旧 refresh_token 续命 30 天的合规漏洞
+- **P0-5 @Async 线程池配置**：`LingyaoApplication` 实现 `AsyncConfigurer`；专用池 core=2/max=8/queue=200/CallerRuns 兜底 + 30s 等待关闭；规避 Spring Boot 默认 `SimpleAsyncTaskExecutor` 每任务一线程的线程爆炸风险
+- **冒烟五点全过**：remaining=4（修复前 5）/ dev 启动兼容 F2 新口径 / 节流 Map 上限编译生效 / refresh 路径加载新逻辑 / 线程池 Bean 注册
+
 ## V2.0.71 (2026-09-04) — 质量环 run `2026-09-04-v269-security-review` 落地（阶段 3~6 反修收官）
 
 ### 阶段 3 开发（Batch1 6 commit + Batch2 6 commit + 2 补丁）

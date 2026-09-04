@@ -104,7 +104,7 @@ public class AuthService {
                     user == null ? null : user.getId(), req.getUsername(),
                     "登录失败: " + req.getUsername());
             // V2.0.26 P2.4：登录失败 → 记录安全审计事件
-            int remaining = 5 - (attemptService.isLocked(req.getUsername()) ? 5 : 0);
+            int remaining = attemptService.getRemainingAttempts(req.getUsername());
             authAuditService.recordFailureWithMeta(
                     AuthAuditEvent.EventType.LOGIN_FAIL,
                     user == null ? null : user.getId(),
@@ -625,6 +625,10 @@ public class AuthService {
         // 复用 login() 的逻辑：构造 UserView + CompanyView + Products
         SysUser user = userRepo.findById(oldToken.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在: " + oldToken.getUserId()));
+        // V2.0.72 P0-4：refresh 时复检 user.status，堵停用/锁定/删除用户借旧 token 续命 30 天
+        if (user.getStatus() != SysUser.UserStatus.ACTIVE) {
+            throw new IllegalArgumentException("账号已被停用，请联系管理员");
+        }
 
         // 用户多公司关系
         List<CompanyUser> memberships = companyUserRepo.findByUserId(user.getId()).stream()

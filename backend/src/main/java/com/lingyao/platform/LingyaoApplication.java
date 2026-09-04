@@ -14,10 +14,12 @@ import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import jakarta.annotation.PostConstruct;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 /**
  * 凌瑶智数 · 主启动类
@@ -36,7 +38,7 @@ import java.util.List;
 @EnableJpaAuditing
 @EnableAsync
 @EnableScheduling   // V2.0.10：启用 @Scheduled（LicenseExpirationScheduler）
-public class LingyaoApplication {
+public class LingyaoApplication implements org.springframework.scheduling.annotation.AsyncConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(LingyaoApplication.class);
 
@@ -58,7 +60,7 @@ public class LingyaoApplication {
     public void validateJwtSecret() {
         String secret = env.getProperty("lingyao.jwt.secret");
         String[] profiles = env.getActiveProfiles();
-        boolean isDev = Arrays.asList(profiles).contains("dev");
+        boolean isDev = Arrays.stream(profiles).anyMatch(p -> p.startsWith("dev"));
 
         boolean missing = secret == null || secret.isBlank()
                 || secret.startsWith("lingyao-platform-default")
@@ -80,6 +82,26 @@ public class LingyaoApplication {
      * - 表为空 → WARN 提示检查 data-private.sql
      * - 表有 INACTIVE 通道 → 列出 + 提示替换 webhook URL 激活
      */
+    /**
+     * V2.0.72 P0-5：@Async 专用线程池配置
+     * Spring Boot 默认用 SimpleAsyncTaskExecutor，每任务一线程，无界，线程爆炸风险
+     * 专用池：core=2 / max=8 / queue=200 / CallerRuns 兜底（队列满则调用方线程跑，避免任务静默丢失）
+     */
+    @Override
+    @org.springframework.context.annotation.Bean(name = "taskExecutor")
+    public Executor getAsyncExecutor() {
+        ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
+        exec.setCorePoolSize(2);
+        exec.setMaxPoolSize(8);
+        exec.setQueueCapacity(200);
+        exec.setThreadNamePrefix("lingyao-async-");
+        exec.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        exec.setWaitForTasksToCompleteOnShutdown(true);
+        exec.setAwaitTerminationSeconds(30);
+        exec.initialize();
+        return exec;
+    }
+
     @Bean
     public ApplicationRunner pushHealthCheck() {
         return args -> {

@@ -44,6 +44,10 @@ os.chdir(GEOM_FRONTEND_DIR)
 # 1. host=0.0.0.0 → 双栈监听（IPv4 直连可用）
 # 2. port=5182 → 绕开 5180 IPv6 被 WorkBuddy sandbox broker 占
 os.environ["VITE_PORT"] = "5182"
+# 2026-09-04 修复：端口 5182 在 vite.config 三环境映射里对应 8092（prod 桥），
+# 不显式指定 VITE_API_BASE 时 /api 代理全部打到 8092 → ECONNREFUSED。
+# dev 场景后端固定 8090，这里显式钉死。
+os.environ["VITE_API_BASE"] = "http://127.0.0.1:8090"
 
 # 用 execv 替换进程为 vite
 # --strictPort 在 vite.config 里已设，无需重复

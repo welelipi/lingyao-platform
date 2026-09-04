@@ -44,7 +44,7 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
     private String activeProfile;
 
     private boolean isDevProfile() {
-        return activeProfile != null && activeProfile.contains("dev");
+        return activeProfile != null && activeProfile.startsWith("dev");
     }
 
     @Override

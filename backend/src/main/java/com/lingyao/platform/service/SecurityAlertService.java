@@ -33,6 +33,8 @@ public class SecurityAlertService {
     private static final int BRUTE_FORCE_THRESHOLD = 10;
     /** 同 IP 告警节流（分钟） */
     private static final int ALERT_THROTTLE_MINUTES = 60;
+    /** lastAlertAt Map 上限懒清理阈值（防御内存膨胀——同 IP 告警节流只记时间戳） */
+    private static final int MAX_ALERT_ENTRIES = 1000;
 
     private final Map<String, LocalDateTime> lastAlertAt = new ConcurrentHashMap<>();
 
@@ -65,6 +67,11 @@ public class SecurityAlertService {
                 return; // 节流：同 IP 1 小时最多 1 封
             }
             lastAlertAt.put(ip, LocalDateTime.now());
+            // 内存上限懒清理：超过阈值时清理已过期的 IP 节流记录（5min 窗口前视为过期）
+            if (lastAlertAt.size() > MAX_ALERT_ENTRIES) {
+                LocalDateTime cutoff = LocalDateTime.now().minusMinutes(ALERT_THROTTLE_MINUTES);
+                lastAlertAt.entrySet().removeIf(e -> e.getValue().isBefore(cutoff));
+            }
 
             String subject = "【凌瑶智数】安全告警：检测到疑似暴力破解";
             String html = String.format("""

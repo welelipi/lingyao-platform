@@ -54,6 +54,19 @@ public class LoginAttemptService {
         return null;
     }
 
+    /**
+     * 返回登录失败后的剩余尝试次数（已锁定则返回 0）
+     * Bug-09 修复：之前 AuthService 写死 remaining=5 导致提示恒显示剩余 5 次
+     */
+    public int getRemainingAttempts(String username) {
+        AttemptRecord rec = records.get(username);
+        if (rec == null) return MAX_ATTEMPTS;
+        if (rec.lockedUntil != null && LocalDateTime.now().isBefore(rec.lockedUntil)) return 0;
+        int used = rec.attempts.get();
+        int remain = MAX_ATTEMPTS - used;
+        return Math.max(remain, 0);
+    }
+
     private static class AttemptRecord {
         AtomicInteger attempts = new AtomicInteger(0);
         LocalDateTime lastAttempt;
