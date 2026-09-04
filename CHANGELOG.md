@@ -1,5 +1,45 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.69 (2026-09-04 08:30) — A+D+B 邮件版安全方案：替代强制 2FA（主人拍板「可以，这样做吧」）
+
+### 背景
+- 强制 2FA（.67）因登录摩擦被回滚（.68）后，主人从替代方案中拍板 A（异常告警）+ D（设备信任期）+ B（敏感操作二次验证），并确认用**邮件验证码**替代短信（零成本、无企业短信资质门槛、复用现有 SMTP）
+
+### Feature A — 异常登录告警（登录零摩擦，出事可感知）
+- `SecurityAlertService`：
+  - **暴力破解检测**：同一 IP 1 小时内登录失败 ≥10 次 → 邮件告警所有平台超管（+EMAIL 通知通道兜底），同 IP 每小时最多 1 封节流；复用 auth_audit_event 现有数据（新增 `countRecentFailuresByIp` 查询）
+  - **新设备登录知会**：新设备邮箱码验证通过后 → 给用户本人邮箱发知会邮件（含时间/IP/设备摘要）
+- 挂钩点：AuthService.login 失败路径（CAPTCHA_INVALID + INVALID_CREDENTIALS 两处）
+
+### Feature D — 新设备/异地验证 + 30 天信任期（摩擦仅首次）
+- `DeviceTrust` 实体 + `device_trust` 表：设备指纹 = SHA-256(userId|User-Agent) 前 32 hex，唯一索引 (userId, deviceFp)，30 天过期
+- 登录流插入点：密码正确后、2FA 挑战段之后——指纹不在信任期 → 返回 `deviceOtpRequired=true` + captchaTicket（重试免重复算题）→ 前端弹邮箱码输入
+- 对码通过 → 落 30 天信任记录（重复出现则续期）+ 新设备知会邮件 → 直接签发 token
+- **豁免口径**：已启用 2FA 的用户跳过设备层（TOTP 已是强因子，不叠加摩擦）；UA 不可得跳过检测
+- 新端点 `POST /api/auth/device-otp/send`（公开，凭用户名在库校验邮箱，不暴露存在性）；双白名单（SecurityConfig + CsrfFilter）已放行
+- 登录请求透传 User-Agent（AuthController）
+
+### Feature B — 敏感操作二次验证（力气花在刀刃上）
+- 改密码（`/api/auth/change-password`）要求邮箱验证码：已绑邮箱强校验、未绑自动豁免
+- **校验顺序**：邮箱码先于原密码校验——防"原密码爆破"绕过；但错邮箱码不消耗账号锁定
+- 新端点 `POST /api/auth/change-password-otp/send`（需登录）
+- 前端 portal.html 改密流程自动发码 + prompt 输入
+
+### 基础组件 — EmailOtpService
+- 6 位数字码 SecureRandom；10 分钟有效、一次性消费；同 purpose+用户连错 5 次锁 15 分钟；发码 60 秒频控（防邮件轰炸）
+- 复用 `lingyao.notify.email.*` SMTP 配置；enabled=false（dev）时验证码打 WARN 日志
+- 发码成功日志含 code（E2E 钩子，生产可日志屏蔽）
+
+### E2E（2026-09-04 08:00-08:25）
+- D 全链路：新 UA 首登 → deviceOtpRequired ✅ → 错码 DEVICE_OTP_INVALID ✅ → 对码直接登录 ✅ → 同 UA 再登免验直达 ✅ → device_trust 表落库 3 行（IP/UA/30 天过期）✅ → 换新 UA 再次触发挑战（隔离性）✅
+- B：无邮箱码改密被拒 ✅ → 对码改密成功 ✅ → 错码提示（不计账号锁定）✅
+- A：12 次失败后日志出现「暴力破解告警已触发 fails1h≥10」✅；同 IP 节流单封 ✅
+- 测试尾声：admin 密码经 DB 恢复 admin123；终验全链路 PASS
+- 已知限流约束（非缺陷）：change-password 3 次/小时（RateLimitFilter 既有规则），测试脚本需等待窗口
+
+### 版本号
+- application.yml → 2.0.69；script.js?v=2.0.69（index.html、双 static 副本、jar 内 static 全同步）
+
 ## V2.0.68 (2026-09-04 07:30) — 回滚 V2.0.67 管理员强制 2FA（主人试用后拍板「太复杂，登录不方便，不要了」）
 
 ### Reverted
