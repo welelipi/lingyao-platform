@@ -46,6 +46,12 @@ public class LoginResponse {
     /** V2.0.66：2FA 挑战凭证——密码+验证码已验过，重试登录只需 totpCode + 此 ticket（免重复过图形验证码） */
     private String captchaTicket;
 
+    /** V2.0.69 D：true = 新设备登录，需要邮箱验证码（前端弹邮箱码输入，随下次登录带 emailOtpCode + captchaTicket 重试） */
+    private boolean deviceOtpRequired;
+
+    /** V2.0.69 D：DEVICE_OTP_REQUIRED（未携带）/ DEVICE_OTP_INVALID（验证码错误） */
+    private String deviceOtpReason;
+
     @Data
     @Builder
     @NoArgsConstructor

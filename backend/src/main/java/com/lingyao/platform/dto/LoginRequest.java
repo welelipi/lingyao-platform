@@ -34,4 +34,7 @@ public class LoginRequest {
 
     /** V2.0.66：2FA 挑战凭证（mfaRequired 响应返回，重试登录携带它可免重复过图形验证码） */
     private String captchaTicket;
+
+    /** V2.0.69 D：新设备登录邮箱验证码（deviceOtpRequired 响应后重试携带） */
+    private String emailOtpCode;
 }

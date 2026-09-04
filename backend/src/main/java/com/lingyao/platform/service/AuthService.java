@@ -47,8 +47,22 @@ public class AuthService {
     @Autowired private TwoFactorService twoFactorService;
     // V2.0.66：算术图形验证码
     @Autowired private CaptchaService captchaService;
+    // V2.0.69 A+D：异常告警 + 邮箱验证码 + 设备信任
+    @Autowired private SecurityAlertService securityAlertService;
+    @Autowired private EmailOtpService emailOtpService;
+    @Autowired private DeviceTrustRepository deviceTrustRepository;
 
+    /** V2.0.69 D：登录请求上下文（UA 从 controller 传入） */
+    public LoginResponse login(LoginRequest req, String ip, String userAgent) {
+        return doLogin(req, ip, userAgent);
+    }
+
+    /** 兼容旧签名（无 UA 场景） */
     public LoginResponse login(LoginRequest req, String ip) {
+        return doLogin(req, ip, null);
+    }
+
+    private LoginResponse doLogin(LoginRequest req, String ip, String userAgent) {
         // ═══ V2.0.66：图形验证码校验（在锁定检查前——锁定态也要先过验证码，防无脑重试）═══
         // captchaTicket 例外：2FA 挑战重试时密码+验证码已验过，凭 ticket（10 分钟一次性）免重复过验证码
         boolean ticketValid = req.getCaptchaTicket() != null
@@ -59,6 +73,8 @@ public class AuthService {
                     null, req.getUsername(), ip,
                     "/api/auth/login", "POST",
                     "CAPTCHA_INVALID", "图形验证码错误或已过期");
+            // V2.0.69 A：失败也计数（验证码爆破也是暴力破解前兆）
+            securityAlertService.checkBruteForceAsync(ip, req.getUsername());
             throw new IllegalArgumentException("验证码错误或已过期，请点击图片刷新后重试");
         }
 
@@ -92,6 +108,8 @@ public class AuthService {
                     "INVALID_CREDENTIALS",
                     "用户名或密码错误",
                     java.util.Map.of("userExists", user != null, "attemptsRemaining", remaining));
+            // V2.0.69 A：暴力破解检测（同 IP 1h 失败≥10 次 → 管理员邮件，节流 1 封/时）
+            securityAlertService.checkBruteForceAsync(ip, req.getUsername());
             // Bug-09：剩余尝试次数提示
             throw new IllegalArgumentException("用户名或密码错误" + (remaining < 5 ? "，剩余尝试次数: " + remaining : ""));
         }
@@ -139,6 +157,48 @@ public class AuthService {
                 challenge.setCaptchaTicket(captchaService.issueTicket(user.getUsername()));
                 return challenge;   // HTTP 200 + mfa_required=true（前端弹验证码输入）
             }
+        }
+
+        // ═══ V2.0.69 D：新设备/异地登录邮箱码挑战（密码正确后、成功签发前）═══
+        // 口径：设备指纹 = SHA-256(userId|UA) 前 32 hex；指纹不在信任期 → 要求邮箱码；
+        // 验证通过 → 落 30 天信任记录 + 给用户发知会邮件；2FA 用户跳过本层（已有 TOTP 强因子，不再叠加摩擦）
+        String deviceFp = computeDeviceFp(user.getId(), userAgent);
+        boolean trustedDevice = deviceFp != null
+                && deviceTrustRepository.findByUserIdAndDeviceFp(user.getId(), deviceFp)
+                    .map(dt -> dt.getExpiresAt().isAfter(LocalDateTime.now()))
+                    .orElse(false);
+        if (!trustedDevice && deviceFp != null && !twoFactorService.isEnabled(user.getId())) {
+            String emailCode = req.getEmailOtpCode();
+            boolean emailOk = emailCode != null && !emailCode.isBlank()
+                    && emailOtpService.verifyOtp(EmailOtpService.PURPOSE_DEVICE_LOGIN, user.getUsername(), emailCode) == null;
+            if (!emailOk) {
+                boolean missing = (emailCode == null || emailCode.isBlank());
+                authAuditService.recordFailure(
+                        AuthAuditEvent.EventType.LOGIN_FAIL,
+                        user.getId(), user.getUsername(), ip,
+                        "/api/auth/login", "POST",
+                        "DEVICE_OTP_" + (missing ? "REQUIRED" : "INVALID"),
+                        missing ? "新设备登录，需要邮箱验证码" : "新设备登录邮箱验证码错误");
+                LoginResponse challenge = new LoginResponse();
+                challenge.setDeviceOtpRequired(true);
+                challenge.setDeviceOtpReason(missing ? "DEVICE_OTP_REQUIRED" : "DEVICE_OTP_INVALID");
+                // 复用 captchaTicket：密码+图形验证码已验过，重试免重复算题
+                challenge.setCaptchaTicket(captchaService.issueTicket(user.getUsername()));
+                return challenge;   // HTTP 200 + deviceOtpRequired=true（前端弹邮箱码输入）
+            }
+            // 验证通过 → 落 30 天信任记录（已存在则续期）+ 知会邮件
+            DeviceTrust trust = deviceTrustRepository.findByUserIdAndDeviceFp(user.getId(), deviceFp).orElse(null);
+            if (trust == null) {
+                trust = new DeviceTrust();
+                trust.setUserId(user.getId());
+                trust.setDeviceFp(deviceFp);
+                trust.setTrustedIp(ip);
+                trust.setUserAgentSummary(userAgent == null ? "-"
+                        : (userAgent.length() > 128 ? userAgent.substring(0, 128) : userAgent));
+            }
+            trust.setExpiresAt(LocalDateTime.now().plusDays(30));
+            deviceTrustRepository.save(trust);
+            securityAlertService.notifyNewDeviceLoginAsync(user.getId(), ip, userAgent);
         }
 
         // 成功清零
@@ -272,17 +332,56 @@ public class AuthService {
     }
 
     /**
+     * V2.0.69：OTP 场景按用户名查用户（返回实体供取 email；不存在返回 null）
+     * 仅返回 ACTIVE 用户——停用账号不发码
+     */
+    public SysUser findByUsernameForOtp(String username) {
+        return userRepo.findByUsername(username)
+                .filter(u -> u.getStatus() == SysUser.UserStatus.ACTIVE)
+                .orElse(null);
+    }
+
+    /**
+     * V2.0.69 D：设备指纹 = SHA-256(userId|User-Agent) 前 32 hex；UA 不可得返回 null（跳过设备检测）
+     */
+    private String computeDeviceFp(Long userId, String userAgent) {
+        if (userAgent == null || userAgent.isBlank()) return null;
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest((userId + "|" + userAgent).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 16; i++) sb.append(String.format("%02x", hash[i]));
+            return sb.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * P0-A：修改当前用户密码
      * @param userId       当前用户 ID
      * @param oldPassword  原密码（必须正确，否则抛 IllegalArgumentException）
      * @param newPassword  新密码（≥ 8 位，且不能与用户名相同）
      */
     public void changePassword(Long userId, String oldPassword, String newPassword) {
+        changePassword(userId, oldPassword, newPassword, null);
+    }
+
+    /**
+     * V2.0.69 B 重载：改密码 + 敏感操作邮箱码二次验证
+     * @param emailOtpCode 邮箱验证码；用户已绑定邮箱时必填（verifyOtp 失败抛错），未绑邮箱自动豁免
+     */
+    public void changePassword(Long userId, String oldPassword, String newPassword, String emailOtpCode) {
         if (newPassword == null || newPassword.length() < 8) {
             throw new IllegalArgumentException("新密码长度至少 8 位");
         }
         SysUser user = userRepo.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在: " + userId));
+        // V2.0.69 B：敏感操作二次验证（先于原密码校验——防原密码爆破时绕过邮箱码；但错邮箱码不消耗原密码尝试）
+        if (user.getEmail() != null && !user.getEmail().isBlank()) {
+            String err = emailOtpService.verifyOtp(EmailOtpService.PURPOSE_CHANGE_PASSWORD, user.getUsername(), emailOtpCode);
+            if (err != null) throw new IllegalArgumentException("邮箱验证码：" + err);
+        }
         if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
             throw new IllegalArgumentException("原密码错误");
         }

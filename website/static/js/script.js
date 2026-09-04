@@ -503,6 +503,50 @@
           loadLoginCaptcha();
         }
         // V2.0.65：2FA challenge —— 密码正确但需要验证码（TOTP 6 位或备份码，即逃生通道）
+        // V2.0.69 D：新设备登录 —— 需要邮箱验证码（先发码再挑战）
+        if (payload && payload.deviceOtpRequired) {
+          const uname = fd.get('username');
+          const tip = payload.deviceOtpReason === 'DEVICE_OTP_REQUIRED'
+            ? '检测到新设备登录，我们已向该账号绑定邮箱发送 6 位验证码'
+            : '邮箱验证码错误，请重试';
+          // 首次进入挑战 → 自动发码（INVALID 重试不重发，用户手点重发）
+          if (payload.deviceOtpReason === 'DEVICE_OTP_REQUIRED') {
+            const rs = await fetch(API_BASE + '/api/auth/device-otp/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: uname })
+            });
+            const js = await rs.json().catch(() => ({}));
+            showToast(js.message || (js.data && js.data.message) || '验证码发送结果请查收邮箱', 'info');
+          }
+          const code = prompt(`📧 ${tip}\n\n请输入邮箱中的 6 位验证码（30 天内同设备免验证）：`);
+          if (!code) {
+            showToast('已取消登录', 'error');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            return;
+          }
+          submitBtn.innerHTML = '验证中...';
+          const r2 = await fetch(API_BASE + '/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: uname,
+              password: fd.get('password'),
+              captchaTicket: payload.captchaTicket || '',
+              emailOtpCode: code.trim()
+            })
+          });
+          const j2 = await r2.json().catch(() => ({}));
+          const p2 = (j2.code === 0 && j2.data && !j2.data.deviceOtpRequired) ? j2.data : null;
+          if (!p2) {
+            showToast((j2.data && j2.data.deviceOtpRequired) ? '邮箱验证码错误' : (j2.message || '邮箱验证失败'), 'error');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            return;
+          }
+          Object.assign(payload, p2);
+        }
         if (payload && payload.mfaRequired) {
           const tip = payload.mfaReason === 'MFA_REQUIRED'
             ? '该账号已启用两步验证'
@@ -527,7 +571,7 @@
             })
           });
           const j2 = await r2.json().catch(() => ({}));
-          const p2 = (j2.code === 0 && j2.data && !j2.data.mfaRequired) ? j2.data : null;
+          const p2 = (j2.code === 0 && j2.data && !j2.data.mfaRequired && !j2.data.deviceOtpRequired) ? j2.data : null;
           if (!p2) {
             showToast((j2.data && j2.data.mfaRequired) ? '2FA 验证码错误' : (j2.message || '2FA 验证失败'), 'error');
             if (/验证码错误或已过期/.test(j2.message || '')) loadLoginCaptcha();   // V2.0.66：图形验证码过期自动刷新

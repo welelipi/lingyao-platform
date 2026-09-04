@@ -8,6 +8,7 @@ import com.lingyao.platform.security.JwtAuthFilter;
 import com.lingyao.platform.security.JwtUtil;
 import com.lingyao.platform.service.AuthService;
 import com.lingyao.platform.service.CaptchaService;
+import com.lingyao.platform.service.EmailOtpService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -27,6 +28,10 @@ public class AuthController {
     @Autowired
     private CaptchaService captchaService;
 
+    // V2.0.69 A+D+B：邮箱验证码服务
+    @Autowired
+    private EmailOtpService emailOtpService;
+
     // V2.0.20 P1 阶段 A：解析 token 拿 jti
     @Autowired
     private JwtUtil jwtUtil;
@@ -40,11 +45,42 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest req, HttpServletRequest httpReq) {
         try {
-            LoginResponse data = authService.login(req, httpReq.getRemoteAddr());
+            // V2.0.69 D：透传 User-Agent（设备指纹用）
+            LoginResponse data = authService.login(req, httpReq.getRemoteAddr(), httpReq.getHeader("User-Agent"));
             return ApiResponse.ok(data.isMustChangePassword() ? "登录成功，请修改初始密码" : "登录成功", data);
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());
         }
+    }
+
+    // ═══════════════════════ V2.0.69 A+D+B：邮箱验证码三端点 ═══════════════════════
+
+    /**
+     * D：发送新设备登录验证码（登录页弹窗调用，公开端点——凭用户名+邮箱在库校验，不暴露是否存在）
+     */
+    @PostMapping("/device-otp/send")
+    public ApiResponse<Map<String, Object>> sendDeviceOtp(@RequestBody Map<String, String> body) {
+        String username = body.get("username");
+        if (username == null || username.isBlank()) return ApiResponse.fail("用户名不能为空");
+        var user = authService.findByUsernameForOtp(username);
+        if (user == null) return ApiResponse.ok("如果该账号已绑定邮箱，验证码将发送至邮箱", Map.of("ok", true));
+        var result = emailOtpService.sendOtp(EmailOtpService.PURPOSE_DEVICE_LOGIN, username, user.getEmail());
+        if (Boolean.TRUE.equals(result.get("ok"))) return ApiResponse.ok((String) result.get("message"), result);
+        return ApiResponse.fail((String) result.get("message"));
+    }
+
+    /**
+     * B：发送改密码验证码（需已登录——改密本身是登录后操作）
+     */
+    @PostMapping("/change-password-otp/send")
+    public ApiResponse<Map<String, Object>> sendChangePasswordOtp() {
+        CurrentUser cu = JwtAuthFilter.getCurrentUser();
+        if (cu == null || cu.getUserId() == null) return ApiResponse.fail(401, "请先登录");
+        var user = authService.findByUsernameForOtp(cu.getUsername());
+        if (user == null) return ApiResponse.fail("用户不存在");
+        var result = emailOtpService.sendOtp(EmailOtpService.PURPOSE_CHANGE_PASSWORD, cu.getUsername(), user.getEmail());
+        if (Boolean.TRUE.equals(result.get("ok"))) return ApiResponse.ok((String) result.get("message"), result);
+        return ApiResponse.fail((String) result.get("message"));
     }
 
     /**
@@ -77,7 +113,8 @@ public class AuthController {
             return ApiResponse.fail(401, "请先登录");
         }
         try {
-            authService.changePassword(cu.getUserId(), oldPassword, newPassword);
+            // V2.0.69 B：携带邮箱验证码（已绑邮箱用户必填，后端强校验）
+            authService.changePassword(cu.getUserId(), oldPassword, newPassword, body.get("emailOtpCode"));
             return ApiResponse.ok("密码修改成功，下次登录请使用新密码", null);
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());

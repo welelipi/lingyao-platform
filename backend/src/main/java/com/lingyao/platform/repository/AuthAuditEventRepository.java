@@ -83,6 +83,11 @@ public interface AuthAuditEventRepository extends JpaRepository<AuthAuditEvent, 
     /** V2.0.61：近 N 时间失败事件总数（跨类型，KPI 用） */
     long countByCreatedAtAfterAndSuccessFalse(LocalDateTime since);
 
+    /** V2.0.69 A：同 IP 近 1 小时登录失败数（暴力破解告警阈值判断，仅统计失败事件） */
+    @Query("SELECT COUNT(e) FROM AuthAuditEvent e " +
+           "WHERE e.ipAddress = :ip AND e.success = false AND e.createdAt >= :since")
+    long countRecentFailuresByIp(@Param("ip") String ip, @Param("since") LocalDateTime since);
+
     // ═══════════════════════ V2.0.61 安全审计可视化 ═══════════════════════
 
     /**

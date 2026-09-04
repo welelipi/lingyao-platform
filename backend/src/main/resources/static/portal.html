@@ -1855,6 +1855,48 @@
           return;
         }
         const payload = data.data || {};
+        // V2.0.69 D：新设备登录 —— 需要邮箱验证码（先发码再挑战）
+        if (payload.deviceOtpRequired) {
+          const tip = payload.deviceOtpReason === 'DEVICE_OTP_REQUIRED'
+            ? '检测到新设备登录，我们已向该账号绑定邮箱发送 6 位验证码'
+            : '邮箱验证码错误，请重试';
+          if (payload.deviceOtpReason === 'DEVICE_OTP_REQUIRED') {
+            const rs = await fetch(`${API_BASE}/api/auth/device-otp/send`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username }),
+              credentials: 'include',
+            });
+            const js = await rs.json().catch(() => ({}));
+            err.textContent = js.message || (js.data && js.data.message) || '验证码已发送（请查收邮箱）';
+          }
+          const code = prompt(`📧 ${tip}\n\n请输入邮箱中的 6 位验证码（30 天内同设备免验证）：`);
+          if (!code) {
+            err.textContent = '已取消登录';
+            btn.disabled = false;
+            btn.textContent = '登录控制台';
+            return;
+          }
+          btn.textContent = '验证中...';
+          const r2 = await fetch(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username, password,
+              captchaTicket: payload.captchaTicket || '',
+              emailOtpCode: code.trim()
+            }),
+            credentials: 'include',
+          });
+          const d2 = await r2.json().catch(() => ({}));
+          if (!r2.ok || d2.code !== 0 || !d2.data || d2.data.deviceOtpRequired) {
+            err.textContent = d2.data && d2.data.deviceOtpRequired ? '邮箱验证码错误' : (d2.message || '邮箱验证失败');
+            btn.disabled = false;
+            btn.textContent = '登录控制台';
+            return;
+          }
+          Object.assign(payload, d2.data);
+        }
         // V2.0.42：2FA challenge —— 密码正确但需要验证码
         if (payload.mfaRequired) {
           const tip = payload.mfaReason === 'MFA_REQUIRED'
@@ -1879,7 +1921,7 @@
             credentials: 'include',
           });
           const d2 = await r2.json().catch(() => ({}));
-          if (!r2.ok || d2.code !== 0 || !d2.data || d2.data.mfaRequired) {
+          if (!r2.ok || d2.code !== 0 || !d2.data || d2.data.mfaRequired || d2.data.deviceOtpRequired) {
             err.textContent = d2.data && d2.data.mfaRequired ? '2FA 验证码错误' : (d2.message || '2FA 验证失败');
             btn.disabled = false;
             btn.textContent = '登录控制台';
@@ -1947,6 +1989,33 @@
         btn.textContent = '修改密码并继续';
         return;
       }
+      // V2.0.69 B：敏感操作二次验证——先发邮箱验证码再提交（用户已绑邮箱时后端强校验）
+      let emailOtpCode = null;
+      try {
+        const rs = await fetch(`${API_BASE}/api/auth/change-password-otp/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getToken(),
+            ...(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
+              ? { 'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)[1]) } : {}),
+          },
+          credentials: 'include',
+        });
+        const js = await rs.json().catch(() => ({}));
+        if (rs.ok && js.code === 0) {
+          const input = prompt('📧 为保护账号安全，请输入发送至绑定邮箱的 6 位验证码：\n（' + (js.message || js.data?.message || '验证码已发送') + '）');
+          if (!input) {
+            err.textContent = '已取消修改';
+            btn.disabled = false;
+            btn.textContent = '修改密码并继续';
+            return;
+          }
+          emailOtpCode = input.trim();
+        }
+        // 发码失败且非"未绑邮箱"提示 → 让用户看到原因但允许继续尝试（后端最终强校验）
+        // 未绑邮箱用户后端自动豁免，无需前端拦截
+      } catch (_) { /* 网络异常时仍提交，由后端校验兜底 */ }
       try {
         const res = await fetch(`${API_BASE}/api/auth/change-password`, {
           method: 'POST',
@@ -1957,7 +2026,7 @@
             ...(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
               ? { 'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)[1]) } : {}),
           },
-          body: JSON.stringify({ oldPassword, newPassword }),
+          body: JSON.stringify({ oldPassword, newPassword, emailOtpCode }),
           credentials: 'include',
             });
         const data = await res.json().catch(() => ({}));

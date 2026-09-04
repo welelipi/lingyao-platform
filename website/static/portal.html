@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>凌瑶智数 · 产品门户</title>
+  <meta name="app-version" content="V2.0.66">
+  <script>console.log('%c portal.html V2.0.66 · 图形验证码 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* ── Portal 专属样式（复用凌瑶 CSS 变量） ─────── */
+    .portal-container {
+      min-height: 100vh;
+      padding: 120px 32px 80px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .portal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 48px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .portal-greeting h1 {
+      font-size: 36px;
+      font-weight: 700;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .portal-greeting p {
+      color: var(--text-dim);
+      font-size: 16px;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 20px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(20px);
+    }
+
+    .user-badge img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+    }
+
+    .avatar-fallback {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--gradient-primary);
+      color: var(--primary-deep);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      border: 2px solid var(--accent);
+      flex-shrink: 0;
+    }
+
+    .user-badge .user-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 140px;
+    }
+
+    .user-badge .user-line-1 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-badge .name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-bright);
+    }
+
+    .user-badge .company {
+      font-size: 11px;
+      padding: 1px 6px;
+      background: rgba(0, 212, 255, 0.1);
+      color: var(--accent);
+      border-radius: 4px;
+      border: 1px solid rgba(0, 212, 255, 0.25);
+    }
+
+    .user-badge .user-line-2 {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .user-badge .role-tag {
+      font-size: 11px;
+      padding: 1px 8px;
+      background: rgba(123, 97, 255, 0.12);
+      color: #a59bff;
+      border-radius: 4px;
+      border: 1px solid rgba(123, 97, 255, 0.25);
+    }
+
+    .user-badge .user-line-3 {
+      display: flex;
+      align-items: center;
+    }
+
+    .user-badge .last-login {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .user-badge .logout {
+      margin-left: 12px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: var(--transition);
+    }
+
+    .user-badge .logout:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── 反馈入口悬浮按钮 ─────── */
+    .feedback-fab {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      padding: 12px 20px;
+      background: var(--gradient-primary);
+      color: var(--primary-deep);
+      border: none;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0, 212, 255, 0.35);
+      z-index: 999;
+      transition: var(--transition);
+    }
+    .feedback-fab:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0, 212, 255, 0.5);
+    }
+
+    /* ── 反馈 Modal ─────── */
+    .feedback-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 31, 61, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .feedback-content {
+      width: 100%;
+      max-width: 480px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      backdrop-filter: blur(24px);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .feedback-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .feedback-header h3 {
+      font-size: 22px;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 28px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+    }
+    .close-btn:hover { color: var(--accent); }
+    .feedback-content select,
+    .feedback-content textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--glass-light);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-bright);
+      font-size: 14px;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+    .feedback-content select:focus,
+    .feedback-content textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+    }
+    .feedback-content textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    /* ── 首次登录 walkthrough ─────── */
+    .walkthrough-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 31, 61, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 1100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .walkthrough-content {
+      width: 100%;
+      max-width: 560px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 48px 40px;
+      backdrop-filter: blur(24px);
+      text-align: center;
+    }
+    .walkthrough-step .step-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+    .walkthrough-step h2 {
+      font-size: 28px;
+      font-weight: 700;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+    .walkthrough-step p {
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .walkthrough-step .step-tip {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+      padding: 12px 16px;
+      background: rgba(0, 212, 255, 0.06);
+      border-left: 2px solid var(--accent);
+      border-radius: 6px;
+      text-align: left;
+    }
+    .walkthrough-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .walkthrough-step .btn-secondary {
+      padding: 12px 24px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 14px;
+      transition: var(--transition);
+    }
+    .walkthrough-step .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .walkthrough-step .btn-primary {
+      padding: 12px 24px;
+      background: var(--gradient-primary);
+      border: none;
+      color: var(--primary-deep);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      transition: var(--transition);
+    }
+    .walkthrough-step .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-glow);
+    }
+    .walkthrough-step .step-dots {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 24px;
+    }
+    .walkthrough-step .step-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: var(--transition);
+    }
+    .walkthrough-step .step-dot.active {
+      background: var(--accent);
+      width: 24px;
+      border-radius: 4px;
+    }
+    .walkthrough-step .skip-link {
+      display: block;
+      margin-top: 16px;
+      color: var(--text-dim);
+      font-size: 13px;
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+    .walkthrough-step .skip-link:hover { color: var(--accent); }
+
+    /* ── 模块卡片网格 ─────── */
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 32px;
+    }
+
+    /* ── V2.0.36 工作台：KPI 行 ─────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .kpi-card {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      backdrop-filter: blur(20px);
+    }
+    .kpi-card .kpi-label { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+    .kpi-card .kpi-value { font-size: 26px; font-weight: 700; color: var(--text-bright); }
+    .kpi-card .kpi-sub { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .kpi-card.warning .kpi-value { color: #F5A623; }
+    .kpi-card.danger .kpi-value { color: #E24B4A; }
+    .kpi-card.clickable { cursor: pointer; transition: var(--transition); }
+    .kpi-card.clickable:hover { border-color: var(--border-hover); box-shadow: var(--shadow-glow); }
+
+    /* ── V2.0.36 工作台：产品列表 ─────── */
+    .ws-section-title {
+      font-size: 18px; font-weight: 700; color: var(--text-bright);
+      margin: 32px 0 4px;
+    }
+    .ws-section-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; }
+    .product-list { display: flex; flex-direction: column; gap: 12px; }
+    .product-row {
+      display: flex; align-items: center; gap: 16px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      backdrop-filter: blur(20px);
+      transition: var(--transition);
+      flex-wrap: wrap;
+    }
+    .product-row:hover { border-color: var(--border-hover); }
+    .product-row.locked { opacity: 0.6; }
+    .product-row .pr-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: rgba(0, 212, 255, 0.08); border: 1px solid rgba(0, 212, 255, 0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 700; color: var(--accent); flex-shrink: 0;
+    }
+    .product-row .pr-main { flex: 1; min-width: 200px; }
+    .product-row .pr-name { font-size: 15px; font-weight: 600; color: var(--text-bright); }
+    .product-row .pr-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .product-row .pr-status {
+      font-size: 11px; padding: 3px 10px; border-radius: 12px; white-space: nowrap;
+      border: 1px solid rgba(99,153,34,0.4); color: #9be26a; background: rgba(99,153,34,0.1);
+    }
+    .product-row.locked .pr-status {
+      border-color: rgba(95,94,90,0.5); color: var(--text-dim); background: rgba(95,94,90,0.12);
+    }
+    .product-row .pr-actions { display: flex; gap: 8px; align-items: center; }
+    .pr-btn {
+      padding: 7px 14px; border-radius: 8px; font-size: 12.5px; cursor: pointer;
+      border: 1px solid var(--border); background: transparent; color: var(--text);
+      transition: var(--transition); white-space: nowrap;
+    }
+    .pr-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .pr-btn.primary { background: var(--accent); border-color: var(--accent); color: #06283D; font-weight: 600; }
+    .pr-btn.primary:hover { filter: brightness(1.1); color: #06283D; }
+    .pr-btn.success { border-color: rgba(99,153,34,0.5); color: #9be26a; }
+
+    /* ── V2.0.36 工作台：管理 Tab 区 ─────── */
+    .ws-tabs {
+      display: flex; gap: 4px; margin: 36px 0 0;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .ws-tab {
+      padding: 12px 18px; background: transparent; border: none;
+      color: var(--text-dim); cursor: pointer; font-size: 14px;
+      border-bottom: 2px solid transparent; transition: var(--transition);
+    }
+    .ws-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .ws-tab .ws-badge {
+      display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px;
+      border-radius: 9px; background: #E24B4A; color: #fff;
+      font-size: 10.5px; font-weight: 600; line-height: 18px; text-align: center;
+    }
+    .ws-panel { display: none; padding-top: 20px; }
+    .ws-panel.active { display: block; }
+    .ws-panel .ws-loading { color: var(--text-dim); font-size: 13px; padding: 24px 0; text-align: center; }
+    .ws-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ws-table th {
+      text-align: left; padding: 10px 12px; color: var(--text-dim);
+      font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border);
+    }
+    .ws-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
+    .ws-table tr:hover td { background: rgba(0, 212, 255, 0.03); }
+    .ws-tag { font-size: 11px; padding: 2px 9px; border-radius: 10px; white-space: nowrap; }
+    .ws-tag.SUPER_ADMIN { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.3); }
+    .ws-tag.OPERATOR { background: rgba(99,153,34,0.12); color: #9be26a; border: 1px solid rgba(99,153,34,0.4); }
+    .ws-tag.VIEWER { background: rgba(95,94,90,0.15); color: var(--text-dim); border: 1px solid rgba(95,94,90,0.4); }
+    .ws-tag.ACTIVE { background: rgba(99,153,34,0.12); color: #9be26a; }
+    .ws-tag.REMOVED, .ws-tag.SUSPENDED { background: rgba(226,75,74,0.12); color: #E24B4A; }
+    .ws-tag.PENDING { background: rgba(245,166,35,0.12); color: #F5A623; border: 1px solid rgba(245,166,35,0.4); }
+    .ws-tag.APPROVED { background: rgba(99,153,34,0.12); color: #9be26a; }
+    .ws-tag.REJECTED { background: rgba(226,75,74,0.12); color: #E24B4A; }
+    .ws-mini-btn {
+      padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
+      border: 1px solid var(--border); background: transparent; color: var(--text);
+      transition: var(--transition); margin-right: 6px;
+    }
+    .ws-mini-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .ws-mini-btn.warn { border-color: rgba(226,75,74,0.5); color: #E24B4A; }
+    .ws-mini-btn.warn:hover { border-color: #E24B4A; }
+    .ws-empty { text-align: center; padding: 32px; color: var(--text-dim); font-size: 13px; }
+    .ws-sso-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    .ws-sso-card {
+      background: var(--glass-light, rgba(255,255,255,0.03));
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 18px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .ws-sso-card .sso-head { display: flex; justify-content: space-between; align-items: center; }
+    .ws-sso-card .sso-name { font-size: 14.5px; font-weight: 600; color: var(--text-bright); }
+    .ws-sso-card .sso-desc { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+
+    /* ── V2.0.36 SSO Provider 配置弹窗（复用 modal 体系）─────── */
+    .ws-modal-form label { display: block; font-size: 12px; color: var(--text-dim); margin: 14px 0 6px; }
+    .ws-modal-form input, .ws-modal-form select {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      background: var(--glass-light); border: 1px solid var(--border);
+      color: var(--text-bright); font-size: 14px; box-sizing: border-box;
+    }
+    .ws-modal-form input:focus, .ws-modal-form select:focus { outline: none; border-color: var(--accent); }
+    .ws-modal-form .ws-form-hint { font-size: 11.5px; color: var(--text-dim); margin-top: 4px; }
+
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 32px;
+    }
+
+    .module-card {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px 28px;
+      backdrop-filter: blur(24px);
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .module-card.active {
+      cursor: pointer;
+    }
+
+    .module-card.active:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-hover);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .module-card.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--gradient-primary);
+    }
+
+    .module-card.coming-soon {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .module-card.coming-soon::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--text-dim);
+      opacity: 0.5;
+    }
+
+    .module-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .module-card h3 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-bright);
+      margin-bottom: 6px;
+    }
+
+    .module-card .subtitle {
+      font-size: 14px;
+      color: var(--accent);
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .module-card .description {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .module-status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .module-status.active {
+      background: rgba(0, 212, 255, 0.15);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    .module-status.coming-soon {
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    .module-card .enter-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 12px;
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .module-card.active:hover .enter-link {
+      opacity: 1;
+      transform: translateX(4px);
+    }
+
+    /* V2.0.19 W6 阶段 2：复制链接按钮（超管专属） */
+    .module-card .copy-link-btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(95, 153, 255, 0.1);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .module-card .copy-link-btn:hover {
+      background: var(--accent);
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    /* ── 登录表单 ─────── */
+    .login-container {
+      max-width: 420px;
+      margin: 140px auto 0;
+      padding: 40px 36px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(24px);
+    }
+
+    .login-container h2 {
+      font-size: 28px;
+      font-weight: 700;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .login-container .hint {
+      color: var(--text-dim);
+      text-align: center;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      color: var(--text);
+      font-size: 13px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--glass-light);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-bright);
+      font-size: 14px;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--gradient-primary);
+      border: none;
+      border-radius: var(--radius);
+      color: var(--primary-deep);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      margin-top: 12px;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .login-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .error-msg {
+      color: #ff6b6b;
+      font-size: 13px;
+      text-align: center;
+      margin-top: 12px;
+      min-height: 18px;
+    }
+
+    .back-home {
+      text-align: center;
+      margin-top: 24px;
+    }
+
+    .back-home a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 13px;
+      transition: var(--transition);
+    }
+
+    .back-home a:hover {
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="scroll-progress" id="scrollProgress"></div>
+
+  <!-- 未登录：显示登录表单 -->
+  <div id="loginView" class="login-container" style="display:none;">
+    <h2>凌瑶智数 · 控制台</h2>
+    <p class="hint">登录后选择产品模块进入</p>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">用户名</label>
+        <input type="text" id="username" placeholder="GEOadmin" required autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="password">密码</label>
+        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <!-- V2.0.66：图形验证码 -->
+      <div class="form-group">
+        <label for="captchaAnswer">验证码</label>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="text" id="captchaAnswer" placeholder="计算结果" required autocomplete="off"
+                 style="flex:1;min-width:0;">
+          <div id="captchaImg" title="点击刷新验证码"
+               style="flex:0 0 130px;height:44px;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;background:#f5f7fa;cursor:pointer;"></div>
+        </div>
+      </div>
+      <button type="submit" class="login-btn" id="loginBtn">登录控制台</button>
+      <div class="error-msg" id="errorMsg"></div>
+    </form>
+    <div class="back-home">
+      <a href="/">← 返回凌瑶智数官网</a>
+    </div>
+  </div>
+
+  <!-- 首次登录修改初始密码 -->
+  <div id="changePasswordView" class="login-container" style="display:none;">
+    <h2>请修改初始密码</h2>
+    <p class="hint">为了您的账号安全，请立即修改初始密码后再使用系统</p>
+    <form id="changePasswordForm">
+      <div class="form-group">
+        <label for="oldPassword">当前密码（初始密码）</label>
+        <input type="password" id="oldPassword" required autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label for="newPassword">新密码</label>
+        <input type="password" id="newPassword" required minlength="8" autocomplete="new-password">
+        <span class="help">≥ 8 位</span>
+      </div>
+      <div class="form-group">
+        <label for="confirmPassword">确认新密码</label>
+        <input type="password" id="confirmPassword" required minlength="8" autocomplete="new-password">
+      </div>
+      <button type="submit" class="login-btn" id="changePasswordBtn">修改密码并继续</button>
+      <div class="error-msg" id="changePasswordError"></div>
+    </form>
+  </div>
+
+  <!-- 已登录：显示模块选择门户 -->
+  <div id="portalView" class="portal-container" style="display:none;">
+    <div class="portal-header">
+      <div class="portal-greeting">
+        <h1 id="greetingTitle">晚上好，主理人</h1>
+        <p>您已登录凌瑶智数主控台，请选择需要进入的产品模块</p>
+      </div>
+      <div class="user-badge">
+        <img id="userAvatar" src="" alt="" onerror="this.onerror=null;this.style.display='none';document.getElementById('avatarFallback').style.display='flex';">
+        <div id="avatarFallback" class="avatar-fallback" style="display:none;">👤</div>
+        <div class="user-info">
+          <div class="user-line-1">
+            <span class="name" id="userName">用户</span>
+            <span class="company" id="userCompany"></span>
+          </div>
+          <div class="user-line-2">
+            <span class="role-tag" id="userRole">-</span>
+          </div>
+          <div class="user-line-3">
+            <span class="last-login" id="lastLogin">🕐 首次登录</span>
+          </div>
+        </div>
+        <button class="logout" id="logoutBtn">退出</button>
+        <button class="logout" id="twoFaBtn" style="display:none;">🔐 两步验证</button>
+        <button class="logout" id="adminBtn" style="display:none;border-color:var(--accent);color:var(--accent);">⚙ 管理后台</button>
+      </div>
+    </div>
+
+    <!-- ═══ V2.0.36 工作台：公司 KPI（公司超管可见）═══ -->
+    <div class="kpi-row" id="kpiRow" style="display:none;">
+      <div class="kpi-card">
+        <div class="kpi-label">公司成员</div>
+        <div class="kpi-value" id="kpiUsers">-</div>
+        <div class="kpi-sub" id="kpiUsersSub">-</div>
+      </div>
+      <div class="kpi-card" id="kpiLicenseCard">
+        <div class="kpi-label">许可证剩余</div>
+        <div class="kpi-value" id="kpiLicense">-</div>
+        <div class="kpi-sub" id="kpiLicenseSub">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">已开通产品</div>
+        <div class="kpi-value" id="kpiProducts">-</div>
+        <div class="kpi-sub" id="kpiProductsSub">-</div>
+      </div>
+    </div>
+
+    <!-- ═══ V2.0.36 工作台：产品列表（所有人可见，替代原卡片网格）═══ -->
+    <h2 class="ws-section-title">产品列表</h2>
+    <p class="ws-section-sub" id="productListSub">点击「进入」直接使用；未开通的产品请联系公司超管开通</p>
+    <div class="product-list" id="productList">
+      <div class="ws-loading">加载产品中…</div>
+    </div>
+
+    <!-- ═══ V2.0.36 工作台：管理 Tab（公司超管可见 · V2.0.38 审批 Tab 下线）═══ -->
+    <div id="wsAdminArea" style="display:none;">
+      <div class="ws-tabs" id="wsTabs">
+        <button class="ws-tab" data-tab="users">用户管理</button>
+        <button class="ws-tab" data-tab="grants">产品授权</button>
+        <button class="ws-tab" data-tab="sso">SSO 配置</button>
+      </div>
+      <div class="ws-panel" id="ws-panel-users"><div class="ws-loading">加载中…</div></div>
+      <div class="ws-panel" id="ws-panel-grants"><div class="ws-loading">加载中…</div></div>
+      <div class="ws-panel" id="ws-panel-sso"><div class="ws-loading">加载中…</div></div>
+    </div>
+
+    <!-- 保留旧容器（隐藏）：兼容历史代码引用 -->
+    <div class="module-grid" id="moduleGrid" style="display:none;"></div>
+  </div>
+
+  <!-- V2.0.36 SSO Provider 配置弹窗 -->
+  <div id="wsSsoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;align-items:center;justify-content:center;">
+    <div style="background:#0E1E33;border:1px solid var(--border);border-radius:14px;padding:28px 32px;max-width:460px;width:90%;max-height:85vh;overflow:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <h3 id="wsSsoModalTitle" style="font-size:17px;color:var(--text-bright);">配置</h3>
+        <button onclick="wsSsoModalClose()" style="background:none;border:none;color:var(--text-dim);font-size:24px;cursor:pointer;">&times;</button>
+      </div>
+      <p id="wsSsoModalDesc" style="font-size:12px;color:var(--text-dim);margin-bottom:8px;"></p>
+      <div class="ws-modal-form">
+        <label>App ID / Client ID *</label>
+        <input id="wsSsoAppId" placeholder="开放平台发放的 App ID">
+        <label>App Secret / Client Secret</label>
+        <input id="wsSsoAppSecret" type="password" placeholder="留空 = 不修改已有 Secret">
+        <div class="ws-form-hint">Secret 加密存储，保存后不再回显</div>
+        <label id="wsSsoBaseUrlLabel" style="display:none;">Base URL（OIDC Issuer 地址）</label>
+        <input id="wsSsoBaseUrl" style="display:none;" placeholder="https://example.com/.well-known/openid-configuration">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="wsSsoEnabled" style="width:auto;"> 启用该登录方式
+        </label>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+          <button class="pr-btn" onclick="wsSsoModalClose()">取消</button>
+          <button class="pr-btn primary" id="wsSsoSaveBtn">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 反馈入口悬浮按钮 -->
+  <button class="feedback-fab" id="feedbackFab" title="我有事说">💡 我有事说</button>
+
+  <!-- 反馈 Modal -->
+  <div class="feedback-modal" id="feedbackModal" style="display:none;">
+    <div class="feedback-content">
+      <div class="feedback-header">
+        <h3>💡 我有事说</h3>
+        <button class="close-btn" id="feedbackClose" aria-label="关闭">×</button>
+      </div>
+      <form id="feedbackForm">
+        <div class="form-group">
+          <label>反馈类型</label>
+          <select id="feedbackType">
+            <option value="bug">🐛 Bug 报告</option>
+            <option value="feature">✨ 功能建议</option>
+            <option value="doc">📚 文档缺失</option>
+            <option value="perf">⚡ 性能问题</option>
+            <option value="other">💬 其他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>标题</label>
+          <input type="text" id="feedbackTitle" maxlength="50" placeholder="一句话描述" required>
+        </div>
+        <div class="form-group">
+          <label>详情</label>
+          <textarea id="feedbackBody" maxlength="500" placeholder="尽可能说明：操作步骤 / 期望行为 / 实际行为" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>联系方式（选填）</label>
+          <input type="text" id="feedbackContact" placeholder="邮箱 / 飞书 / 钉钉，便于回访">
+        </div>
+        <button type="submit" class="login-btn">提交反馈</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 首次登录 walkthrough -->
+  <div class="walkthrough-overlay" id="walkthrough" style="display:none;">
+    <div class="walkthrough-content">
+      <div class="walkthrough-step" id="wt-step-0">
+        <div class="step-icon">👋</div>
+        <h2>欢迎来到凌瑶智数</h2>
+        <p>5 步快速了解主控台的使用方式</p>
+        <div class="step-tip">💡 提示：你也可以随时通过右下角「💡 我有事说」按钮向我们反馈</div>
+        <div class="walkthrough-actions">
+          <button class="btn-secondary" onclick="closeWalkthrough()">跳过</button>
+          <button class="btn-primary" onclick="nextStep(1)">开始 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step" id="wt-step-1" style="display:none;">
+        <div class="step-icon">🅖</div>
+        <h2>第 1 步 · 棱镜-智能GEO监测</h2>
+        <p>监测 8 大 AI 平台对药企品牌的提及、推荐和情感倾向，发现内容缺口</p>
+        <div class="step-tip">💡 如果你是品牌经理，先到这里看看 — 知道 AI 怎么说你，比知道人怎么说更重要</div>
+        <div class="walkthrough-actions">
+          <button class="btn-secondary" onclick="prevStep(0)">← 上一步</button>
+          <button class="btn-primary" onclick="nextStep(2)">下一步 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot"></span>
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step" id="wt-step-2" style="display:none;">
+        <div class="step-icon">🅗</div>
+        <h2>第 2 步 · HPD 皓元-智能医院潜力预测</h2>
+        <p>基于床位数推算 CACS 药品最大销量，WMAPE 精度 6.6%</p>
+        <div class="step-tip">💡 销售代表：拿到一家新医院，先来这里输入床位数，立刻知道能卖多少</div>
+        <div class="walkthrough-actions">
+          <button class="btn-secondary" onclick="prevStep(1)">← 上一步</button>
+          <button class="btn-primary" onclick="nextStep(3)">下一步 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step" id="wt-step-3" style="display:none;">
+        <div class="step-icon">🅐</div>
+        <h2>第 3 步 · 源策-AI 立项 Copilot</h2>
+        <p>面向药物研发立项，提供研发方向智能检索、数据分析与立项评估辅助</p>
+        <div class="step-tip">💡 研发人员：输入目标疾病领域，快速获得研发情报与立项参考</div>
+        <div class="walkthrough-actions">
+          <button class="btn-secondary" onclick="prevStep(2)">← 上一步</button>
+          <button class="btn-primary" onclick="nextStep(4)">下一步 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step" id="wt-step-4" style="display:none;">
+        <div class="step-icon">🅜</div>
+        <h2>第 4 步 · 医呈-智能医学PPT生成智能体</h2>
+        <p>智能医学PPT生成智能体，输入主题一键生成结构完整、排版专业的医学演示文稿</p>
+        <div class="step-tip">💡 医学部/市场部：学术会议、产品宣讲的PPT初稿，几分钟搞定</div>
+        <div class="walkthrough-actions">
+          <button class="btn-secondary" onclick="prevStep(3)">← 上一步</button>
+          <button class="btn-primary" onclick="nextStep(5)">下一步 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step" id="wt-step-5" style="display:none;">
+        <div class="step-icon">🎉</div>
+        <h2>准备好了！</h2>
+        <p>点击下方任意模块卡片开始使用 · 遇到问题随时点右下角「💡 我有事说」</p>
+        <div class="step-tip">📌 你的反馈会直达产品团队，每个反馈都会被认真查看</div>
+        <div class="walkthrough-actions">
+          <button class="btn-primary" onclick="closeWalkthrough()">开始使用 →</button>
+        </div>
+        <div class="step-dots">
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot active"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── 数据层 ─────────────────────────
+    const TOKEN_KEY = 'lingyao_token';
+    const USER_KEY = 'lingyao_user';
+    // V2.0.3: 老 key fallback 列表（ly_token / geo_token 是对外版历史 key，老用户 localStorage 兼容）
+    const TOKEN_KEYS_LEGACY = ['ly_token', 'geo_token'];
+    // 后端 API 基础地址（开发期直连 9091；生产可改为同源 /api）
+    // V2.0.32：必须用 location.hostname 拼接（与页面同 host）！
+    // 之前硬编码 127.0.0.1 导致 localhost 页面 → 127.0.0.1 跨站：
+    // SameSite=Lax 的 XSRF-TOKEN cookie 跨站不携带不落盘 → CsrfFilter 403「cookie 缺失」
+    // 同 host 不同端口 = same-site，cookie 正常落盘携带
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? window.location.protocol + '//' + window.location.hostname + ':9091'
+      : '';  // 空字符串 = 相对路径，走 Nginx 反代（生产 IP / 域名都适用）
+
+    function getToken() {
+      // 优先读新 key
+      const t = localStorage.getItem(TOKEN_KEY);
+      if (t) return t;
+      // V2.0.3: 老 key fallback（读到了自动迁移到新 key，老 key 清除）
+      for (const k of TOKEN_KEYS_LEGACY) {
+        const v = localStorage.getItem(k);
+        if (v) {
+          localStorage.setItem(TOKEN_KEY, v);
+          localStorage.removeItem(k);
+          console.info('[V2.0.3 token migration]', k, '→', TOKEN_KEY);
+          return v;
+        }
+      }
+      return null;
+    }
+    function setToken(token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    }
+    function getUser() {
+      const s = localStorage.getItem(USER_KEY);
+      return s ? JSON.parse(s) : null;
+    }
+    function setUser(user) {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    }
+    function logout() {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      location.reload();
+    }
+
+    // ── 问候语 ─────────────────────────
+    function getGreeting() {
+      const h = new Date().getHours();
+      if (h < 6)  return '凌晨好';
+      if (h < 12) return '早上好';
+      if (h < 14) return '中午好';
+      if (h < 18) return '下午好';
+      return '晚上好';
+    }
+
+    // ── 视图切换 ─────────────────────────
+    function showLogin() {
+      document.getElementById('loginView').style.display = 'block';
+      document.getElementById('portalView').style.display = 'none';
+      document.getElementById('changePasswordView').style.display = 'none';
+    }
+    function showChangePassword() {
+      document.getElementById('loginView').style.display = 'none';
+      document.getElementById('portalView').style.display = 'none';
+      document.getElementById('changePasswordView').style.display = 'block';
+    }
+    function showPortal(user) {
+      document.getElementById('loginView').style.display = 'none';
+      document.getElementById('portalView').style.display = 'block';
+
+      document.getElementById('greetingTitle').textContent =
+        `${getGreeting()}，${user.real_name || user.username}`;
+
+      const avatar = document.getElementById('userAvatar');
+      if (user.avatar_url) avatar.src = user.avatar_url;
+      document.getElementById('userName').textContent = user.real_name || user.username;
+
+      // 公司名（截短显示）
+      const companyEl = document.getElementById('userCompany');
+      if (user.company_name) {
+        const cn = user.company_name.length > 10 ? user.company_name.slice(0, 10) + '…' : user.company_name;
+        companyEl.textContent = cn;
+      } else {
+        companyEl.style.display = 'none';
+      }
+
+      // 角色 tag
+      const roleEl = document.getElementById('userRole');
+      roleEl.textContent =
+        user.role === 'super_admin' ? '平台超管' :
+        user.role === 'senior_operator' ? '高级运营' :
+        user.role === 'data_analyst' ? '数据分析师' :
+        user.role === 'regional_manager' ? '区域经理' :
+        user.role === 'sales_rep' ? '销售代表' : '运营';
+
+      // 上次登录时间（从 localStorage 读上次登录时间戳）
+      const lastLoginEl = document.getElementById('lastLogin');
+      const lastLoginTs = localStorage.getItem('lingyao_last_login');
+      const now = new Date();
+      if (lastLoginTs) {
+        const last = new Date(parseInt(lastLoginTs));
+        const diffMin = Math.round((now - last) / 60000);
+        let rel = '';
+        if (diffMin < 1) rel = '刚刚';
+        else if (diffMin < 60) rel = `${diffMin} 分钟前`;
+        else if (diffMin < 60 * 24) rel = `${Math.round(diffMin / 60)} 小时前`;
+        else rel = `${Math.round(diffMin / 60 / 24)} 天前`;
+        lastLoginEl.textContent = `🕐 上次登录 ${rel}`;
+      } else {
+        lastLoginEl.textContent = '🕐 首次登录，欢迎';
+      }
+      // 存本次登录时间戳
+      localStorage.setItem('lingyao_last_login', String(now.getTime()));
+
+      // 平台超管显示「管理后台」入口（V2.0.36：仅平台超管可见；公司超管功能已内置首页工作台）
+      const adminBtn = document.getElementById('adminBtn');
+      if (adminBtn) {
+        adminBtn.style.display = user.isPlatformAdmin ? 'inline-block' : 'none';
+      }
+
+      // V2.0.42：所有登录用户显示「两步验证」入口
+      const twoFaBtn = document.getElementById('twoFaBtn');
+      if (twoFaBtn) {
+        twoFaBtn.style.display = 'inline-block';
+        twoFaBtn.onclick = open2FaModal;
+      }
+
+      loadWorkspace(user);
+      showWalkthroughIfFirstTime();
+    }
+
+    // ═══ V2.0.42：两步验证弹窗（绑定 / 解绑 / 备份码）═══
+    async function open2FaModal() {
+      const csrf2 = readCookie('XSRF-TOKEN');
+      const authHeaders = { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' };
+      if (csrf2) authHeaders['X-XSRF-TOKEN'] = csrf2;
+      let status;
+      try {
+        const r = await fetch(`${API_BASE}/api/auth/2fa/status`, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+        status = (await r.json()).data || {};
+      } catch (e) { showToast('获取 2FA 状态失败：' + e.message, 'error'); return; }
+
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9998;';
+      const enabled = status.enabled === true;
+
+      overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;max-width:520px;width:92%;padding:28px;font-family:inherit;">
+          <h3 style="margin:0 0 6px;color:#16325C;">🔐 两步验证（TOTP）</h3>
+          <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">状态：<b style="color:${enabled ? '#0F6E56' : '#9ca3af'}">${enabled ? '✅ 已启用' : '未启用'}</b>
+            ${enabled && status.lastUsedAt ? ' · 上次验证 ' + new Date(status.lastUsedAt).toLocaleString('zh-CN') : ''}</p>
+          ${enabled ? `
+            <p style="font-size:13px;color:#374151;line-height:1.7;">关闭两步验证需要输入登录密码确认。</p>
+            <input id="fa2Pwd" type="password" placeholder="登录密码" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:12px;box-sizing:border-box;">
+          ` : `
+            <ol style="font-size:13px;color:#374151;line-height:1.9;padding-left:18px;margin:0 0 14px;">
+              <li>点击「开始绑定」，用 Google / Microsoft Authenticator 扫码</li>
+              <li>输入 App 显示的 6 位验证码完成绑定</li>
+              <li>保存好 8 个备份码（仅显示一次，手机丢失时用于登录）</li>
+            </ol>
+          `}
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+            <button id="fa2Close" style="padding:8px 16px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;font-size:13px;">关闭</button>
+            ${enabled
+              ? '<button id="fa2Disable" style="padding:8px 16px;background:#dc2626;border:1px solid #dc2626;border-radius:6px;cursor:pointer;font-size:13px;color:#fff;">关闭两步验证</button>'
+              : '<button id="fa2Start" style="padding:8px 16px;background:#0F6E56;border:1px solid #0F6E56;border-radius:6px;cursor:pointer;font-size:13px;color:#fff;">开始绑定</button>'}
+          </div>
+          <div id="fa2Body" style="margin-top:14px;"></div>
+        </div>`;
+      document.body.appendChild(overlay);
+      document.getElementById('fa2Close').onclick = () => overlay.remove();
+
+      const bodyEl = document.getElementById('fa2Body');
+      if (!enabled) {
+        document.getElementById('fa2Start').onclick = async () => {
+          try {
+            const r = await fetch(`${API_BASE}/api/auth/2fa/setup`, { method: 'POST', headers: authHeaders, credentials: 'include', body: '{}' });
+            const d = await r.json();
+            if (d.code !== 0) { showToast(d.message || '生成失败', 'error'); return; }
+            const secret = d.data.secret;
+            bodyEl.innerHTML = `
+              <div style="text-align:center;padding:12px;background:#f9fafb;border-radius:8px;">
+                <div id="fa2Qr" style="display:flex;justify-content:center;margin-bottom:10px;"></div>
+                <p style="font-size:12px;color:#6b7280;margin:4px 0;">无法扫码？手动输入密钥：</p>
+                <code style="font-size:13px;letter-spacing:1px;color:#16325C;user-select:all;">${secret}</code>
+              </div>
+              <input id="fa2Code" maxlength="6" placeholder="输入 6 位验证码" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;margin:12px 0;box-sizing:border-box;font-size:16px;letter-spacing:4px;text-align:center;">
+              <button id="fa2Verify" style="width:100%;padding:9px;background:#0F6E56;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;">验证并启用</button>
+              <div id="fa2Backup" style="margin-top:12px;"></div>`;
+            // QR 码：用 qrcodejs CDN 渲染 otpauth URI（离线兜底 = 手动输 secret）
+            const qrHost = document.getElementById('fa2Qr');
+            if (window.QRCode) {
+              new QRCode(qrHost, { text: d.data.otpauthUrl, width: 160, height: 160 });
+            } else {
+              const s = document.createElement('script');
+              s.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+              s.onload = () => new QRCode(qrHost, { text: d.data.otpauthUrl, width: 160, height: 160 });
+              document.head.appendChild(s);
+            }
+            document.getElementById('fa2Verify').onclick = async () => {
+              const code = document.getElementById('fa2Code').value.trim();
+              const r2 = await fetch(`${API_BASE}/api/auth/2fa/verify-setup`, { method: 'POST', headers: authHeaders, credentials: 'include', body: JSON.stringify({ code }) });
+              const d2 = await r2.json();
+              if (d2.code !== 0) { showToast(d2.message || '验证失败', 'error'); return; }
+              const codes = (d2.data.backupCodes || []).join('<br>');
+              bodyEl.innerHTML = `
+                <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:14px;">
+                  <p style="margin:0 0 8px;color:#065f46;font-weight:600;">✅ 两步验证已启用！请保存备份码（仅显示这一次）：</p>
+                  <div style="font-family:monospace;font-size:14px;line-height:1.9;color:#064e3b;user-select:all;">${codes}</div>
+                </div>`;
+              showToast('两步验证已启用', 'success');
+            };
+          } catch (e) { showToast('绑定失败：' + e.message, 'error'); }
+        };
+      } else {
+        document.getElementById('fa2Disable').onclick = async () => {
+          const pwd = document.getElementById('fa2Pwd').value;
+          if (!pwd) { showToast('请输入密码', 'warn'); return; }
+          const r = await fetch(`${API_BASE}/api/auth/2fa/disable`, { method: 'POST', headers: authHeaders, credentials: 'include', body: JSON.stringify({ password: pwd }) });
+          const d = await r.json();
+          if (d.code !== 0) { showToast(d.message || '关闭失败', 'error'); return; }
+          overlay.remove();
+          showToast('两步验证已关闭', 'success');
+        };
+      }
+    }
+
+    // ── 模块加载 ─────────────────────────
+    // ═══════════════════════════════════════════════
+    // V2.0.36 工作台：数据加载 + 渲染
+    // 结构：产品列表（所有人） + KPI 行 + 4 Tab（公司超管）
+    // ═══════════════════════════════════════════════
+    let WS = {
+      overview: null,      // /api/company-admin/me 缓存（超管）
+      products: null,      // /api/company-admin/products 缓存（超管）
+      users: null,
+      ssoConfigs: null,
+      approvals: null,
+      myApprovals: [],     // （V2.0.38 已停用，保留字段防历史引用报错）
+      loadedTabs: new Set(),
+      apiBaseSameOrigin: null
+    };
+
+    async function wsApi(method, path, body) {
+      const headers = { 'Authorization': 'Bearer ' + getToken() };
+      if (body !== undefined) headers['Content-Type'] = 'application/json';
+      const csrf = readCookie('XSRF-TOKEN');
+      if (csrf) headers['X-XSRF-TOKEN'] = csrf;
+      const res = await fetch(API_BASE + path, {
+        method, headers, credentials: 'include',
+        body: body !== undefined ? JSON.stringify(body) : undefined
+      });
+      let json = null;
+      try { json = await res.json(); } catch (_) {}
+      if (res.status === 401) { doLogout(); throw new Error('登录已过期'); }
+      if (!res.ok || (json && json.code !== undefined && json.code !== 0)) {
+        throw new Error((json && json.message) || ('HTTP ' + res.status));
+      }
+      return json ? json.data : null;
+    }
+
+    // 读 cookie（CSRF token 读取用）
+    function readCookie(name) {
+      const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return m ? decodeURIComponent(m[2]) : null;
+    }
+
+    async function loadWorkspace(user) {
+      const isTenantAdmin = !!user.isTenantAdmin;
+      const isPlatformAdmin = !!user.isPlatformAdmin;
+      // 管理区显示：公司超管 或 平台超管（平台超管自动 scope 到第一个 SUPER_ADMIN 公司）
+      const showAdminArea = isTenantAdmin || isPlatformAdmin;
+      document.getElementById('kpiRow').style.display = showAdminArea ? 'grid' : 'none';
+      document.getElementById('wsAdminArea').style.display = showAdminArea ? 'block' : 'none';
+      document.getElementById('productListSub').textContent = showAdminArea
+        ? '点击「进入」直接使用；「复制入口链接」可把子平台地址发给员工（登录后按权限进入）'
+        : '点击「进入」直接使用；未开通产品请联系公司超管开通';
+
+      await loadProductList(user);
+      if (showAdminArea) {
+        loadAdminOverview();
+        // 默认打开「用户管理」Tab（否则 4 个 Tab 全收起，用户不知道可点击）
+        switchWsTab('users');
+      }
+    }
+
+    // ── 产品列表（所有人）──
+    async function loadProductList(user) {
+      const listEl = document.getElementById('productList');
+      try {
+        const res = await fetch(`${API_BASE}/api/sub/list`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const modules = data.data || [];
+        const meRes = await fetch(`${API_BASE}/api/auth/me`, {
+          credentials: 'include',
+          headers: { 'Authorization': 'Bearer ' + getToken() }
+        }).then(r => r.json()).catch(() => null);
+        // 刷新本地 user 的授权状态（以服务端为准）
+        const meData = meRes && meRes.data ? meRes.data : null;
+        if (meData && meData.user) {
+          const cur = getUser() || {};
+          cur.isPlatformAdmin = !!meData.user.platformAdmin;
+          cur.isTenantAdmin = !!(meData.user.tenantAdmin || meData.user.isTenantAdmin);
+          cur.subProductGrants = (meData.products || []).filter(p => p.licensed === true).map(p => p.code);
+          setUser(cur);
+          user = cur;
+        }
+        // V2.0.38：申请/审批已全面下放各子平台，主站不再拉取 my-approvals
+        renderProductList(modules, user);
+      } catch (e) {
+        console.error('加载产品失败:', e);
+        listEl.innerHTML = `<div class="ws-empty">产品加载失败：${e.message}（请确认后端 9091 已启动）</div>`;
+      }
+    }
+
+    function renderProductList(modules, user) {
+      const listEl = document.getElementById('productList');
+      if (!modules || !modules.length) {
+        listEl.innerHTML = '<div class="ws-empty">暂无可用产品</div>';
+        return;
+      }
+      const grantedCodes = new Set((user && user.subProductGrants) || []);
+      const isPlatformAdmin = !!(user && user.isPlatformAdmin);
+      const isTenantAdmin = !!(user && user.isTenantAdmin);
+      const canManage = isPlatformAdmin || isTenantAdmin;
+
+      listEl.innerHTML = modules.map(m => {
+        const code = (m.productCode || '').toLowerCase();
+        const isReady = m.status === 'REGISTERED' || m.status === 'ACTIVE';
+        // V2.0.50：平台超管不再万能放行——已开通严格按真实授权（subProductGrants），
+        // 与 KPI「已开通产品」同口径；平台超管的进入权限由 /enter 服务端鉴权兜底
+        const isGranted = grantedCodes.has(code) || grantedCodes.has((m.productCode || '').toUpperCase());
+        const locked = !isGranted;
+        let statusHtml, actionsHtml;
+        if (isGranted) {
+          statusHtml = isReady ? '<span class="pr-status">✓ 已开通</span>' : '<span class="pr-status" style="border-color:rgba(95,94,90,.5);color:var(--text-dim);background:rgba(95,94,90,.12);">⏳ 待部署</span>';
+          actionsHtml = `
+            ${isReady ? `<button class="pr-btn primary" data-action="enter" data-code="${m.productCode}">进入</button>` : ''}
+            ${canManage && isReady ? `<button class="pr-btn" data-action="copy-link" data-pcode="${m.productCode}" data-pname="${(m.productName||'').replace(/"/g,'&quot;')}">🔗 复制入口链接</button>` : ''}
+          `;
+        } else {
+          // V2.0.38：未开通 → 不再提供主站申请按钮，开通由公司超管在主站「产品授权」或子平台内处理
+          statusHtml = '<span class="pr-status">未开通</span>';
+          // V2.0.50：平台超管看到的未开通提示改为运营视角（自己不会被「联系公司超管」绕晕）
+          actionsHtml = isPlatformAdmin
+            ? `<span style="color:var(--text-dim);font-size:12px;">该公司未开通（可在管理后台「产品授权」开通）</span>`
+            : `<span style="color:var(--text-dim);font-size:12px;">请联系公司超管开通</span>`;
+        }
+        return `
+          <div class="product-row ${locked ? 'locked' : ''}" data-code="${m.productCode}" data-base-url="${(m.baseUrl||'').replace(/"/g,'&quot;')}">
+            <div class="pr-icon">${iconFor(code)}</div>
+            <div class="pr-main">
+              <div class="pr-name">${m.productName || m.productCode}</div>
+              <div class="pr-desc">${m.productDesc || m.taskName || ''}</div>
+            </div>
+            ${statusHtml}
+            <div class="pr-actions">${actionsHtml}</div>
+          </div>
+        `;
+      }).join('');
+
+      // 事件绑定
+      listEl.querySelectorAll('[data-action="enter"]').forEach(btn => {
+        btn.addEventListener('click', () => enterModule(btn.dataset.code));
+      });
+      listEl.querySelectorAll('[data-action="copy-link"]').forEach(btn => {
+        btn.addEventListener('click', () => doCopyLink(btn.dataset.pcode, btn.dataset.pname));
+      });
+    }
+
+    // ── 复制入口链接（D4=B · 公司超管 scope · 纯前端）──
+    // 复制子平台首页地址（不带 token）。员工打开 → 子平台登录页 → 公司 SSO/主站账密 →
+    // 子平台内审批（V2.0.38 审批下放后，token 专属链接会绕过审批拦截，故弃用 365 天 token 链接）。
+    async function doCopyLink(pcode, pname) {
+      try {
+        // 从 /api/sub/list 已加载的数据里找 baseUrl（渲染时已存到行 data-*）
+        const row = document.querySelector(`.product-row[data-code="${pcode}"]`);
+        let baseUrl = row ? row.dataset.baseUrl : '';
+        if (!baseUrl) {
+          const res = await fetch(`${API_BASE}/api/sub/list`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+          });
+          const data = await res.json();
+          const m = (data.data || []).find(x => x.productCode === pcode);
+          baseUrl = m && m.baseUrl || '';
+        }
+        if (!baseUrl) { alert('该产品尚未配置入口地址'); return; }
+        // 提取站点根（origin）：去掉 path/fragment/query —— 例如
+        // http://localhost:5180/#/auth/lingyao/sso-callback → http://localhost:5180/
+        let origin;
+        try {
+          const u = new URL(baseUrl);
+          origin = u.origin + '/';
+        } catch (_) {
+          origin = baseUrl.split('/').slice(0, 3).join('/') + '/';
+        }
+        await navigator.clipboard.writeText(origin).then(() => {
+          alert(`✅ 「${pname}」入口链接已复制\n\n${origin}\n\n可发到公司群。员工打开后使用公司 SSO 或主站账密登录；\n无权限的人员可在子平台内向公司超管申请开通。`);
+        }).catch(() => {
+          prompt(`请手动复制「${pname}」入口链接：`, origin);
+        });
+      } catch (err) {
+        alert('复制失败：' + err.message);
+      }
+    }
+
+    // 简单图标映射
+    function iconFor(code) {
+      return {
+        geo: '🅖', hpd: '🅗', aidd: '🅐', medppt: '🅜', dinfo: '🅓', porm: '🅟'
+      }[code] || '◉';
+    }
+
+    // ═══════════════════════════════════════════════
+    // V2.0.36 工作台：管理区（KPI + 4 Tab）
+    // 仅公司超管 / 平台超管可见；数据复用 /api/company-admin/*
+    // ═══════════════════════════════════════════════
+    async function loadAdminOverview() {
+      try {
+        WS.overview = await wsApi('GET', '/api/company-admin/me');
+        renderKpi();
+        // V2.0.38：审批下放子平台，主站不再拉取待审批列表
+      } catch (e) {
+        console.warn('管理区加载失败（普通员工可忽略）:', e.message);
+      }
+    }
+
+    function renderKpi() {
+      const o = WS.overview;
+      if (!o) return;
+      document.getElementById('kpiUsers').textContent = o.license.usedUsers;
+      document.getElementById('kpiUsersSub').textContent = `上限 ${o.license.maxUsers} 人 · ${o.company.name}`;
+      const licCard = document.getElementById('kpiLicenseCard');
+      const days = o.license.remainingDays;
+      document.getElementById('kpiLicense').textContent = days < 0 ? '已过期' : days + ' 天';
+      document.getElementById('kpiLicenseSub').textContent = o.companyProducts[0] ? `至 ${fmtDateLocal(o.companyProducts[0].licenseEnd)}` : `许可证计划：${zh(o.company.licensePlan, '标准版')}`;
+      licCard.classList.remove('warning', 'danger');
+      if (days < 0) licCard.classList.add('danger');
+      else if (days < 30) licCard.classList.add('danger');
+      else if (days < 90) licCard.classList.add('warning');
+      document.getElementById('kpiProducts').textContent = o.license.activeProducts;
+      document.getElementById('kpiProductsSub').textContent = '本公司已开通';
+    }
+
+    function fmtDateLocal(s) {
+      if (!s) return '-';
+      try { return new Date(s).toLocaleDateString('zh-CN'); } catch (_) { return s; }
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // ── V2.0.60：英文枚举标签中文化映射（显示层翻译，CSS 类名仍用英文枚举）──────────────
+    const STATUS_ZH = {
+      ACTIVE: '已启用', PENDING: '待处理', SUSPENDED: '已停用',
+      EXPIRED: '已过期', REMOVED: '已移除', CANCELLED: '已取消', DELETED: '已删除',
+      APPROVED: '已通过', REJECTED: '已拒绝',
+      TRIAL: '试用版', STANDARD: '标准版', ENTERPRISE: '企业版'
+    };
+    function zh(s, fallback) {
+      if (s == null || s === '') return fallback || '-';
+      return STATUS_ZH[String(s)] || (fallback !== undefined ? fallback : s);
+    }
+
+    // ── Tab 切换 + 按需加载 ──
+    function switchWsTab(tab) {
+      document.querySelectorAll('.ws-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      document.querySelectorAll('.ws-panel').forEach(p => p.classList.toggle('active', p.id === 'ws-panel-' + tab));
+      if (!WS.loadedTabs.has(tab)) {
+        WS.loadedTabs.add(tab);
+        const loader = { users: loadUsersTab, grants: loadGrantsTab, sso: loadSsoTab }[tab];
+        if (loader) loader();
+      }
+    }
+    document.querySelectorAll('.ws-tab').forEach(t => t.addEventListener('click', () => switchWsTab(t.dataset.tab)));
+
+    // ── Tab 1：用户管理 ──
+    async function loadUsersTab() {
+      const panel = document.getElementById('ws-panel-users');
+      try {
+        WS.users = await wsApi('GET', '/api/company-admin/users');
+        const me = getUser();
+        panel.innerHTML = `
+          <div style="display:flex;justify-content:space-between;margin-bottom:14px;">
+            <span style="color:var(--text-dim);font-size:13px;">共 ${WS.users.length} 名成员</span>
+            <button class="pr-btn primary" onclick="location.href='/company-admin.html'">邀请员工 / 更多操作 →</button>
+          </div>
+          <table class="ws-table">
+            <thead><tr><th>用户名</th><th>显示名</th><th>角色</th><th>状态</th><th>最近登录</th></tr></thead>
+            <tbody>
+              ${WS.users.map(u => {
+                // V2.0.51：平台超管 vs 公司超管 徽标区分（两者权限天壤之别，不允许混为一谈）
+                const isPlatform = !!u.platformAdmin;
+                const roleBadge = isPlatform
+                  ? '<span class="ws-tag SUPER_ADMIN" style="background:rgba(139,92,246,.18);color:#b794f6;border:1px solid rgba(139,92,246,.4);">平台超管</span>'
+                  : '<span class="ws-tag SUPER_ADMIN">公司超管</span>';
+                return `
+                <tr>
+                  <td><strong>${esc(u.username)}</strong>${u.username === me?.username ? ' <span style="color:var(--accent);font-size:11px;">（你）</span>' : ''}</td>
+                  <td>${esc(u.displayName || '-')}</td>
+                  <td>${roleBadge}</td>
+                  <td><span class="ws-tag ${esc(u.status)}">${zh(u.status, '已启用')}</span></td>
+                  <td style="color:var(--text-dim);">${fmtDateLocal(u.lastLoginAt)}</td>
+                </tr>`;}).join('') || '<tr><td colspan="5" class="ws-empty">暂无用户</td></tr>'}
+            </tbody>
+          </table>`;
+      } catch (e) {
+        panel.innerHTML = `<div class="ws-empty">加载失败：${esc(e.message)}</div>`;
+      }
+    }
+
+    // ── Tab 2：产品授权 ──
+    async function loadGrantsTab() {
+      const panel = document.getElementById('ws-panel-grants');
+      try {
+        WS.products = await wsApi('GET', '/api/company-admin/products');
+        panel.innerHTML = `
+          <div style="margin-bottom:14px;color:var(--text-dim);font-size:13px;">对员工按产品授权 / 撤销；细粒度管理可进入完整版</div>
+          <table class="ws-table">
+            <thead><tr><th>产品</th><th>License 期</th><th>已授权 / 上限</th><th>操作</th></tr></thead>
+            <tbody>
+              ${WS.products.map(p => `
+                <tr>
+                  <td><strong>${esc(p.icon || '◉')} ${esc(p.name)}</strong> <span style="color:var(--text-dim);font-size:11px;">${esc(p.code)}</span></td>
+                  <td style="color:var(--text-dim);">${fmtDateLocal(p.licenseStart)} ~ ${fmtDateLocal(p.licenseEnd)}</td>
+                  <td>${p.grantedUsers} / ${p.maxUsers}</td>
+                  <td><button class="ws-mini-btn" data-grant-pid="${p.productId}" data-grant-pname="${esc(p.name)}">管理授权人员</button></td>
+                </tr>`).join('') || '<tr><td colspan="4" class="ws-empty">暂无已开通产品</td></tr>'}
+            </tbody>
+          </table>`;
+        panel.querySelectorAll('[data-grant-pid]').forEach(btn => {
+          btn.addEventListener('click', () => location.href = '/company-admin.html');
+        });
+      } catch (e) {
+        panel.innerHTML = `<div class="ws-empty">加载失败：${esc(e.message)}</div>`;
+      }
+    }
+
+    // ── Tab 3：SSO 配置 ──
+    const SSO_PROVIDERS = [
+      { code: 'FEISHU', name: '飞书', icon: '🐦', desc: '员工飞书扫码一键登录所有已开通产品' },
+      { code: 'DINGTALK', name: '钉钉', icon: '💬', desc: '员工钉钉扫码一键登录所有已开通产品' },
+      { code: 'WECOM', name: '企业微信', icon: '🏢', desc: '员工企业微信扫码一键登录所有已开通产品' },
+      { code: 'OIDC', name: '通用 OIDC', icon: '🔑', desc: '标准 OpenID Connect 协议（Okta / Keycloak / Azure AD 等）' }
+    ];
+    async function loadSsoTab() {
+      const panel = document.getElementById('ws-panel-sso');
+      try {
+        const [configs, products] = await Promise.all([
+          wsApi('GET', '/api/company-admin/sso-config'),
+          wsApi('GET', '/api/company-admin/products')
+        ]);
+        WS.ssoConfigs = configs || [];
+        const byCode = {};
+        WS.ssoConfigs.forEach(c => byCode[(c.provider || c.sso_type || '').toUpperCase()] = c);
+        panel.innerHTML = `
+          <div style="margin-bottom:14px;color:var(--text-dim);font-size:13px;">
+            配置后，员工可通过贵司飞书 / 钉钉 / 企微扫码直接登录所有已开通产品；公司超管本人则继续用平台账密登录处理审批。
+          </div>
+          <div class="ws-sso-grid">
+            ${SSO_PROVIDERS.map(p => {
+              const c = byCode[p.code];
+              const enabled = c && (c.enabled === true || c.enabled === 'true' || c.status === 'ACTIVE');
+              return `
+                <div class="ws-sso-card">
+                  <div class="sso-head">
+                    <span class="sso-name">${p.icon} ${p.name}</span>
+                    <span class="ws-tag ${enabled ? 'APPROVED' : 'VIEWER'}">${enabled ? '已启用' : (c ? '未启用' : '未配置')}</span>
+                  </div>
+                  <div class="sso-desc">${p.desc}</div>
+                  <div style="display:flex;gap:8px;">
+                    <button class="ws-mini-btn" data-sso-cfg="${p.code}" data-sso-name="${p.name}">${c ? '编辑' : '配置'}</button>
+                    ${c && enabled ? `<button class="ws-mini-btn" data-sso-link="${p.code}" data-sso-linkname="${p.name}">生成登录链接</button>` : ''}
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>`;
+        panel.querySelectorAll('[data-sso-cfg]').forEach(btn => {
+          btn.addEventListener('click', () => openSsoModal(btn.dataset.ssoCfg, btn.dataset.ssoName, byCode[btn.dataset.ssoCfg]));
+        });
+        panel.querySelectorAll('[data-sso-link]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            try {
+              const data = await wsApi('POST', `/api/company-admin/sso-config/${btn.dataset.ssoLink.toLowerCase()}/login-link`, {});
+              if (data && data.link) {
+                await navigator.clipboard.writeText(data.link).then(() => showToast('SSO 登录链接已复制', 'success'))
+                  .catch(() => prompt('请手动复制 SSO 登录链接：', data.link));
+              }
+            } catch (e) { showToast('生成失败：' + e.message, 'error'); }
+          });
+        });
+      } catch (e) {
+        panel.innerHTML = `<div class="ws-empty">加载失败：${esc(e.message)}</div>`;
+      }
+    }
+
+    // SSO Provider 配置弹窗
+    let wsSsoModalCtx = null;
+    function openSsoModal(providerCode, providerName, existing) {
+      wsSsoModalCtx = { providerCode, existing };
+      document.getElementById('wsSsoModalTitle').textContent = `配置 ${providerName} SSO`;
+      document.getElementById('wsSsoModalDesc').textContent =
+        providerCode === 'OIDC' ? '填写 IdP 颁发的 Client 信息与 Issuer 地址；回调地址请在 IdP 侧登记：' + location.hostname + ':9091/api/sso/oidc/callback'
+        : '请在' + providerName + '开放平台创建应用后填写；回调/重定向 URL 填：' + location.hostname + ':9091/api/sso/' + providerCode.toLowerCase() + '/callback';
+      document.getElementById('wsSsoAppId').value = existing ? (existing.app_id || existing.appId || '') : '';
+      document.getElementById('wsSsoAppSecret').value = '';
+      document.getElementById('wsSsoBaseUrl').value = existing ? (existing.base_url || existing.baseUrl || '') : '';
+      const isOidc = providerCode === 'OIDC';
+      document.getElementById('wsSsoBaseUrlLabel').style.display = isOidc ? 'block' : 'none';
+      document.getElementById('wsSsoBaseUrl').style.display = isOidc ? 'block' : 'none';
+      const enabled = existing && (existing.enabled === true || existing.enabled === 'true' || existing.status === 'ACTIVE');
+      document.getElementById('wsSsoEnabled').checked = !!enabled;
+      document.getElementById('wsSsoModal').style.display = 'flex';
+    }
+    function wsSsoModalClose() {
+      document.getElementById('wsSsoModal').style.display = 'none';
+      wsSsoModalCtx = null;
+    }
+    document.getElementById('wsSsoSaveBtn').addEventListener('click', async () => {
+      if (!wsSsoModalCtx) return;
+      const { providerCode, existing } = wsSsoModalCtx;
+      const appId = document.getElementById('wsSsoAppId').value.trim();
+      const secret = document.getElementById('wsSsoAppSecret').value.trim();
+      if (!appId && !existing) { showToast('请填写 App ID', 'error'); return; }
+      const body = {
+        appId: appId || (existing ? (existing.app_id || existing.appId) : ''),
+        enabled: document.getElementById('wsSsoEnabled').checked
+      };
+      if (secret) body.appSecret = secret;
+      if (providerCode === 'OIDC') body.baseUrl = document.getElementById('wsSsoBaseUrl').value.trim();
+      const btn = document.getElementById('wsSsoSaveBtn');
+      btn.disabled = true; btn.textContent = '保存中…';
+      try {
+        await wsApi('POST', '/api/company-admin/sso-config/' + providerCode.toLowerCase(), body);
+        showToast('已保存', 'success');
+        wsSsoModalClose();
+        WS.loadedTabs.delete('sso');
+        loadSsoTab();
+      } catch (e) {
+        showToast('保存失败：' + e.message, 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = '保存';
+      }
+    });
+
+    // ── V2.0.38：开通审批 Tab 已下线（全部审批归各子平台自管）──
+    // 历史接口 /api/sub/pending|approve|reject 后端保留（审计兼容），前端无入口
+
+    // ── 模块跳转 ─────────────────────────
+    // 通过后端 /api/sub/{code}/enter 获取带 JWT 的跳转 URL
+    // SSO 直登铁律：主网站鉴权后没权限 → 主网站弹窗告知，不跳转子网站
+    async function enterModule(moduleCode) {
+      try {
+        const res = await fetch(`${API_BASE}/api/sub/${moduleCode}/enter`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+
+        // 后端用 ApiResponse.fail(403) 时 res.ok=false，且 res.body.code != 0
+        let body = null;
+        try { body = await res.json(); } catch (_) {}
+
+        if (!res.ok || (body && body.code !== undefined && body.code !== 0)) {
+          // === 主网站告知用户无法登陆（铁律：不要让用户跳过去看到登录页）===
+          const code = body ? body.code : res.status;
+          let msg = body && body.message ? body.message : '进入失败';
+          if (code === 401) {
+            showToast('登录已过期，请重新登录', 'error');
+            doLogout();
+            return;
+          }
+          if (code === 403) {
+            const productName = (body && body.data && body.data.productName) || moduleCode;
+            showAccessDeniedModal(productName, msg, (body && body.data && body.data.productCode) || moduleCode);
+            return;
+          }
+          showToast('进入失败：' + msg, 'error');
+          return;
+        }
+
+        const data = body && body.data ? body.data : {};
+        // 模式 1: 子任务已部署 → 直接跳转
+        if (data.mode === 'DIRECT_REDIRECT' && data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+          return;
+        }
+        // 模式 2: 路由层降级 → 跳 entryPath
+        const entry = data.fallbackPath || '/';
+        showToast('该模块尚未部署，跳转占位页面：' + entry, 'warn');
+        window.location.href = entry;
+      } catch (e) {
+        showToast('跳转失败：' + e.message, 'error');
+      }
+    }
+
+    // ── 主网站「无法登陆」模弹 ─────────────────────────
+    // 铁律：用户鉴权失败时，绝对不能让用户跳到子网站看到登录页；
+    // 必须主网站告知用户原因。
+    function showAccessDeniedModal(productName, reason, productCode) {
+      // 移除已有
+      const old = document.getElementById('access-denied-modal');
+      if (old) old.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'access-denied-modal';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;';
+      overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;padding:32px 36px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:left;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;color:#dc2626;font-size:24px;font-weight:bold;">⊘</div>
+            <div>
+              <div style="font-size:18px;font-weight:600;color:#111;">无法访问「${productName}」</div>
+              <div style="font-size:13px;color:#6b7280;margin-top:2px;">无访问权限</div>
+            </div>
+          </div>
+          <div style="background:#fef3f2;border:1px solid #fecaca;border-radius:8px;padding:12px 14px;color:#7f1d1d;font-size:14px;line-height:1.6;margin-bottom:16px;">
+            ${reason}
+          </div>
+          <div style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:20px;">
+            您当前登录的账号没有该产品的访问权限。请联系公司超管为您开通，或用公司 SSO 在子平台内提交开通申请。
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button id="adm-close" style="padding:8px 16px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;font-size:14px;color:#374151;">关闭</button>
+            <button id="adm-logout" style="padding:8px 16px;background:#fff;border:1px solid #dc2626;border-radius:6px;cursor:pointer;font-size:14px;color:#dc2626;">注销并切换账号</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      document.getElementById('adm-close').onclick = () => overlay.remove();
+      document.getElementById('adm-logout').onclick = () => { overlay.remove(); doLogout(); };
+    }
+
+    function showToast(msg, type = 'info') {
+      // 轻量 toast 提示
+      const colors = { info:'#3b82f6', warn:'#f59e0b', error:'#dc2626' };
+      const t = document.createElement('div');
+      t.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${colors[type]||'#3b82f6'};color:#fff;padding:10px 20px;border-radius:6px;font-size:14px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.15);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;`;
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+
+    // ── V2.0.66：登录图形验证码（算术题 SVG，2 分钟有效，一次性）─────────
+    async function loadPortalCaptcha() {
+      const form = document.getElementById('loginForm');
+      const img = document.getElementById('captchaImg');
+      if (!form || !img) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/captcha`);
+        const json = await res.json();
+        if (json.code === 0 && json.data) {
+          form.dataset.captchaId = json.data.captchaId;
+          img.innerHTML = json.data.svg;
+          const input = document.getElementById('captchaAnswer');
+          if (input) input.value = '';
+        }
+      } catch (_) { /* 加载失败不阻塞登录页 */ }
+    }
+    window.loadPortalCaptcha = loadPortalCaptcha;
+    const captchaImgEl = document.getElementById('captchaImg');
+    if (captchaImgEl) {
+      captchaImgEl.addEventListener('click', loadPortalCaptcha);
+      loadPortalCaptcha();
+    }
+
+    // ── 登录处理 ─────────────────────────
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const err = document.getElementById('errorMsg');
+      err.textContent = '';
+      btn.disabled = true;
+      btn.textContent = '登录中...';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const captchaId = document.getElementById('loginForm').dataset.captchaId || '';
+      const captchaAnswer = document.getElementById('captchaAnswer') ? document.getElementById('captchaAnswer').value.trim() : '';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, captchaId, captchaAnswer }),
+          credentials: 'include',
+            });
+        if (!res.ok) {
+          let msg = '登录失败';
+          try { const d = await res.json(); msg = d.message || d.detail || msg; } catch (_) {}
+          err.textContent = msg;
+          btn.disabled = false;
+          btn.textContent = '登录控制台';
+          return;
+        }
+        const data = await res.json();
+        if (data.code !== 0 || !data.data) {
+          err.textContent = data.message || '登录失败';
+          if (/验证码/.test(data.message || '')) loadPortalCaptcha();   // V2.0.66：图形验证码失败自动刷新
+          btn.disabled = false;
+          btn.textContent = '登录控制台';
+          return;
+        }
+        const payload = data.data || {};
+        // V2.0.69 D：新设备登录 —— 需要邮箱验证码（先发码再挑战）
+        if (payload.deviceOtpRequired) {
+          const tip = payload.deviceOtpReason === 'DEVICE_OTP_REQUIRED'
+            ? '检测到新设备登录，我们已向该账号绑定邮箱发送 6 位验证码'
+            : '邮箱验证码错误，请重试';
+          if (payload.deviceOtpReason === 'DEVICE_OTP_REQUIRED') {
+            const rs = await fetch(`${API_BASE}/api/auth/device-otp/send`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username }),
+              credentials: 'include',
+            });
+            const js = await rs.json().catch(() => ({}));
+            err.textContent = js.message || (js.data && js.data.message) || '验证码已发送（请查收邮箱）';
+          }
+          const code = prompt(`📧 ${tip}\n\n请输入邮箱中的 6 位验证码（30 天内同设备免验证）：`);
+          if (!code) {
+            err.textContent = '已取消登录';
+            btn.disabled = false;
+            btn.textContent = '登录控制台';
+            return;
+          }
+          btn.textContent = '验证中...';
+          const r2 = await fetch(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username, password,
+              captchaTicket: payload.captchaTicket || '',
+              emailOtpCode: code.trim()
+            }),
+            credentials: 'include',
+          });
+          const d2 = await r2.json().catch(() => ({}));
+          if (!r2.ok || d2.code !== 0 || !d2.data || d2.data.deviceOtpRequired) {
+            err.textContent = d2.data && d2.data.deviceOtpRequired ? '邮箱验证码错误' : (d2.message || '邮箱验证失败');
+            btn.disabled = false;
+            btn.textContent = '登录控制台';
+            return;
+          }
+          Object.assign(payload, d2.data);
+        }
+        // V2.0.42：2FA challenge —— 密码正确但需要验证码
+        if (payload.mfaRequired) {
+          const tip = payload.mfaReason === 'MFA_REQUIRED'
+            ? '该账号已启用两步验证'
+            : '验证码错误，请重试';
+          const code = prompt(`🔐 ${tip}\n\n请输入 Authenticator 中的 6 位验证码（或备份码）：`);
+          if (!code) {
+            err.textContent = '已取消登录';
+            btn.disabled = false;
+            btn.textContent = '登录控制台';
+            return;
+          }
+          btn.textContent = '验证中...';
+          // V2.0.66：重试凭 captchaTicket（密码+图形验证码已验过），无需重复取验证码
+          const r2 = await fetch(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username, password, totpCode: code.trim(),
+              captchaTicket: payload.captchaTicket || ''
+            }),
+            credentials: 'include',
+          });
+          const d2 = await r2.json().catch(() => ({}));
+          if (!r2.ok || d2.code !== 0 || !d2.data || d2.data.mfaRequired || d2.data.deviceOtpRequired) {
+            err.textContent = d2.data && d2.data.mfaRequired ? '2FA 验证码错误' : (d2.message || '2FA 验证失败');
+            btn.disabled = false;
+            btn.textContent = '登录控制台';
+            return;
+          }
+          Object.assign(payload, d2.data);   // 用挑战后的完整响应覆盖
+        }
+        setToken(payload.token);
+        // 适配后端字段 → 前端期望
+        const u = payload.user || {};
+        // === V2.0.16 W4 改造：提取已授权子产品 code 列表 ===
+        // 数据源: LoginResponse.products (来自 buildProductView().filter(licensed))
+        // 与 JWT sub_product_grants 平铺字段保持一致
+        const subProductGrants = (payload.products || [])
+          .filter(p => p.licensed === true)
+          .map(p => p.code);
+        const user = {
+          id: u.id,
+          username: u.username,
+          real_name: u.displayName || u.username,
+          role: u.platformAdmin ? 'super_admin' : 'operator',
+          isPlatformAdmin: !!u.platformAdmin,
+          company_id: payload.company?.id || 1,
+          company_name: payload.company?.name || '',
+          // === V2.0.16 W4 新增 ===
+          subProductGrants,
+          // V2.0.35 修复：后端 UserView 字段名是 tenantAdmin（非 isTenantAdmin），
+          // 字段错位导致「公司管理」按钮（SSO 配置入口）恒不显示；兼容两种字段名
+          isTenantAdmin: !!(u.tenantAdmin || u.isTenantAdmin)
+        };
+        setUser(user);
+        if (payload.mustChangePassword === true) {
+          showChangePassword();
+        } else {
+          showPortal(user);
+        }
+      } catch (e) {
+        err.textContent = '网络错误：' + e.message;
+        btn.disabled = false;
+        btn.textContent = '登录控制台';
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const oldPassword = document.getElementById('oldPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const err = document.getElementById('changePasswordError');
+      const btn = document.getElementById('changePasswordBtn');
+      err.textContent = '';
+      btn.disabled = true;
+      btn.textContent = '修改中...';
+      if (newPassword !== confirmPassword) {
+        err.textContent = '两次输入的新密码不一致';
+        btn.disabled = false;
+        btn.textContent = '修改密码并继续';
+        return;
+      }
+      if (newPassword === oldPassword) {
+        err.textContent = '新密码不能与当前密码相同';
+        btn.disabled = false;
+        btn.textContent = '修改密码并继续';
+        return;
+      }
+      // V2.0.69 B：敏感操作二次验证——先发邮箱验证码再提交（用户已绑邮箱时后端强校验）
+      let emailOtpCode = null;
+      try {
+        const rs = await fetch(`${API_BASE}/api/auth/change-password-otp/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getToken(),
+            ...(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
+              ? { 'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)[1]) } : {}),
+          },
+          credentials: 'include',
+        });
+        const js = await rs.json().catch(() => ({}));
+        if (rs.ok && js.code === 0) {
+          const input = prompt('📧 为保护账号安全，请输入发送至绑定邮箱的 6 位验证码：\n（' + (js.message || js.data?.message || '验证码已发送') + '）');
+          if (!input) {
+            err.textContent = '已取消修改';
+            btn.disabled = false;
+            btn.textContent = '修改密码并继续';
+            return;
+          }
+          emailOtpCode = input.trim();
+        }
+        // 发码失败且非"未绑邮箱"提示 → 让用户看到原因但允许继续尝试（后端最终强校验）
+        // 未绑邮箱用户后端自动豁免，无需前端拦截
+      } catch (_) { /* 网络异常时仍提交，由后端校验兜底 */ }
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getToken(),
+            // V2.0.59：CsrfFilter Double-Submit——非 GET 必须带 X-XSRF-TOKEN 头（与 admin.html api() 同款）
+            ...(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
+              ? { 'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)[1]) } : {}),
+          },
+          body: JSON.stringify({ oldPassword, newPassword, emailOtpCode }),
+          credentials: 'include',
+            });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || (data.code !== undefined && data.code !== 0)) {
+          err.textContent = data.message || `HTTP ${res.status}`;
+          btn.disabled = false;
+          btn.textContent = '修改密码并继续';
+          return;
+        }
+        const user = getUser();
+        document.getElementById('changePasswordForm').reset();
+        if (user) {
+          showPortal(user);
+        } else {
+          logout();
+        }
+      } catch (e) {
+        err.textContent = '网络错误：' + e.message;
+        btn.disabled = false;
+        btn.textContent = '修改密码并继续';
+      }
+    });
+
+    // 管理后台入口点击（显示与否由 showPortal(user) 根据 isPlatformAdmin 控制）
+    document.getElementById('adminBtn').addEventListener('click', () => location.href = '/admin.html');
+
+    // ── 滚动进度条 ─────────────────────────
+    window.addEventListener('scroll', () => {
+      const h = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = h > 0 ? (window.scrollY / h * 100) : 0;
+      document.getElementById('scrollProgress').style.width = pct + '%';
+    });
+
+    // ── 启动判断 ─────────────────────────
+    (function init() {
+      const token = getToken();
+      const user = getUser();
+      if (token && user) {
+        showPortal(user);
+        // V2.0.35 会话自愈：后台静默调 /api/auth/me 重刷身份标记，
+        // 修复修复前登录留下的旧 user 结构（isTenantAdmin 缺失 → 「公司管理」按钮不显示）
+        fetch(API_BASE + '/api/auth/me', {
+          credentials: 'include',
+          headers: { 'Authorization': 'Bearer ' + token }
+        }).then(r => r.ok ? r.json() : null).then(json => {
+          const me = json && json.data ? (json.data.user || {}) : {};
+          if (typeof me.platformAdmin !== 'undefined') {
+            const cur = getUser() || {};
+            cur.isPlatformAdmin = !!me.platformAdmin;
+            cur.isTenantAdmin = !!(me.tenantAdmin || me.isTenantAdmin);
+            cur.role = cur.isPlatformAdmin ? 'super_admin' : (cur.role || 'operator');
+            setUser(cur);
+            if (user.isPlatformAdmin !== cur.isPlatformAdmin || user.isTenantAdmin !== cur.isTenantAdmin) {
+              showPortal(cur); // 身份标记有变化 → 重渲染按钮区
+            }
+          }
+        }).catch(() => {});
+      } else {
+        showLogin();
+      }
+    })();
+
+    // ── 反馈入口 ─────────────────────────
+    document.getElementById('feedbackFab').addEventListener('click', () => {
+      document.getElementById('feedbackModal').style.display = 'flex';
+    });
+    document.getElementById('feedbackClose').addEventListener('click', () => {
+      document.getElementById('feedbackModal').style.display = 'none';
+    });
+    document.getElementById('feedbackModal').addEventListener('click', (e) => {
+      if (e.target.id === 'feedbackModal') {
+        document.getElementById('feedbackModal').style.display = 'none';
+      }
+    });
+    document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        type: document.getElementById('feedbackType').value,
+        title: document.getElementById('feedbackTitle').value.trim(),
+        body: document.getElementById('feedbackBody').value.trim(),
+        contact: document.getElementById('feedbackContact').value.trim(),
+        user: getUser(),
+        timestamp: new Date().toISOString()
+      };
+      // 存到 localStorage 等待后端接口就绪
+      const store = JSON.parse(localStorage.getItem('lingyao_feedback') || '[]');
+      store.push(payload);
+      localStorage.setItem('lingyao_feedback', JSON.stringify(store));
+      // 友好 fallback：本地存储 + 提示
+      try {
+        const res = await fetch(`${API_BASE}/api/feedback`, {
+          credentials: 'include',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          alert('✅ 反馈已提交，感谢您的支持！');
+        } else {
+          alert('✅ 反馈已暂存到本地，后续会同步到服务器');
+        }
+      } catch (_) {
+        alert('✅ 反馈已暂存到本地，后续会同步到服务器');
+      }
+      document.getElementById('feedbackModal').style.display = 'none';
+      document.getElementById('feedbackForm').reset();
+    });
+
+    // ── Walkthrough 控制 ─────────────────────────
+    function showWalkthroughIfFirstTime() {
+      const seen = localStorage.getItem('lingyao_walkthrough_done');
+      if (!seen) {
+        document.getElementById('walkthrough').style.display = 'flex';
+      }
+    }
+    function closeWalkthrough() {
+      document.getElementById('walkthrough').style.display = 'none';
+      localStorage.setItem('lingyao_walkthrough_done', '1');
+    }
+    function nextStep(n) {
+      for (let i = 0; i <= 5; i++) {
+        const el = document.getElementById(`wt-step-${i}`);
+        if (el) el.style.display = i === n ? 'block' : 'none';
+      }
+    }
+    function prevStep(n) {
+      nextStep(n);
+    }
+  </script>
+</body>
+</html>

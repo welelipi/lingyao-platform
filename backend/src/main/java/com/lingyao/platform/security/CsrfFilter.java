@@ -111,6 +111,7 @@ public class CsrfFilter extends OncePerRequestFilter {
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
             "/api/auth/register",
+            "/api/auth/device-otp/send",  // V2.0.69 D：新设备邮箱码发送（登录前置，凭用户名+邮箱在库校验）
             "/api/registrations",
             "/api/registrations/stats",
             "/api/feedback",
