@@ -164,14 +164,25 @@ public class AuthService {
             }
         }
 
-        // ═══ V2.0.69 D：新设备/异地登录邮箱码挑战（密码正确后、成功签发前）═══
-        // 口径：设备指纹 = SHA-256(userId|UA) 前 32 hex；指纹不在信任期 → 要求邮箱码；
-        // 验证通过 → 落 30 天信任记录 + 给用户发知会邮件；2FA 用户跳过本层（已有 TOTP 强因子，不再叠加摩擦）
-        String deviceFp = computeDeviceFp(user.getId(), userAgent);
-        boolean trustedDevice = deviceFp != null
-                && deviceTrustRepository.findByUserIdAndDeviceFp(user.getId(), deviceFp)
+        // ═══ V2.0.69 D / V2.0.77.6：新设备/异地登录邮箱码挑战（密码正确后、成功签发前）═══
+        // V2.0.77.6 升级：UA 容易因浏览器自动升级漂移（Chrome 152.0→152.1），单 UA 指纹会让主人"30 天内反复登录被要求邮箱码"。
+        // 新口径：指纹 = SHA-256(userId|UA|ipClassC) 前 32 hex；信任判定 = UA 指纹命中 OR (user_id + IP 段命中)
+        // ——同办公网内换设备/换 UA 不再触发，2FA 用户跳过本层（已有 TOTP 强因子，不再叠加摩擦）
+        String deviceFp = computeDeviceFp(user.getId(), userAgent, ip);
+        String ipClassC = computeIpClassC(ip);
+        boolean trustedDevice = false;
+        if (deviceFp != null) {
+            // 1) UA 指纹命中 → 信任
+            trustedDevice = deviceTrustRepository.findByUserIdAndDeviceFp(user.getId(), deviceFp)
                     .map(dt -> dt.getExpiresAt().isAfter(LocalDateTime.now()))
                     .orElse(false);
+            // 2) V2.0.77.6：UA 不命中但同 IP 段有该用户的 trust → 也信任（UA 漂移容错）
+            if (!trustedDevice && ipClassC != null) {
+                trustedDevice = !deviceTrustRepository
+                        .findByUserIdAndIpClassCAndExpiresAtAfter(user.getId(), ipClassC, LocalDateTime.now())
+                        .isEmpty();
+            }
+        }
         if (!trustedDevice && deviceFp != null && !twoFactorService.isEnabled(user.getId())) {
             String emailCode = req.getEmailOtpCode();
             boolean emailOk = emailCode != null && !emailCode.isBlank()
@@ -197,6 +208,13 @@ public class AuthService {
                 trust = new DeviceTrust();
                 trust.setUserId(user.getId());
                 trust.setDeviceFp(deviceFp);
+                trust.setTrustedIp(ip);
+                trust.setIpClassC(ipClassC);
+                trust.setUserAgentSummary(userAgent == null ? "-"
+                        : (userAgent.length() > 128 ? userAgent.substring(0, 128) : userAgent));
+            } else {
+                // 命中旧 record：续期 + 刷新 IP/UA 摘要（保持最新指纹一致）
+                trust.setIpClassC(ipClassC);
                 trust.setTrustedIp(ip);
                 trust.setUserAgentSummary(userAgent == null ? "-"
                         : (userAgent.length() > 128 ? userAgent.substring(0, 128) : userAgent));
@@ -227,11 +245,16 @@ public class AuthService {
         // Phase 2 准备：从 Company 和 CompanyUser 加载 displayName/companyName（用于标准化断言）
         String companyCode = null;
         String companyName = null;
+        String geomPlan = "basic";   // V2.0.77.13 契约 GEOM_quota_contract.md §2 R1 兜底
         if (currentCompanyId != null) {
             Company company = companyRepo.findById(currentCompanyId).orElse(null);
             if (company != null) {
                 companyCode = company.getCode();
                 companyName = company.getName();
+                // V2.0.77.13：从 Company.geom_plan 读套餐（基本/pro/旗舰）注入 JWT claims
+                if (company.getGeomPlan() != null && !company.getGeomPlan().isBlank()) {
+                    geomPlan = company.getGeomPlan();
+                }
             }
         }
         String displayName = user.getDisplayName() != null ? user.getDisplayName() : user.getUsername();
@@ -265,7 +288,8 @@ public class AuthService {
                 companyName,    // Phase 2 新增
                 user.getUsername(), // Phase 2 新增：授权人
                 isTenantAdmin,  // V2.0.16 W1 新增
-                subProductGrants // V2.0.16 W1 新增
+                subProductGrants, // V2.0.16 W1 新增
+                geomPlan         // V2.0.77.13：GEOM 套餐（basic/pro/flagship）
         );
 
         // 设置 CurrentUser（供后续 Service 使用）— Phase 2 解耦版
@@ -319,6 +343,9 @@ public class AuthService {
                 cv.setId(c.getId());
                 cv.setCode(c.getCode());
                 cv.setName(c.getName());
+                cv.setLicensePlan(c.getLicensePlan() != null ? c.getLicensePlan().name() : "STANDARD");
+                // V2.0.77.13：GEOM 套餐（契约 GEOM_quota_contract.md §1）
+                cv.setGeomPlan(c.getGeomPlan() != null ? c.getGeomPlan() : "basic");
                 resp.setCompany(cv);
             });
         }
@@ -348,15 +375,55 @@ public class AuthService {
 
     /**
      * V2.0.69 D：设备指纹 = SHA-256(userId|User-Agent) 前 32 hex；UA 不可得返回 null（跳过设备检测）
+     *
+     * V2.0.77.6 升级：哈希中追加 IP 段（IPv4 /24 或 IPv6 /64），让同 IP 段多设备/UA 漂移也能命中。
+     * 原始 IP 仍以 trusted_ip 入库（审计用），IP 段是脱敏后用于匹配。
      */
-    private String computeDeviceFp(Long userId, String userAgent) {
+    private String computeDeviceFp(Long userId, String userAgent, String ip) {
         if (userAgent == null || userAgent.isBlank()) return null;
+        String ipClassC = computeIpClassC(ip);
         try {
             java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest((userId + "|" + userAgent).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            byte[] hash = md.digest((userId + "|" + userAgent + "|" + ipClassC).getBytes(java.nio.charset.StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < 16; i++) sb.append(String.format("%02x", hash[i]));
             return sb.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * V2.0.77.6：IP 段提取（IPv4 /24 / IPv6 /64），用于设备信任匹配的脱敏维度
+     *
+     * 设计：IPv4 → 取前三段（10.0.1.123 → 10.0.1.0）；IPv6 → 取前四段（::1 → 0:0:0:0）；
+     * 127.x 本地环回统一归为 127.0.0（避免 IPv4/IPv6 双栈下同人同机算出不同段）。
+     * 入参 null/空/解析失败 → 返回 null（信任判定降级为只比对 UA 指纹）
+     */
+    static String computeIpClassC(String ip) {
+        if (ip == null || ip.isBlank()) return null;
+        String s = ip.trim();
+        // 本地环回统一
+        if ("127.0.0.1".equals(s) || "0:0:0:0:0:0:0:1".equals(s) || "::1".equals(s)) {
+            return "127.0.0";
+        }
+        try {
+            if (s.contains(":")) {
+                // IPv6：取前 4 组（每组 16bit = /64），规范化为分号分隔
+                String[] parts = s.split(":");
+                StringBuilder sb = new StringBuilder();
+                int n = Math.min(4, parts.length);
+                for (int i = 0; i < n; i++) {
+                    if (i > 0) sb.append(":");
+                    sb.append(parts[i].isEmpty() ? "0" : parts[i]);
+                }
+                return sb.toString();
+            } else {
+                // IPv4：取前 3 段
+                String[] parts = s.split("\\.");
+                if (parts.length != 4) return null;
+                return parts[0] + "." + parts[1] + "." + parts[2] + ".0";
+            }
         } catch (Exception e) {
             return null;
         }
@@ -638,11 +705,15 @@ public class AuthService {
 
         String companyCode = null;
         String companyName = null;
+        String geomPlan = "basic";   // V2.0.77.13 契约 GEOM_quota_contract.md §2 R1 兜底
         if (currentCompanyId != null) {
             Company company = companyRepo.findById(currentCompanyId).orElse(null);
             if (company != null) {
                 companyCode = company.getCode();
                 companyName = company.getName();
+                if (company.getGeomPlan() != null && !company.getGeomPlan().isBlank()) {
+                    geomPlan = company.getGeomPlan();
+                }
             }
         }
         String displayName = user.getDisplayName() != null ? user.getDisplayName() : user.getUsername();
@@ -662,7 +733,8 @@ public class AuthService {
                 isPlatformAdminFlag,
                 null, null,
                 displayName, companyName, user.getUsername(),
-                isTenantAdmin, subProductGrants
+                isTenantAdmin, subProductGrants,
+                geomPlan   // V2.0.77.13：GEOM 套餐
         );
 
         // ── 5) 组装响应（不重发 mustChangePassword，前端不动）──

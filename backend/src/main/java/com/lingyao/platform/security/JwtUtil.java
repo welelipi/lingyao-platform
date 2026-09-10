@@ -70,7 +70,8 @@ public class JwtUtil {
     public String generate(Long userId, String username, Long companyId, String companyCode,
                           boolean isPlatformAdmin, String productCode, String roleCode,
                           String displayName, String companyName, String authorizedBy,
-                          boolean isTenantAdmin, List<String> subProductGrants) {
+                          boolean isTenantAdmin, List<String> subProductGrants,
+                          String geomPlan) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("uid", userId);
         claims.put("username", username);
@@ -82,6 +83,10 @@ public class JwtUtil {
         claims.put("tenant_name", companyName == null ? companyCode : companyName);
         claims.put("is_tenant_admin", isTenantAdmin);
         claims.put("sub_product_grants", subProductGrants == null ? Collections.emptyList() : subProductGrants);
+
+        // === V2.0.77.13：GEOM 套餐 claims（契约 GEOM_quota_contract.md §2）===
+        // R1: 缺省 = basic；R2: 非法值兜底 basic + 不报错
+        claims.put("geom_plan", normalizeGeomPlan(geomPlan));
 
         // === Phase 2 新增：标准化三段断言 ===
 
@@ -141,7 +146,8 @@ public class JwtUtil {
                           String displayName, String companyName, String authorizedBy) {
         return generate(userId, username, companyId, companyCode, isPlatformAdmin,
                 productCode, roleCode, displayName, companyName, authorizedBy,
-                isPlatformAdmin, Collections.emptyList());
+                isPlatformAdmin, Collections.emptyList(),
+                null);   // geomPlan 兜底（normalizeGeomPlan → basic）
     }
 
     /**
@@ -177,7 +183,8 @@ public class JwtUtil {
      * - org_code: 凌瑶组织 code（预留）
      */
     public String generateSsoToken(String employeeId, Long companyId, String subProductCode,
-                                    String source, String departmentId, String bu) {
+                                    String source, String departmentId, String bu,
+                                    String geomPlan) {
         Map<String, Object> claims = new HashMap<>();
         // uid 用 employeeId（飞书 open_id 等），子平台按此字段做员工匹配
         claims.put("uid", employeeId);
@@ -222,6 +229,10 @@ public class JwtUtil {
         grants.put("authorized_by", "sso:" + source);
         grants.put("via_sso", true);
         claims.put("grants", grants);
+
+        // === V2.0.77.13：GEOM 套餐 claims（契约 GEOM_quota_contract.md §2）===
+        // SSO callback 路径也注入（飞书/钉钉/企微登录 → 进 GEOM）
+        claims.put("geom_plan", normalizeGeomPlan(geomPlan));
 
         Date now = new Date();
         // SSO token 短期有效（2 小时），首次登录后子平台应该换发长 token
@@ -432,5 +443,22 @@ public class JwtUtil {
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 不可用", e);
         }
+    }
+
+    // ═══════════════════════ V2.0.77.13：GEOM 套餐 claims 规范化（契约 §2 R1+R2）═══════════════════════
+
+    /**
+     * 规范化 GEOM 套餐 claims：
+     * - R1: 缺省/空 → "basic"
+     * - R2: 非法值（非 basic|pro|flagship） → "basic"（不报错，契约 §2 兜底）
+     * - 合法 → 原样返回
+     *
+     * 契约 GEOM_quota_contract.md §2 R1+R2
+     */
+    private static final java.util.Set<String> VALID_GEOM_PLANS = java.util.Set.of("basic", "pro", "flagship");
+
+    static String normalizeGeomPlan(String plan) {
+        if (plan == null || plan.isBlank()) return "basic";
+        return VALID_GEOM_PLANS.contains(plan) ? plan : "basic";
     }
 }

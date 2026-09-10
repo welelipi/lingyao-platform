@@ -15,6 +15,9 @@ public interface DeviceTrustRepository extends JpaRepository<DeviceTrust, Long> 
 
     Optional<DeviceTrust> findByUserIdAndDeviceFp(Long userId, String deviceFp);
 
+    /** V2.0.77.6：按 user_id + ip 段 查 trust（同 IP 段任一指纹命中即信任，UA 漂移不影响） */
+    java.util.List<DeviceTrust> findByUserIdAndIpClassCAndExpiresAtAfter(Long userId, String ipClassC, LocalDateTime now);
+
     /** V2.0.69：清理过期信任记录（每日调度清理） */
     @Modifying
     @Query("DELETE FROM DeviceTrust d WHERE d.expiresAt < :now")

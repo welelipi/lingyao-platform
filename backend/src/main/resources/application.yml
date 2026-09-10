@@ -109,7 +109,8 @@ lingyao:
   subtask:
     routes:
       geo:
-        base-url: ${LINGYAO_SUBTASK_GEO_BASE_URL:http://localhost:5180/#/auth/lingyao/sso-callback}
+        # V2.0.77.12（2026-09-09）：5180 → 5182 · 与 SsoCallbackController L257 保持一致（V2.0.70 改 5182 但漏改此处，主人点击棱镜跳转 ERR_CONNECTION_REFUSED）
+        base-url: ${LINGYAO_SUBTASK_GEO_BASE_URL:http://localhost:5182/#/auth/lingyao/sso-callback}
         health-url: ${LINGYAO_SUBTASK_GEO_HEALTH_URL:http://127.0.0.1:8090/api/health}
         entry-path: ${LINGYAO_SUBTASK_GEO_ENTRY_PATH:/subtask/geo}
       hpd:
