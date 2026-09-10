@@ -67,6 +67,11 @@ public class TenantAdminService {
         company.setLicensePlan(Company.LicensePlan.valueOf(req.getLicensePlan()));
         // V2.0.77.13：GEOM 套餐 basic/pro/flagship（契约 GEOM_quota_contract.md §1）
         company.setGeomPlan(req.getGeomPlan() != null ? req.getGeomPlan() : "basic");
+        // V2.0.77.14 M4：年费档 + 合同模板（契约 §4 M4）
+        company.setAnnualFeeYuan(req.getAnnualFeeYuan() != null ? req.getAnnualFeeYuan() : 200000);
+        company.setContractTemplate(req.getContractTemplate() != null
+                ? Company.ContractTemplate.valueOf(req.getContractTemplate())
+                : Company.ContractTemplate.NONE);
         // V2.0.10：新建公司默认状态 = PENDING（开通中），由大超管手动改 ACTIVE 完成开通
         company.setStatus(Company.CompanyStatus.PENDING);
         company.setMaxUsers(req.getMaxUsers() != null ? req.getMaxUsers() : 10);
@@ -316,6 +321,19 @@ public class TenantAdminService {
             diff.append("geomPlan: ").append(company.getGeomPlan())
                     .append(" → ").append(req.getGeomPlan()).append("; ");
             company.setGeomPlan(req.getGeomPlan());
+        }
+        // V2.0.77.14 M4：年费档（null 保持原值）
+        if (req.getAnnualFeeYuan() != null && !req.getAnnualFeeYuan().equals(company.getAnnualFeeYuan())) {
+            diff.append("annualFeeYuan: ").append(company.getAnnualFeeYuan())
+                    .append(" → ").append(req.getAnnualFeeYuan()).append("; ");
+            company.setAnnualFeeYuan(req.getAnnualFeeYuan());
+        }
+        // V2.0.77.14 M4：合同模板（null 保持原值；高危变更，前端应二次确认）
+        if (req.getContractTemplate() != null
+                && !req.getContractTemplate().equals(company.getContractTemplate().name())) {
+            diff.append("contractTemplate: ").append(company.getContractTemplate())
+                    .append(" → ").append(req.getContractTemplate()).append("; ");
+            company.setContractTemplate(Company.ContractTemplate.valueOf(req.getContractTemplate()));
         }
         // 状态（高危，前端二次确认）
         Company.CompanyStatus newStatus = Company.CompanyStatus.valueOf(req.getStatus());

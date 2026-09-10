@@ -43,6 +43,19 @@ public class UpdateCompanyRequest {
     @Pattern(regexp = "basic|pro|flagship", message = "GEOM 套餐必须为 basic/pro/flagship")
     private String geomPlan;
 
+    /**
+     * V2.0.77.14 M4：年费档（人民币元/年，null 保持原值）
+     */
+    @Min(value = 0, message = "年费不能为负")
+    @Max(value = 100000000, message = "年费最多 1 亿")
+    private Integer annualFeeYuan;
+
+    /**
+     * V2.0.77.14 M4：合同模板档（null 保持原值）
+     */
+    @Pattern(regexp = "NONE|BASIC|PRO|FLAGSHIP", message = "合同模板必须为 NONE/BASIC/PRO/FLAGSHIP")
+    private String contractTemplate;
+
     /** 公司状态：PENDING / ACTIVE / EXPIRED / SUSPENDED / DELETED */
     @NotNull(message = "公司状态不能为空")
     @Pattern(regexp = "PENDING|ACTIVE|EXPIRED|SUSPENDED|DELETED",

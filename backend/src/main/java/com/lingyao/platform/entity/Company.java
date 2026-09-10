@@ -57,6 +57,24 @@ public class Company {
     @Column(name = "geom_plan", length = 16)
     private String geomPlan = "basic";
 
+    /**
+     * V2.0.77.14 M4：年费档（人民币元/年）
+     * 契约 §4 M4：定价与合同模板落三档年费（20/48/98 万），销售系统同步
+     * 实际签约年费以商务合同为准；此字段是平台后台展示+合同模板生成的"建议价"
+     * 缺省 200000（basic 档 20 万/年）
+     */
+    @Column(name = "annual_fee_yuan")
+    private Integer annualFeeYuan = 200000;
+
+    /**
+     * V2.0.77.14 M4：合同模板档（NONE=未签 / BASIC=基础版 / PRO=专业版 / FLAGSHIP=旗舰版）
+     * 与 geom_plan 同档位（但独立字段——geom_plan 是技术授权，contract_template 是商务合同档位）
+     * 缺省 NONE（未签合同）
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "contract_template", length = 16)
+    private ContractTemplate contractTemplate = ContractTemplate.NONE;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 32, nullable = false)
     private CompanyStatus status = CompanyStatus.ACTIVE;
@@ -101,4 +119,12 @@ public class Company {
      * - DELETED  : 已删除（软删除）
      */
     public enum CompanyStatus { PENDING, ACTIVE, EXPIRED, SUSPENDED, DELETED }
+    /**
+     * V2.0.77.14 M4：合同模板档位（与 GEOM 套餐配套，对应年费档）
+     * - NONE      : 未签合同（试用 / 待签约）
+     * - BASIC     : 基础版（20 万/年，对应 GEOM basic 3/10）
+     * - PRO       : 专业版（48 万/年，对应 GEOM pro 5/20）
+     * - FLAGSHIP  : 旗舰版（98 万/年，对应 GEOM flagship 10/50）
+     */
+    public enum ContractTemplate { NONE, BASIC, PRO, FLAGSHIP }
 }

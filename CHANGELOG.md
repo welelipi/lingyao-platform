@@ -1,5 +1,61 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.77.14 (2026-09-10 12:30) — 主站 M4 定价与合同模板（GEOM 三级套餐契约 §4 M4）+ 软 2FA 现状文档化
+
+主人 12:21 拍板 B1（M4 定价与合同模板）+ B2（软 2FA）都做。本版本：
+
+### B1 · M4 落地（10 文件 + DDL + 11 列）
+
+| # | 文件 | 改动 |
+|---|---|---|
+| 1 | `Company.java` | 新增 `annualFeeYuan` (Integer, default 200000) + `contractTemplate` (枚举 ContractTemplate: NONE/BASIC/PRO/FLAGSHIP) |
+| 2 | `CreateCompanyRequest.java` | 新增 `annualFeeYuan`（@Min 0 @Max 1亿）+ `contractTemplate`（@Pattern） |
+| 3 | `UpdateCompanyRequest.java` | 新增同样两字段（null 保持原值） |
+| 4 | `TenantAdminService.createCompany()` | 写入 `annualFeeYuan` (兜底 200000) + `contractTemplate` (兜底 NONE) |
+| 5 | `TenantAdminService.updateCompany()` | diff 日志 + null 保持原值 |
+| 6 | `schema-private.sql` | `ALTER TABLE company ADD COLUMN IF NOT EXISTS annual_fee_yuan INT DEFAULT 200000 NOT NULL` + `contract_template VARCHAR(16) DEFAULT 'NONE' NOT NULL` |
+| 7 | `website/admin.html` 公司表单 | 新增「年费」「合同模板」+「📄 预览合同」按钮 |
+| 8 | `website/admin.html` 公司表格 | 10 列→11 列（插入「年费/合同」列，万元格式化 + 合同档徽标） |
+| 9 | `website/admin.html` 新增 Tab「💰 商业配置」 | 三档定价 KPI 卡 + 合同模板规格说明（只读展示） |
+| 10 | `website/admin.html` 新增合同预览 Modal | 三档合同模板正文渲染（含签约方/服务期/争议解决草案） |
+| 11 | `backend/.../static/admin.html` | 同源 cp + jar 重打包 |
+| 12 | `lingyao-platform.jar` | 12:26 重打 59 MB |
+
+**Hibernate ddl-auto=update 自动加列**（实测 dev-pg 数据库已含 `annual_fee_yuan` integer + `contract_template` varchar）。
+
+### B2 · 软 2FA 现状文档化（不动代码 · 仅文档）
+
+软 2FA **核心已落地**（V2.0.69 A+D+B 方案 + V2.0.77.6 设备信任）：
+- ✅ 新设备登录 → 强制邮箱 OTP（`deviceOtpRequired=true`）
+- ✅ 改密码 → 强制邮箱 OTP（`/api/auth/change-password`）
+- ✅ 信任设备 → 跳过 OTP（UA + IP 段指纹）
+- ✅ 设备信任 30 天期（V2.0.77.6 算法）
+
+新增文档：`docs/软2FA实施现状_V0.77.md`（4 KB）：
+- 现状 4 维（端点/流程/安全强度/前端集成）
+- 与 V2.0.67→.68 回滚教训对齐（不增登录摩擦）
+- **候选扩展 PRD：敏感操作 OTP**（A/B/C 选项待主人拍板）
+  - A: 6 个高危操作（改 GEOM/改合同/删公司等） · 1-2 人日
+  - B: 3 个商业变更（保守）· 0.5 人日
+  - C: 暂缓列 P3
+
+### 部署
+- 9091 后端 daemon 守护（PID 7859，12:26:39 启动完成，5 秒启动）
+- 访问：http://localhost:9091/admin.html（pc_admin/PrivateCust#2026 + 算术 captcha）
+
+### E2E 待登录验证
+- [ ] 公司列表 11 列显示（年费「20 万」+ 合同档徽标）
+- [ ] 新建公司弹窗含「年费/合同模板/预览合同」三字段
+- [ ] 「💰 商业配置」Tab 显示三档定价 KPI 卡
+- [ ] 「📄 预览合同」按钮 → 合同正文 modal 渲染
+- [ ] 改公司 contractTemplate → audit_log 写入 diff
+
+### 待办
+- B2 敏感操作 OTP A/B/C：等主人拍板
+- 推送治理 V3.2：等主人拍板推送窗口（12:00/18:00/23:00）
+
+---
+
 ## V2.0.77.13 (2026-09-10 11:25) — 主站 SSO 注入 `geom_plan` claims（GEOM 三级套餐契约落地 · 主站侧 M2）
 
 ---

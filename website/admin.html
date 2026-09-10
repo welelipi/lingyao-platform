@@ -324,6 +324,8 @@
         <button class="tab-btn" data-tab="invitations">邀请管理</button>
         <button class="tab-btn" data-tab="registrations">报名管理</button>
         <button class="tab-btn" data-tab="security">安全审计</button>
+        <!-- V2.0.77.14 M4：商业配置 Tab（定价与合同模板只读展示） -->
+        <button class="tab-btn" data-tab="pricing">💰 商业配置</button>
       </div>
 
       <!-- Tab 1：公司 -->
@@ -343,6 +345,7 @@
               <th>部署模式</th>
               <th>许可证</th>
               <th>GEOM 套餐</th>
+              <th>年费 / 合同</th>
               <th>状态</th>
               <th>已授权产品</th>
               <th>联系邮箱</th>
@@ -566,6 +569,59 @@
     </div>
   </div>
 
+  <!-- Tab 7：商业配置（V2.0.77.14 M4：定价与合同模板 · 契约 §4 M4） -->
+  <div class="tab-content" data-pane="pricing">
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">
+      主站商业配置 · 三档定价（basic 20 万 / pro 48 万 / flagship 98 万）。销售签约时按此口径开合同；具体签约金额可在公司表单「年费」字段手动覆盖。
+    </p>
+    <div class="kpi-grid" style="margin-bottom:20px;">
+      <div class="kpi-card" style="border-left:4px solid #94a3b8;">
+        <div class="kpi-label">basic · 基础版</div>
+        <div class="kpi-value" style="font-size:24px;color:#94a3b8;">20 <span style="font-size:14px;color:var(--text-dim);">万/年</span></div>
+        <div class="kpi-hint">3 分类 / 10 品牌 · 5 用户席位 · 每日 1 次巡检 · 90 天回溯</div>
+      </div>
+      <div class="kpi-card" style="border-left:4px solid #60a5fa;">
+        <div class="kpi-label">pro · 专业版</div>
+        <div class="kpi-value" style="font-size:24px;color:#60a5fa;">48 <span style="font-size:14px;color:var(--text-dim);">万/年</span></div>
+        <div class="kpi-hint">5 分类 / 20 品牌 · 15 用户席位 · 每日 2 次巡检 · 1 年回溯</div>
+      </div>
+      <div class="kpi-card" style="border-left:4px solid #a855f7;">
+        <div class="kpi-label">flagship · 旗舰版</div>
+        <div class="kpi-value" style="font-size:24px;color:#a855f7;">98 <span style="font-size:14px;color:var(--text-dim);">万/年</span></div>
+        <div class="kpi-hint">10 分类 / 50 品牌 · 不限席位 · 每日 3 次+实时预警 · 全量回溯</div>
+      </div>
+    </div>
+    <div class="ca-card" style="margin-top:8px;">
+      <h3 style="margin-bottom:12px;font-size:16px;">📄 合同模板规格</h3>
+      <p style="color:var(--text-dim);font-size:13px;line-height:1.7;margin-bottom:8px;">
+        三档合同模板（BASIC / PRO / FLAGSHIP）与 GEOM 套餐档位一一对应。新建/编辑公司表单内有「合同模板」下拉 + 「📄 预览合同」按钮 —— 选定档位后可直接预览合同正文（含签约方信息、套餐规格、定价、有效期）。
+      </p>
+      <p style="color:var(--text-dim);font-size:13px;line-height:1.7;margin-bottom:8px;">
+        <strong style="color:var(--text);">条款对齐口径</strong>：合同模板档（<code>contractTemplate</code>）与 GEOM 套餐档（<code>geomPlan</code>）可独立设置 —— 商务合同档可能滞后于实际授权（如先签 PRO 试用 1 个月，实际授权仍是 BASIC）。两者通过「公司表单」分别维护，修改任意一项都会写入审计日志。
+      </p>
+      <p style="color:var(--text-dim);font-size:13px;line-height:1.7;margin-bottom:0;">
+        <strong style="color:var(--text);">销售系统同步</strong>：本期仅主站后台维护合同档与年费；后续销售系统对接由销售侧接管（不在本窗口）。V2.0.77.14 本版本仅落地「主站侧商业配置 Tab + 三档展示 + 公司表单字段」。
+      </p>
+    </div>
+  </div>
+
+  <!-- 模态：合同预览（V2.0.77.14 M4） -->
+  <div class="modal" id="contractPreviewModal">
+    <div class="modal-backdrop" onclick="closeModal('contractPreview')"></div>
+    <div class="modal-content modal-large">
+      <button class="modal-close" onclick="closeModal('contractPreview')">&times;</button>
+      <div class="modal-header">
+        <h3>📄 合同模板预览</h3>
+        <p>凌瑶智数 GEOM 棱镜服务合同（草案）</p>
+      </div>
+      <div id="contractPreviewBody" style="padding:8px 0;line-height:1.7;font-size:13px;max-height:60vh;overflow-y:auto;"></div>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost-sm" onclick="closeModal('contractPreview')">关闭</button>
+        <button type="button" class="btn-primary-sm" onclick="window.print()">🖨️ 打印 / 导出 PDF</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 模态：新建公司 -->
   <div class="modal" id="companyModal">
     <div class="modal-backdrop" onclick="closeModal('company')"></div>
@@ -637,6 +693,28 @@
           <div class="form-field">
             <label>最大用户数</label>
             <input name="maxUsers" type="number" min="1" max="10000" value="10">
+          </div>
+        </div>
+        <!-- V2.0.77.14 M4：年费档 + 合同模板（契约 §4 M4：20/48/98 万） -->
+        <div class="form-row three">
+          <div class="form-field">
+            <label>年费（元/年）</label>
+            <input name="annualFeeYuan" type="number" min="0" max="100000000" value="200000" step="10000">
+            <span class="help">建议价（人民币元/年）· basic=20 万 / pro=48 万 / flagship=98 万</span>
+          </div>
+          <div class="form-field">
+            <label>合同模板</label>
+            <select name="contractTemplate">
+              <option value="NONE" selected>NONE · 未签合同</option>
+              <option value="BASIC">BASIC · 基础版</option>
+              <option value="PRO">PRO · 专业版</option>
+              <option value="FLAGSHIP">FLAGSHIP · 旗舰版</option>
+            </select>
+          </div>
+          <div class="form-field" style="display:flex;align-items:flex-end;">
+            <button type="button" class="btn-ghost-sm" onclick="openContractPreview()" style="height:38px;">
+              📄 预览合同
+            </button>
           </div>
         </div>
         <div class="form-row">
@@ -1003,6 +1081,79 @@
       if (m) { m.classList.remove('show'); document.body.style.overflow = ''; }
     }
 
+    // V2.0.77.14 M4：合同模板预览（契约 §4 M4）
+    const CONTRACT_TEMPLATES = {
+      BASIC: {
+        title: '凌瑶智数 GEOM 棱镜服务合同（基础版）',
+        price: '人民币 200,000 元（大写：贰拾万元整）',
+        tier: '基础版（basic）',
+        specs: [
+          'GEOM 棱镜基础版授权：3 个产品分类',
+          '每分类最多 10 个品牌监测',
+          '5 个用户席位',
+          '每日 1 次关键词可见性巡检',
+          '数据回溯 90 天',
+        ],
+      },
+      PRO: {
+        title: '凌瑶智数 GEOM 棱镜服务合同（专业版）',
+        price: '人民币 480,000 元（大写：肆拾捌万元整）',
+        tier: '专业版（pro）',
+        specs: [
+          'GEOM 棱镜专业版授权：5 个产品分类',
+          '每分类最多 20 个品牌监测',
+          '15 个用户席位',
+          '每日 2 次关键词可见性巡检',
+          '数据回溯 1 年',
+        ],
+      },
+      FLAGSHIP: {
+        title: '凌瑶智数 GEOM 棱镜服务合同（旗舰版）',
+        price: '人民币 980,000 元（大写：玖拾捌万元整）',
+        tier: '旗舰版（flagship）',
+        specs: [
+          'GEOM 棱镜旗舰版授权：10 个产品分类',
+          '每分类最多 50 个品牌监测',
+          '不限用户席位',
+          '每日 3 次巡检 + 实时预警',
+          '全量数据回溯',
+        ],
+      },
+      NONE: { title: '未选择合同模板', price: '—', tier: '—', specs: ['请先在合同模板下拉中选择 BASIC / PRO / FLAGSHIP 之一'] },
+    };
+
+    function openContractPreview() {
+      const form = document.getElementById('companyForm');
+      const fd = new FormData(form);
+      const ct = fd.get('contractTemplate') || 'NONE';
+      const fee = parseInt(fd.get('annualFeeYuan')) || 200000;
+      const companyName = (fd.get('name') || '______（签约方）').trim();
+      const companyCode = (fd.get('code') || '______').trim().toUpperCase();
+      const t = CONTRACT_TEMPLATES[ct] || CONTRACT_TEMPLATES.NONE;
+
+      const body = document.getElementById('contractPreviewBody');
+      body.innerHTML = `
+        <div style="text-align:center;font-weight:700;font-size:18px;margin-bottom:16px;">${escapeHtml(t.title)}</div>
+        <p><strong>甲方（凌瑶方）</strong>：上海凌瑶智数科技有限公司</p>
+        <p><strong>乙方（客户方）</strong>：${escapeHtml(companyName)}（公司代码：<code>${escapeHtml(companyCode)}</code>）</p>
+        <p><strong>服务档位</strong>：${escapeHtml(t.tier)}</p>
+        <p><strong>年度服务费</strong>：${escapeHtml(ct === 'NONE' ? t.price : (fee.toLocaleString() + ' 元'))}
+          ${ct !== 'NONE' && fee !== (ct === 'BASIC' ? 200000 : ct === 'PRO' ? 480000 : 980000)
+            ? '<span style="color:#FF8C42;font-size:12px;">（与档位建议价不同，以本金额为准）</span>' : ''}
+        </p>
+        <p><strong>服务规格</strong>：</p>
+        <ul style="margin-left:24px;list-style-type:disc;">
+          ${t.specs.map(s => '<li>' + escapeHtml(s) + '</li>').join('')}
+        </ul>
+        <p style="margin-top:16px;"><strong>服务期</strong>：本合同自双方盖章之日起生效，有效期 1 年。届满前 30 日双方协商续约。</p>
+        <p><strong>争议解决</strong>：因本合同发生的争议，双方协商解决；协商不成的，提交上海仲裁委员会按其现行规则仲裁。</p>
+        <p style="margin-top:24px;color:var(--text-dim);font-size:11px;">
+          ⚠️ 本预览为合同草案，仅作商务参考。正式合同以双方签字盖章版本为准。
+        </p>
+      `;
+      openModal('contractPreview');
+    }
+
     // ── 全局状态 ─────────────────────────
     let companiesCache = [];
     let usersCache = [];
@@ -1257,7 +1408,7 @@
       document.getElementById('companyCount').textContent = companiesCache.length;
       const body = document.getElementById('companyTableBody');
       if (companiesCache.length === 0) {
-        body.innerHTML = '<tr><td colspan="10" class="table-empty">暂无公司，点击右上角"新建公司"开始</td></tr>';
+        body.innerHTML = '<tr><td colspan="11" class="table-empty">暂无公司，点击右上角"新建公司"开始</td></tr>';
         return;
       }
       // V2.0.77.13 M1：GEOM 套餐中文映射（契约 /tmp/GEOM_quota_contract.md §1）
@@ -1266,10 +1417,24 @@
         pro:      '<span class="badge" style="background:rgba(96,165,250,.18);color:#60a5fa;">pro · 专业版</span>',
         flagship: '<span class="badge" style="background:rgba(168,85,247,.18);color:#a855f7;">flagship · 旗舰版</span>',
       }[gp] || '<span class="badge" style="background:rgba(148,163,184,.12);color:#94a3b8;">basic · 基础版</span>');
+      // V2.0.77.14 M4：年费格式化 + 合同模板中文映射（契约 §4 M4）
+      const formatYuan = (n) => {
+        const v = n == null ? 200000 : Number(n);
+        if (v >= 10000) return (v / 10000).toFixed(0) + ' 万';
+        return v + ' 元';
+      };
+      const contractTemplateLabel = (ct) => ({
+        NONE:     '<span style="color:var(--text-dim);">— 未签</span>',
+        BASIC:    '<span class="badge" style="background:rgba(148,163,184,.18);color:#94a3b8;">BASIC</span>',
+        PRO:      '<span class="badge" style="background:rgba(96,165,250,.18);color:#60a5fa;">PRO</span>',
+        FLAGSHIP: '<span class="badge" style="background:rgba(168,85,247,.18);color:#a855f7;">FLAGSHIP</span>',
+      }[ct] || '<span style="color:var(--text-dim);">— 未签</span>');
       body.innerHTML = companiesCache.map(c => {
         const dm = c.deploymentMode || 'SAAS';
         const lp = c.licensePlan || 'STANDARD';
         const gp = c.geomPlan || 'basic';
+        const fee = c.annualFeeYuan != null ? c.annualFeeYuan : 200000;
+        const ct = c.contractTemplate || 'NONE';
         const st = c.status || 'ACTIVE';
         return `
         <tr>
@@ -1279,6 +1444,7 @@
           <td><span class="badge ${dm.toLowerCase()}">${zh(dm)}</span></td>
           <td>${zh(lp)}</td>
           <td>${geomPlanLabel(gp)}</td>
+          <td style="font-size:12px;">${formatYuan(fee)}<br>${contractTemplateLabel(ct)}</td>
           <td><span class="badge ${st.toLowerCase()}">${zh(st)}</span></td>
           <td><span class="badge-pill" data-cp-cid="${c.id}">加载中…</span></td>
           <td>${escapeHtml(c.contactEmail || '-')}</td>
@@ -1782,6 +1948,9 @@
         licensePlan: fd.get('licensePlan'),
         // V2.0.77.13 M1：GEOM 棱镜套餐（basic/pro/flagship），契约 §1
         geomPlan: fd.get('geomPlan') || 'basic',
+        // V2.0.77.14 M4：年费档 + 合同模板（契约 §4 M4：20/48/98 万）
+        annualFeeYuan: parseInt(fd.get('annualFeeYuan')) || 200000,
+        contractTemplate: fd.get('contractTemplate') || 'NONE',
         maxUsers: parseInt(fd.get('maxUsers')),
         contactEmail: fd.get('contactEmail') || null,
         contactPhone: fd.get('contactPhone') || null,

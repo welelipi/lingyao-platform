@@ -38,6 +38,22 @@ public class CreateCompanyRequest {
     @Pattern(regexp = "basic|pro|flagship", message = "GEOM 套餐必须为 basic/pro/flagship")
     private String geomPlan = "basic";
 
+    /**
+     * V2.0.77.14 M4：年费档（人民币元/年）
+     * 契约 §4 M4：20 万（basic）/ 48 万（pro）/ 98 万（flagship）
+     * 缺省 200000（basic 档）
+     */
+    @Min(value = 0, message = "年费不能为负")
+    @Max(value = 100000000, message = "年费最多 1 亿")
+    private Integer annualFeeYuan = 200000;
+
+    /**
+     * V2.0.77.14 M4：合同模板档（NONE/BASIC/PRO/FLAGSHIP）
+     * 缺省 NONE（待签约）
+     */
+    @Pattern(regexp = "NONE|BASIC|PRO|FLAGSHIP", message = "合同模板必须为 NONE/BASIC/PRO/FLAGSHIP")
+    private String contractTemplate = "NONE";
+
     @Min(value = 1, message = "最大用户数至少为 1")
     @Max(value = 10000, message = "最大用户数最多 10000")
     private Integer maxUsers = 10;

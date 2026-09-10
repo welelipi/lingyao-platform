@@ -23,6 +23,12 @@ ALTER TABLE company ADD CONSTRAINT company_status_check
 -- 默认 'basic'（契约 §2 R1 缺省兜底）
 ALTER TABLE company ADD COLUMN IF NOT EXISTS geom_plan VARCHAR(16) DEFAULT 'basic' NOT NULL;
 
+-- ── 1.6) V2.0.77.14 M4：年费档 + 合同模板（契约 GEOM_quota_contract.md §4 M4）──────────
+-- annual_fee_yuan：年费人民币元/年（缺省 200000 = 20 万 = basic 档）
+-- contract_template：合同模板档 NONE/BASIC/PRO/FLAGSHIP（缺省 NONE 待签约）
+ALTER TABLE company ADD COLUMN IF NOT EXISTS annual_fee_yuan INT DEFAULT 200000 NOT NULL;
+ALTER TABLE company ADD COLUMN IF NOT EXISTS contract_template VARCHAR(16) DEFAULT 'NONE' NOT NULL;
+
 -- ── 2) 创建 license_reminder_log 表 ──────────
 -- V2.0.10 修复：字段名 daysBefore → noticeDays（Spring Data JPA 解析方法名歧义）
 -- 老 jar 启动失败时 Hibernate 已经建过 days_before 列，需 RENAME 迁移
