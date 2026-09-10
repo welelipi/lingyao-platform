@@ -209,9 +209,12 @@ public class EmailOtpService {
         // 不记验证码本体。CurrentUser 由 JwtAuthFilter 回填（敏感操作场景必已登录）。
         try {
             boolean locked = err[0] != null && err[0].contains("锁定");
+            // V2.0.77.18b（AX-01 反修）：参数顺序为 (type, userId, username, ip, path, method, errorCode, errorMessage, meta)——
+            // 修复前 "/api/auth/sensitive-otp/verify"（31 字符）误落 method 槽位（varchar(8)），INSERT 报
+            // value too long 被吞，OTP 爆破审计全量落库失败。现 path/method 各归其位。
             authAuditService.recordFailureWithMeta(
                     locked ? AuthAuditEvent.EventType.OTP_LOCKED : AuthAuditEvent.EventType.OTP_VERIFY_FAIL,
-                    null, username, null, null, "/api/auth/sensitive-otp/verify",
+                    null, username, null, "/api/auth/sensitive-otp/verify", "POST",
                     locked ? "OTP_LOCKED" : "OTP_VERIFY_FAIL", err[0],
                     Map.of("purpose", purpose == null ? "" : purpose));
         } catch (Exception auditEx) {

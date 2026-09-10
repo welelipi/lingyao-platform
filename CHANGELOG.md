@@ -1,5 +1,11 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.77.18b (2026-09-10 15:50) — r5 阶段 5 安全验收 AX-01 反修（OTP 爆破审计落库失败）
+
+安全维验收（06-acceptance-security.md，8.5/10 有条件通过）实锤 AX-01：`EmailOtpService.verifyOtp` 调 `recordFailureWithMeta` 参数错位——31 字符的 `"/api/auth/sensitive-otp/verify"` 误落 requestMethod 槽位（varchar(8)），INSERT 报 value too long 被静默吞，R5-05② 的 OTP 爆破审计全量落库失败（psql 实测 OTP_VERIFY_FAIL 计数=0）。
+
+**修复**：path/method 参数各归其位（`"/api/auth/sensitive-otp/verify", "POST"`），一行级改动 + 注释留痕。修后 security-r5 复验（假 OTP 触发 + psql 查落库）即转正式通过。
+
 ## V2.0.77.16~.18 (2026-09-10 15:20) — r5 主站质量环三批连做（R5-01~12 全落地）
 
 主人 14:59 拍板「A」= 三批连做 + 开放问题按 PRD 倾向（①plan-quotas 端点下期 ②删 ticket 死代码 ③核心测试 3h ④限流 10 次/h）。PRD：`.workbuddy/quality-loop/2026-09-10-r5-main-site/03-prd.md`。
