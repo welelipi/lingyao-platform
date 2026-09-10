@@ -1271,19 +1271,39 @@
 
     window.saveEditCompany = async function() {
       const companyId = parseInt(document.getElementById('editCompanyId').value);
+      const company = companiesCache.find(c => c.id === companyId);
       const name = document.getElementById('editCompanyName').value;
       const geomPlan = document.getElementById('editCompanyGeomPlan').value;
       const annualFeeYuan = parseInt(document.getElementById('editCompanyAnnualFee').value) || 200000;
       const contractTemplate = document.getElementById('editCompanyContractTemplate').value;
 
+      // V2.0.77.15b（ARCH-006 修复）：PUT 是全量更新，UpdateCompanyRequest 对
+      // name/deploymentMode/licensePlan/status 有 @NotBlank/@NotNull 校验——
+      // 必须从 companiesCache 回填未展示字段，否则必 400（假闭环）
+      if (!company) { showToast('公司数据未加载，请刷新页面', 'error'); return; }
+      const fullBody = {
+        name: company.name || '',
+        code: company.code || undefined,          // code 不可改，回填占位
+        deploymentMode: company.deploymentMode || 'SAAS',
+        licensePlan: company.licensePlan || 'STANDARD',
+        status: company.status || 'ACTIVE',
+        maxUsers: company.maxUsers ?? null,
+        contactEmail: company.contactEmail ?? null,
+        contactPhone: company.contactPhone ?? null,
+        address: company.address ?? null,
+        remark: company.remark ?? null,
+        geomPlan, annualFeeYuan, contractTemplate,
+        emailOtpCode: undefined,                   // 占位，OTP 验证后再赋值
+      };
+
       // V2.0.77.15: 敏感操作 OTP 二次验证
       let otpCode = null;
       try { otpCode = await promptSensitiveOtp('修改「' + name + '」商业配置'); }
       catch (_) { return; }
+      fullBody.emailOtpCode = otpCode;
+      delete fullBody.code;  // code 是唯一标识不可改，且后端 UpdateCompanyRequest 无 code 字段
       try {
-        await api('PUT', `/api/admin/companies/${companyId}`, {
-          geomPlan, annualFeeYuan, contractTemplate, emailOtpCode: otpCode
-        });
+        await api('PUT', `/api/admin/companies/${companyId}`, fullBody);
         showToast('公司信息已更新', 'success');
         closeModal('editCompany');
         await loadAll();

@@ -335,12 +335,12 @@ public class TenantAdminService {
                     .append(" → ").append(req.getContractTemplate()).append("; ");
             company.setContractTemplate(Company.ContractTemplate.valueOf(req.getContractTemplate()));
         }
-        // 状态（高危，前端二次确认）
+        // 状态（V2.0.77.15b ARCH-004：status 变更必须走 suspend/activate 专用端点——
+        // 那里有独立 operation 的 OTP 二次验证；PUT 全量端点拒绝改 status，防绕行）
         Company.CompanyStatus newStatus = Company.CompanyStatus.valueOf(req.getStatus());
         if (company.getStatus() != newStatus) {
-            diff.append("status: ").append(company.getStatus())
-                    .append(" → ").append(newStatus).append("; ");
-            company.setStatus(newStatus);
+            throw new IllegalArgumentException(
+                "状态变更请使用专用接口：POST /api/admin/companies/" + id + "/suspend 或 /activate（需邮箱 OTP 二次验证）");
         }
         // 许可证起始（前端二次确认）
         if (req.getLicenseStart() != null
