@@ -342,6 +342,7 @@
               <th>公司代码</th>
               <th>部署模式</th>
               <th>许可证</th>
+              <th>GEOM 套餐</th>
               <th>状态</th>
               <th>已授权产品</th>
               <th>联系邮箱</th>
@@ -620,6 +621,17 @@
               <option value="TRIAL">TRIAL（试用）</option>
               <option value="STANDARD" selected>STANDARD（标准）</option>
               <option value="ENTERPRISE">ENTERPRISE（企业）</option>
+            </select>
+          </div>
+          <!-- V2.0.77.13 M1：GEOM 棱镜套餐（basic/pro/flagship）
+               契约：/tmp/GEOM_quota_contract.md §1
+               basic=3分类/10品牌 · pro=5分类/20品牌 · flagship=10分类/50品牌 -->
+          <div class="form-field">
+            <label>GEOM 套餐</label>
+            <select name="geomPlan">
+              <option value="basic" selected>basic · 基础版（3分类/10品牌）</option>
+              <option value="pro">pro · 专业版（5分类/20品牌）</option>
+              <option value="flagship">flagship · 旗舰版（10分类/50品牌）</option>
             </select>
           </div>
           <div class="form-field">
@@ -1245,12 +1257,19 @@
       document.getElementById('companyCount').textContent = companiesCache.length;
       const body = document.getElementById('companyTableBody');
       if (companiesCache.length === 0) {
-        body.innerHTML = '<tr><td colspan="9" class="table-empty">暂无公司，点击右上角"新建公司"开始</td></tr>';
+        body.innerHTML = '<tr><td colspan="10" class="table-empty">暂无公司，点击右上角"新建公司"开始</td></tr>';
         return;
       }
+      // V2.0.77.13 M1：GEOM 套餐中文映射（契约 /tmp/GEOM_quota_contract.md §1）
+      const geomPlanLabel = (gp) => ({
+        basic:    '<span class="badge" style="background:rgba(148,163,184,.18);color:#94a3b8;">basic · 基础版</span>',
+        pro:      '<span class="badge" style="background:rgba(96,165,250,.18);color:#60a5fa;">pro · 专业版</span>',
+        flagship: '<span class="badge" style="background:rgba(168,85,247,.18);color:#a855f7;">flagship · 旗舰版</span>',
+      }[gp] || '<span class="badge" style="background:rgba(148,163,184,.12);color:#94a3b8;">basic · 基础版</span>');
       body.innerHTML = companiesCache.map(c => {
         const dm = c.deploymentMode || 'SAAS';
         const lp = c.licensePlan || 'STANDARD';
+        const gp = c.geomPlan || 'basic';
         const st = c.status || 'ACTIVE';
         return `
         <tr>
@@ -1259,6 +1278,7 @@
           <td><code>${escapeHtml(c.code)}</code></td>
           <td><span class="badge ${dm.toLowerCase()}">${zh(dm)}</span></td>
           <td>${zh(lp)}</td>
+          <td>${geomPlanLabel(gp)}</td>
           <td><span class="badge ${st.toLowerCase()}">${zh(st)}</span></td>
           <td><span class="badge-pill" data-cp-cid="${c.id}">加载中…</span></td>
           <td>${escapeHtml(c.contactEmail || '-')}</td>
@@ -1760,6 +1780,8 @@
         code: fd.get('code').trim().toUpperCase(),
         deploymentMode: fd.get('deploymentMode'),
         licensePlan: fd.get('licensePlan'),
+        // V2.0.77.13 M1：GEOM 棱镜套餐（basic/pro/flagship），契约 §1
+        geomPlan: fd.get('geomPlan') || 'basic',
         maxUsers: parseInt(fd.get('maxUsers')),
         contactEmail: fd.get('contactEmail') || null,
         contactPhone: fd.get('contactPhone') || null,
