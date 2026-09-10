@@ -317,9 +317,12 @@ public class TenantAdminService {
         }
         // V2.0.77.13：GEOM 套餐 basic/pro/flagship（契约 GEOM_quota_contract.md §1）
         // 可选字段：req.getGeomPlan() 为 null 表示保持原值
+        // V2.0.77.17（R5-10 / ARCH-003）：geom_plan 是登录/SSO 签发时刻的 JWT 快照（契约 R3），
+        // 改套餐后旧 token 仍持旧套餐，需用户重新登录才生效——审计文案显式提示。
         if (req.getGeomPlan() != null && !req.getGeomPlan().equals(company.getGeomPlan())) {
             diff.append("geomPlan: ").append(company.getGeomPlan())
-                    .append(" → ").append(req.getGeomPlan()).append("; ");
+                    .append(" → ").append(req.getGeomPlan())
+                    .append("（geom_plan 变更需用户重新登录后生效）; ");
             company.setGeomPlan(req.getGeomPlan());
         }
         // V2.0.77.14 M4：年费档（null 保持原值）
@@ -364,24 +367,25 @@ public class TenantAdminService {
                     .append(" → ").append(req.getMaxUsers()).append("; ");
             company.setMaxUsers(req.getMaxUsers());
         }
-        // 联系邮箱
-        if (!safeEq(company.getContactEmail(), req.getContactEmail())) {
+        // 联系邮箱（V2.0.77.17 R5-04 / SEC-03：null-preserve——req 传 null 表示保持原值，
+        // 防部分字段更新时静默清空；传空串 "" 仍表示清空，语义显式）
+        if (req.getContactEmail() != null && !safeEq(company.getContactEmail(), req.getContactEmail())) {
             diff.append("contactEmail: ").append(company.getContactEmail())
                     .append(" → ").append(req.getContactEmail()).append("; ");
             company.setContactEmail(req.getContactEmail());
         }
-        // 联系电话
-        if (!safeEq(company.getContactPhone(), req.getContactPhone())) {
+        // 联系电话（同上 null-preserve）
+        if (req.getContactPhone() != null && !safeEq(company.getContactPhone(), req.getContactPhone())) {
             diff.append("contactPhone: ").append(company.getContactPhone())
                     .append(" → ").append(req.getContactPhone()).append("; ");
             company.setContactPhone(req.getContactPhone());
         }
-        // 地址
-        if (!safeEq(company.getAddress(), req.getAddress())) {
+        // 地址（同上 null-preserve）
+        if (req.getAddress() != null && !safeEq(company.getAddress(), req.getAddress())) {
             company.setAddress(req.getAddress());
         }
-        // 备注
-        if (!safeEq(company.getRemark(), req.getRemark())) {
+        // 备注（同上 null-preserve）
+        if (req.getRemark() != null && !safeEq(company.getRemark(), req.getRemark())) {
             company.setRemark(req.getRemark());
         }
 

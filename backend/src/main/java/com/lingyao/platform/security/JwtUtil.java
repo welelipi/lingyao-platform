@@ -3,6 +3,7 @@ package com.lingyao.platform.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -51,6 +52,26 @@ public class JwtUtil {
 
     // V2.0.11+ HPD SSO 改造：JWT audience 标记，主仓签发给子产品的 token 都带这个 audience
     private static final String DEFAULT_AUDIENCE = "lingyao-sso";
+
+    /**
+     * V2.0.77.16（R5-02 / SEC-01② 修复）：启动期 fail-fast 校验。
+     * SEC-01 教训：dev-pg profile 的 secret fallback 是空串，空密钥下服务能启动但登录 500
+     * （jjwt 拒绝 0-bit 密钥），故障在运行期才暴露。现在 secret 为空或 < 32 字节（256 bit，
+     * RFC 7518 §3.2 对 HS256 的最低要求）直接拒绝启动，把配置错误挡在部署期。
+     * dev(H2) profile 的 32B 默认 fallback 保留不动。
+     */
+    @PostConstruct
+    void validateSecret() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT secret 缺失（LINGYAO_JWT_SECRET 为空）：拒绝启动。请设置环境变量或 data/.jwt_secret 文件");
+        }
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < 32) {
+            throw new IllegalStateException(
+                    "JWT secret 过短（" + bytes.length + " 字节 < 32 字节/256 bit，RFC 7518 §3.2）：拒绝启动，请更换强密钥");
+        }
+    }
 
     private SecretKey getKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));

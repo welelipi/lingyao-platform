@@ -1,6 +1,7 @@
 package com.lingyao.platform.service;
 
 import com.lingyao.platform.config.NotifyEmailProperties;
+import com.lingyao.platform.entity.AuthAuditEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +55,10 @@ public class EmailOtpService {
     @Autowired
     private org.springframework.core.env.Environment env;
 
+    // V2.0.77.17（R5-05 / SEC-04）：OTP 验证失败/锁定入安全事件表（prev 仅 log.info，爆破对面板不可见）
+    @Autowired
+    private AuthAuditService authAuditService;
+
     private boolean isDevProfile() {
         for (String p : env.getActiveProfiles()) {
             if (p.startsWith("dev")) return true;
@@ -66,6 +71,24 @@ public class EmailOtpService {
 
     /** 上次发码时间（频控）：key 同上 */
     private final Map<String, LocalDateTime> lastSentAt = new ConcurrentHashMap<>();
+
+    /**
+     * V2.0.77.17（R5-08 / ARCH-008）：过期 OTP 条目主动清扫（prev 仅靠验证/发码时懒清理）。
+     * 每 60s 扫一遍 otpStore 与 lastSentAt，删除已过期条目；防止低频服务下
+     * 内存中长期残留失效 entry。@EnableScheduling 已在 LingyaoApplication 开启。
+     * 清扫异常不影响主流程（下轮重扫）。
+     */
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 60_000)
+    public void sweepExpiredEntries() {
+        LocalDateTime now = LocalDateTime.now();
+        int before = otpStore.size();
+        otpStore.entrySet().removeIf(e -> e.getValue().expiresAt().isBefore(now));
+        int removed = before - otpStore.size();
+        lastSentAt.entrySet().removeIf(e -> e.getValue().plusSeconds(SEND_INTERVAL_SECONDS).isBefore(now));
+        if (removed > 0) {
+            log.debug("📧 OTP 过期清扫：移除 {} 条，剩余 {} 条", removed, otpStore.size());
+        }
+    }
 
     /** purpose 常量 */
     public static final String PURPOSE_DEVICE_LOGIN = "DEVICE_LOGIN";   // D：新设备登录
@@ -181,6 +204,19 @@ public class EmailOtpService {
             lastSentAt.remove(key);
             return null;
         }
+        // V2.0.77.17（R5-05 / SEC-04）：失败/锁定写入安全事件（auth_audit_event），
+        // 爆破尝试在 SecurityEvents 面板可见。username 不脱敏（面板需定位账号），
+        // 不记验证码本体。CurrentUser 由 JwtAuthFilter 回填（敏感操作场景必已登录）。
+        try {
+            boolean locked = err[0] != null && err[0].contains("锁定");
+            authAuditService.recordFailureWithMeta(
+                    locked ? AuthAuditEvent.EventType.OTP_LOCKED : AuthAuditEvent.EventType.OTP_VERIFY_FAIL,
+                    null, username, null, null, "/api/auth/sensitive-otp/verify",
+                    locked ? "OTP_LOCKED" : "OTP_VERIFY_FAIL", err[0],
+                    Map.of("purpose", purpose == null ? "" : purpose));
+        } catch (Exception auditEx) {
+            log.warn("OTP 审计事件写入失败（不影响主流程）: {}", auditEx.getMessage());
+        }
         return err[0];
     }
 
@@ -228,7 +264,9 @@ public class EmailOtpService {
         helper.setFrom(emailProps.getFrom() != null && !emailProps.getFrom().isBlank()
                 ? emailProps.getFrom() : emailProps.getUsername());
         helper.setTo(to);
-        helper.setSubject("【凌瑶智数】" + scene + "验证码：" + code);
+        // V2.0.77.17（R5-06 / SEC-06 前半）：验证码移出邮件主题——主题可被通知类/垃圾邮件
+        // 规则直接扫描读取，弱化「收件箱=第二因子」。验证码仅保留在正文。
+        helper.setSubject("【凌瑶智数】" + scene + "，请查收验证码");
         helper.setText(html, true);
         mailSender.send(message);
     }

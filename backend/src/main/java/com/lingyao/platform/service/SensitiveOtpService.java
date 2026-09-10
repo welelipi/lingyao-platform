@@ -2,14 +2,10 @@ package com.lingyao.platform.service;
 
 import com.lingyao.platform.entity.SysUser;
 import com.lingyao.platform.repository.SysUserRepository;
-import com.lingyao.platform.security.JwtAuthFilter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 敏感操作 OTP 二次验证服务 — V2.0.77.15
@@ -28,7 +24,15 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * 与 V2.0.69 改密 OTP 的差异：
  * - 改密 OTP 10 分钟内可重复使用（同一用户连续改密不重复发码）
- * - 敏感操作 OTP 5 分钟一次性（每次操作前必须重新验证，防止 session 截获后滥用）
+ * - 敏感操作 OTP 一次性（每次操作前必须重新验证，防止 session 截获后滥用）
+ *
+ * V2.0.77.17（R5-07 / ARCH-001 / SEC-06 后半）：删除 ticket 两段式死代码
+ * （verifyAndIssueTicket / verifyTicket / ticketStore / /ticket 端点）——
+ * 全项目零业务调用方 + verifyTicket remove-then-check 非原子（ARCH-001），
+ * 两套机制并存徒增维护面。YAGNI：未来需要「一次验证多操作」时重写即可。
+ * 现只保留 verify() 单机制。
+ *
+ * V2.0.77.18（R5-11 / ARCH-009）：改构造器注入（利于 mock 单测）。
  *
  * 6 个接入点（V2.0.77.15 一次性接通）：
  * 1. PUT /api/admin/companies/{id}                       → COMPANY_CHANGE_GEOM_OR_CONTRACT
@@ -42,16 +46,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class SensitiveOtpService {
 
-    @Autowired private EmailOtpService emailOtpService;
-    @Autowired private SysUserRepository sysUserRepo;
+    private final EmailOtpService emailOtpService;
+    private final SysUserRepository sysUserRepo;
 
-    /** 敏感操作 OTP ticket（绑定 username + operation，5 分钟一次性） */
-    private record Ticket(String username, String operation, LocalDateTime expiresAt) {}
-
-    private static final long TICKET_TTL_SECONDS = 300;  // 5 分钟
-    private static final long MAX_TICKETS = 5000;        // 防刷
-
-    private final Map<String, Ticket> ticketStore = new ConcurrentHashMap<>();
+    /** V2.0.77.18（R5-11 / ARCH-009）：构造器注入，替代 @Autowired 字段注入 */
+    public SensitiveOtpService(EmailOtpService emailOtpService, SysUserRepository sysUserRepo) {
+        this.emailOtpService = emailOtpService;
+        this.sysUserRepo = sysUserRepo;
+    }
 
     /**
      * 发送敏感操作 OTP（公开端点，按当前已登录用户发码）
@@ -71,54 +73,10 @@ public class SensitiveOtpService {
     }
 
     /**
-     * 校验 OTP 并签发 ticket（5 分钟一次性）
-     */
-    public String verifyAndIssueTicket(String currentUsername, String operation, String otpCode) {
-        if (otpCode == null || otpCode.isBlank()) {
-            throw new IllegalArgumentException("敏感操作验证码不能为空");
-        }
-        // 调 EmailOtpService 校验（一次性消费）
-        String err = emailOtpService.verifyOtp(EmailOtpService.PURPOSE_SENSITIVE_OPERATION, currentUsername, otpCode);
-        if (err != null) {
-            throw new IllegalArgumentException("敏感操作验证码错误或已过期");
-        }
-        // 签发一次性 ticket
-        cleanupIfNeeded();
-        String ticket = java.util.UUID.randomUUID().toString().replace("-", "");
-        ticketStore.put(ticket, new Ticket(currentUsername, operation, LocalDateTime.now().plusSeconds(TICKET_TTL_SECONDS)));
-        log.info("敏感操作 OTP 校验通过 ticket={} operation={}", ticket.substring(0, 8) + "***", operation);
-        return ticket;
-    }
-
-    /**
-     * 验证 ticket 是否有效（一次性消费）
-     * 用于 controller 切面校验：方法 body 携带 sensitiveTicket，服务端先验票再执行业务
-     */
-    public void verifyTicket(String sensitiveTicket, String currentUsername, String operation) {
-        if (sensitiveTicket == null || sensitiveTicket.isBlank()) {
-            throw new IllegalArgumentException("敏感操作校验凭证缺失");
-        }
-        Ticket ticket = ticketStore.remove(sensitiveTicket);  // 一次性
-        if (ticket == null) {
-            throw new IllegalArgumentException("敏感操作校验凭证无效或已使用");
-        }
-        if (ticket.expiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("敏感操作校验凭证已过期，请重新输入邮箱验证码");
-        }
-        if (!ticket.username().equals(currentUsername)) {
-            throw new IllegalArgumentException("敏感操作校验凭证与当前用户不匹配");
-        }
-        if (!ticket.operation().equals(operation)) {
-            throw new IllegalArgumentException("敏感操作校验凭证与操作类型不匹配");
-        }
-    }
-
-    /**
-     * Controller 顶部直接调用版本（不引入 ticket 概念）：
+     * Controller 顶部直接调用的单机制版本：
      * 1. 前端在请求 body 带 emailOtpCode
      * 2. controller 首行 verify(operation, emailOtpCode, currentUsername)
      * 3. 失败抛异常，成功继续业务
-     * 这是 V2.0.77.15 接入的简化版（避免前端先调 send 再 submit 的两段式）
      */
     public void verify(String operation, String emailOtpCode, String currentUsername) {
         if (emailOtpCode == null || emailOtpCode.isBlank()) {
@@ -129,12 +87,5 @@ public class SensitiveOtpService {
             throw new IllegalArgumentException("敏感操作验证码错误或已过期");
         }
         log.info("敏感操作 OTP 直接校验通过 user={} operation={}", currentUsername, operation);
-    }
-
-    private void cleanupIfNeeded() {
-        if (ticketStore.size() > MAX_TICKETS) {
-            LocalDateTime now = LocalDateTime.now();
-            ticketStore.entrySet().removeIf(e -> e.getValue().expiresAt().isBefore(now));
-        }
     }
 }

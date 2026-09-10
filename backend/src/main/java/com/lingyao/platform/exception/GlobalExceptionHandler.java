@@ -115,8 +115,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<?>> handleRuntime(RuntimeException ex, HttpServletRequest req) {
+        // V2.0.77.16（R5-01 / SEC-01③ 修复）：ex.getMessage() 曾直接回显给客户端——
+        // SEC-01 实测把 JCE 内部异常全文泄漏给未认证调用方。详情只进日志，响应给通用文案。
         log.error("[500 RUNTIME] {} {}", req.getMethod(), req.getRequestURI(), ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.fail("服务器内部错误: " + ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.fail("服务器内部错误，请联系管理员"));
     }
 
     @ExceptionHandler(Exception.class)

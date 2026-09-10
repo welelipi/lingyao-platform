@@ -15,9 +15,11 @@ import java.util.Map;
 /**
  * 敏感操作 OTP 端点 — V2.0.77.15
  *
- * 提供两个端点：
+ * 端点：
  * 1. POST /api/auth/sensitive-otp/send  - 发送敏感操作验证码（已登录）
- * 2. POST /api/auth/sensitive-otp/ticket - 验证 OTP 并签发一次性 ticket（前端两段式用）
+ *
+ * V2.0.77.17（R5-07）：删除 POST /ticket 端点——两段式 ticket 机制全项目零调用方
+ * （ARCH-001 死代码），前端统一走「body 带 emailOtpCode + 端点首行 verify()」单机制。
  *
  * 接入的 6 个敏感操作端点（详见 SensitiveOtpService 注释）：
  * - PUT  /api/admin/companies/{id}
@@ -53,23 +55,5 @@ public class SensitiveOtpController {
             return ApiResponse.ok((String) result.get("message"), result);
         }
         return ApiResponse.fail((String) result.get("message"));
-    }
-
-    /**
-     * 验证 OTP 并签发一次性 ticket（前端两段式预留）
-     * 请求体：{"otpCode": "123456", "operation": "..."}
-     */
-    @PostMapping("/ticket")
-    public ApiResponse<Map<String, Object>> verifyAndTicket(@RequestBody Map<String, String> body) {
-        CurrentUser cu = JwtAuthFilter.getCurrentUser();
-        if (cu == null || cu.getUsername() == null) return ApiResponse.fail(401, "请先登录");
-        String operation = body.getOrDefault("operation", "UNKNOWN");
-        String otpCode = body.get("otpCode");
-        try {
-            String ticket = sensitiveOtpService.verifyAndIssueTicket(cu.getUsername(), operation, otpCode);
-            return ApiResponse.ok("验证通过", Map.of("ticket", ticket, "expiresIn", 300));
-        } catch (IllegalArgumentException e) {
-            return ApiResponse.fail(e.getMessage());
-        }
     }
 }

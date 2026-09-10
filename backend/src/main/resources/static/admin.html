@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="app-version" content="V2.0.77.15">
+  <meta name="app-version" content="V2.0.77.18">
   <title>凌瑶智数 · 平台超管后台</title>
   <link rel="stylesheet" href="/css/style.css?v=2.0.64">
   <style>
@@ -2037,7 +2037,10 @@
     });
 
     // ── V2.0.77.15 M3：套餐用量统计 ─────────────────
-    // 契约 PLAN_QUOTAS（/tmp/GEOM_quota_contract.md §1）
+    // ⚠️ V2.0.77.17（R5-09 / ARCH-002）：本表是 geom/app/core/plan_quotas.py（V0.10.19）的镜像副本，
+    // 唯一真源在 GEOM 端（契约 /tmp/GEOM_quota_contract.md §1）。GEOM 端调价/调配额时必须同步本表，
+    // 并 bump index.html script.js?v= 强刷缓存——否则套餐用量 KPI（含年费总收入）静默失真，无任何告警。
+    // 中期方案（后端 GET /api/admin/plan-quotas 常量端点）待主人拍板后另立项（PRD 开放问题 1，倾向下期做）。
     const PLAN_QUOTAS = {
       basic: { maxCategories: 3, maxBrandsPerCategory: 10, price: 200000 },
       pro: { maxCategories: 5, maxBrandsPerCategory: 20, price: 480000 },

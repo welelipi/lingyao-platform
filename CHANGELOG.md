@@ -1,5 +1,36 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.77.16~.18 (2026-09-10 15:20) — r5 主站质量环三批连做（R5-01~12 全落地）
+
+主人 14:59 拍板「A」= 三批连做 + 开放问题按 PRD 倾向（①plan-quotas 端点下期 ②删 ticket 死代码 ③核心测试 3h ④限流 10 次/h）。PRD：`.workbuddy/quality-loop/2026-09-10-r5-main-site/03-prd.md`。
+
+### 第 1 批 V2.0.77.16：安全+硬伤（R5-01~03）
+- **R5-01（P1/SEC-01③）**：GlobalExceptionHandler RuntimeException 分支不再回 `ex.getMessage()`（SEC-01 泄漏 JCE 全文根因），改通用文案，详情只进日志
+- **R5-02（P1/SEC-01②）**：JwtUtil `@PostConstruct` fail-fast——secret 空或 <32B（RFC 7518 §3.2）拒绝启动
+- **R5-03（P2/SEC-05）**：SsoConfigService upsert/delete 补审计（SSO_CONFIG_UPSERT / SSO_CONFIG_DELETE，记 provider+是否密钥变更，不记 secret 本体）
+
+### 第 2 批 V2.0.77.17：健壮性（R5-04~10）
+- **R5-04（SEC-03）**：updateCompany contactEmail/contactPhone/address/remark 改 null-preserve（传 null=保持原值，防部分更新静默清空；传 ""=显式清空）
+- **R5-05（SEC-04）**：①RateLimitFilter 加 sensitive-otp/send 规则（IP 10 次/h）；②EmailOtpService verify 失败/锁定写 AuthAuditEvent（新枚举 OTP_VERIFY_FAIL / OTP_LOCKED，爆破对 SecurityEvents 面板可见）
+- **R5-06（SEC-06 前半）**：OTP 移出邮件主题（主题不再含 6 位验证码，仅正文保留）
+- **R5-07（ARCH-001/SEC-06 后半）**：删除 ticket 两段式死代码（verifyAndIssueTicket/verifyTicket/ticketStore/POST /ticket 端点），只留 verify() 单机制
+- **R5-08（ARCH-008）**：EmailOtpService 加 `@Scheduled(60s)` 过期 otpStore/lastSentAt 主动清扫
+- **R5-09（ARCH-002 短期）**：admin.html PLAN_QUOTAS 加镜像来源注释（真源 geom/app/core/plan_quotas.py V0.10.19）
+- **R5-10（ARCH-003）**：改 geomPlan 审计文案追加「需用户重新登录后生效」
+
+### 第 3 批 V2.0.77.18：可维护性（R5-11~12）
+- **R5-11（ARCH-009）**：SensitiveOtpService 改构造器注入 + 新增 SensitiveOtpServiceTest 6 用例（空 OTP fail-closed / 错误 OTP / 正确 OTP / 用户不存在 / 无邮箱 / 正常发码）
+- **R5-12（ARCH-010）**：docs/软2FA实施现状_V0.77.md 补「敏感操作 OTP 已落地」节（6 端点清单+机制+安全特性）
+
+### 版本号
+- 四处 bump 至 2.0.77.18（application.yml / index.html script.js?v= / portal.html / admin.html+company-admin.html meta）
+
+### 开放问题拍板记录
+- 开放问题 1：GET /api/admin/plan-quotas 端点 → 下期单独立项（本期只做 R5-09 注释）
+- 开放问题 2：ticket 死代码 → 删除（R5-07 已执行）
+- 开放问题 3：测试范围 → 核心 3h（R5-11 已执行 6 用例）
+- 开放问题 4：发码限流 → IP 10 次/h（R5-05 已执行）
+
 ## V2.0.77.15c (2026-09-10 14:00) — r5 质量环阶段 1 即时反修：SEC-02 DTO 合并 + 版本号四处对齐（ARCH-007）
 
 主人 13:56 拍板「A、B」（先反修 SEC-02，再进阶段 2 PRD）。r5 主站质量环 run：`.workbuddy/quality-loop/2026-09-10-r5-main-site/`（architect-r5 6.5/10 + security-r5 6.5/10）。

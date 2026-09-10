@@ -108,8 +108,25 @@ public Company updateCompany(Long id, UpdateCompanyRequest req) { ... }
 
 - ✅ **软 2FA 核心（新设备 OTP + 改密 OTP）已上线**（V2.0.69 起）
 - ✅ 设备信任双因子指纹已升级（V2.0.77.6）
-- ⏳ 敏感操作 OTP 扩展：**等主人拍板 A/B/C**
+- ✅ **敏感操作 OTP 扩展已落地（V2.0.77.15，2026-09-10）**——主人拍板 A（6 高危全接）
 - ⏳ TOTP 真 2FA：TwoFactorService 仍保留（V2.0.67 沉淀），暂不启用
+
+### 4.1 敏感操作 OTP（V2.0.77.15）已落地明细
+
+**机制**：已登录用户做高危操作时，前端弹 OTP 弹窗 → POST `/api/auth/sensitive-otp/send` 发码 → 用户输码后前端把 `emailOtpCode` 放进原敏感端点请求 body → controller 首行调 `SensitiveOtpService.verify(operation, emailOtpCode, username)`，失败 fail-closed。单机制（V2.0.77.17 已删除零调用的 ticket 两段式预留）。
+
+**6 个接入端点**（operation 审计标识 → 端点）：
+
+| operation | 端点 | 前端入口 |
+|---|---|---|
+| COMPANY_CHANGE_GEOM_OR_CONTRACT | PUT /api/admin/companies/{id} | admin.html ✏️ 编辑公司（OTP 随 body 走，emailOtpCode 已并入 UpdateCompanyRequest——V2.0.77.15c SEC-02 修复） |
+| COMPANY_SUSPEND | POST /api/admin/companies/{id}/suspend | admin.html 禁用 |
+| COMPANY_ACTIVATE | POST /api/admin/companies/{id}/activate | admin.html 启用 |
+| ADMIN_RESET_USER_PASSWORD | POST /api/admin/users/{userId}/reset-password | admin.html 重置密码 |
+| CHANGE_USER_ROLE | PUT /api/company-admin/users/{userId}/role | company-admin.html 改角色 |
+| CHANGE_SSO_CONFIG | POST/DELETE /api/company-admin/sso-config/{provider} | company-admin.html 保存/🗑️ 删除 SSO |
+
+**安全特性**：purpose 隔离（SENSITIVE_OP 与 DEVICE_LOGIN/CHANGE_PWD 存储隔离不可重放）· 5 错锁 15 分钟 · 一次性消费 · V2.0.77.17 起 verify 失败/锁定写 auth_audit_event（OTP_VERIFY_FAIL / OTP_LOCKED，安全事件面板可见）· sensitive-otp/send 有 IP 限流 10 次/h（对齐 device-otp/send）
 
 ---
 

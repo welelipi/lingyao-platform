@@ -144,6 +144,10 @@ public class AuthAuditEvent {
         // ──── 防护层 ────
         CSRF_REJECT,               // CSRF token 校验失败
         RATE_LIMIT_HIT,            // 限流命中
-        PERMISSION_DENIED          // 权限不足（@PreAuthorize 拒绝等）
+        PERMISSION_DENIED,         // 权限不足（@PreAuthorize 拒绝等）
+
+        // ──── OTP 验证（V2.0.77.17 R5-05 / SEC-04：爆破尝试对安全事件面板可见）────
+        OTP_VERIFY_FAIL,           // 邮箱验证码校验失败
+        OTP_LOCKED                 // 验证码连错 5 次触发锁定
     }
 }

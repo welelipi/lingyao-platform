@@ -8,6 +8,7 @@ import com.lingyao.platform.security.CurrentUser;
 import com.lingyao.platform.security.JwtAuthFilter;
 import com.lingyao.platform.security.TenantContext;
 import com.lingyao.platform.sso.SsoSecretCipher;
+import com.lingyao.platform.service.AuditLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -36,6 +37,7 @@ public class SsoConfigService {
     @Autowired private SsoLoginAuditRepository auditRepo;
     @Autowired private SsoSecretCipher cipher;
     @Autowired private TenantContext tenantContext;
+    @Autowired private AuditLogService auditLogService;
 
     // ═══════════════════════ 配置 CRUD ═══════════════════════
 
@@ -100,6 +102,15 @@ public class SsoConfigService {
         }
 
         CompanySsoConfig saved = configRepo.save(c);
+
+        // V2.0.77.16（R5-03 / SEC-05 修复）：SSO 配置变更入审计（prev 零审计）。
+        // 记 operator+provider+是否变更 secret（secret 本体绝不入审计文案）。
+        boolean secretChanged = input.get("app_secret") != null
+                && !((String) input.get("app_secret")).isBlank();
+        auditLogService.record("SSO_CONFIG_UPSERT", "SSO_CONFIG", String.valueOf(saved.getId()),
+                (existing.isPresent() ? "更新" : "新建") + " SSO 配置: " + provider
+                        + (secretChanged ? "（含密钥变更）" : "（未变更密钥）"));
+
         return toMap(saved, false);
     }
 
@@ -108,7 +119,14 @@ public class SsoConfigService {
      */
     @Transactional
     public void deleteConfig(Long currentUserId, Long companyId, CompanySsoConfig.Provider provider) {
+        // V2.0.77.16（R5-03 / SEC-05 修复）：删除前先取 id 用于审计（删除后查不到）
+        Long configId = configRepo.findByCompanyIdAndProvider(companyId, provider)
+                .map(CompanySsoConfig::getId).orElse(null);
         configRepo.deleteByCompanyIdAndProvider(companyId, provider);
+        // V2.0.77.16（R5-03）：SSO 删除入审计（影响该公司全员登录方式，必须留痕）
+        auditLogService.record("SSO_CONFIG_DELETE", "SSO_CONFIG",
+                configId == null ? "-" : String.valueOf(configId),
+                "删除 SSO 配置: " + provider);
     }
 
     /**

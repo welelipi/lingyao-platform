@@ -68,6 +68,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int DEVICE_OTP_MAX_PER_HOUR = 10;
     private static final long DEVICE_OTP_WINDOW_MS = 60 * 60 * 1000L;
 
+    // V2.0.77.17（R5-05 / SEC-04）：敏感操作发码限流（按 IP，对齐 device-otp/send 口径 10 次/h）
+    private static final int SENSITIVE_OTP_MAX_PER_HOUR = 10;
+    private static final long SENSITIVE_OTP_WINDOW_MS = 60 * 60 * 1000L;
+
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse resp, FilterChain chain)
             throws ServletException, IOException {
@@ -131,6 +135,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
             String clientIp = getClientIp(req);
             if (!rateLimiterService.allow("device-otp-send", clientIp, DEVICE_OTP_MAX_PER_HOUR, DEVICE_OTP_WINDOW_MS)) {
                 writeRateLimitResponse(resp, "device-otp-send", clientIp, DEVICE_OTP_MAX_PER_HOUR, DEVICE_OTP_WINDOW_MS);
+                return;
+            }
+        }
+
+        // ─── 6) /api/auth/sensitive-otp/send（按 IP，V2.0.77.17 R5-05 / SEC-04）───
+        // prev 无 filter 层限流，邮件轰炸防护单靠 EmailOtpService 内存频控（60s/user）。
+        // 现补 IP 级总闸（10 次/h，对齐 device-otp/send 口径）。
+        else if (path.equals("/api/auth/sensitive-otp/send")) {
+            String clientIp = getClientIp(req);
+            if (!rateLimiterService.allow("sensitive-otp-send", clientIp, SENSITIVE_OTP_MAX_PER_HOUR, SENSITIVE_OTP_WINDOW_MS)) {
+                writeRateLimitResponse(resp, "sensitive-otp-send", clientIp, SENSITIVE_OTP_MAX_PER_HOUR, SENSITIVE_OTP_WINDOW_MS);
                 return;
             }
         }
