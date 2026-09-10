@@ -1007,6 +1007,7 @@
             </div>
             <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
               <button class="btn-ghost-sm" data-action="config-sso-provider" data-pcode="${sp.code}" data-pname="${sp.name}">⚙️ 配置</button>
+              ${anySaved ? '<button class="btn-warn-sm" data-action="delete-sso-provider" data-pcode="' + sp.code + '" data-pname="' + sp.name + '">🗑️</button>' : ''}
               ${saved ? '<button class="btn-primary-sm" data-action="gen-sso-entry" data-pcode="' + sp.code + '" data-pname="' + sp.name + '">🔗 生成专属链接</button>' : ''}
             </div>
           </div>`;
@@ -1019,6 +1020,25 @@
       grid.querySelectorAll('[data-action="gen-sso-entry"]').forEach(btn => {
         btn.addEventListener('click', () => openSsoLinkModal(btn.dataset.pcode, btn.dataset.pname));
       });
+      // V2.0.77.15：删除 SSO Provider 配置（敏感操作 → 弹 OTP）
+      grid.querySelectorAll('[data-action="delete-sso-provider"]').forEach(btn => {
+        btn.addEventListener('click', () => doDeleteSsoProvider(btn.dataset.pcode, btn.dataset.pname));
+      });
+    }
+
+    // ── 删除 SSO Provider 配置（V2.0.77.15 · 敏感操作 OTP）──
+    async function doDeleteSsoProvider(pcode, pname) {
+      const sp = SSO_PROVIDERS.find(s => s.code === pcode);
+      const displayName = sp ? sp.name : pcode;
+      if (!confirm(`确认删除「${displayName}」的 SSO 配置？\n删除后该 Provider 的登录入口将立即失效，已生成的专属链接也无法使用。`)) return;
+      let otpCode = null;
+      try { otpCode = await promptSensitiveOtp('删除「' + displayName + '」SSO 配置'); }
+      catch (_) { return; }
+      try {
+        await api('DELETE', '/api/company-admin/sso-config/' + pcode, { emailOtpCode: otpCode });
+        showToast(displayName + ' SSO 配置已删除', 'success');
+        await loadSsoConfig();
+      } catch (_) { /* api() 已 toast */ }
     }
 
     // ── Provider 配置弹窗 ──
