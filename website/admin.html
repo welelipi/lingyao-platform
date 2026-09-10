@@ -622,6 +622,36 @@
     </div>
   </div>
 
+  <!-- 模态：敏感操作 OTP 二次验证（V2.0.77.15） -->
+  <div class="modal" id="sensitiveOtpModal">
+    <div class="modal-backdrop" onclick="sensitiveOtpCancel()"></div>
+    <div class="modal-content">
+      <button class="modal-close" onclick="sensitiveOtpCancel()">&times;</button>
+      <div class="modal-header">
+        <h3>🔐 敏感操作二次验证</h3>
+        <p>操作：<strong id="sensitiveOtpLabel">-</strong></p>
+      </div>
+      <div style="padding:8px 0;">
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;line-height:1.6;">
+          本操作涉及公司商业变更或全员登录安全，需要您当前账号邮箱二次验证。
+          点击下方按钮发送验证码 → 收到邮件后输入 6 位数字 → 验证后操作才会真正执行。
+        </p>
+        <div style="margin-bottom:14px;">
+          <button type="button" class="btn-primary-sm" id="sensitiveOtpSendBtn" onclick="sensitiveOtpSend()">📧 发送验证码</button>
+        </div>
+        <div class="form-field">
+          <label>邮箱验证码</label>
+          <input id="sensitiveOtpInput" type="text" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="6 位数字" autocomplete="off">
+          <span class="help" id="sensitiveOtpHint">点击"发送验证码"获取邮件 OTP</span>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost-sm" onclick="sensitiveOtpCancel()">取消</button>
+        <button type="button" class="btn-primary-sm" id="sensitiveOtpVerifyBtn" onclick="sensitiveOtpVerify()" disabled>✓ 验证并执行</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 模态：新建公司 -->
   <div class="modal" id="companyModal">
     <div class="modal-backdrop" onclick="closeModal('company')"></div>
@@ -1153,6 +1183,73 @@
       `;
       openModal('contractPreview');
     }
+
+    // ════════════════════════════════════════════════════════════════
+    // V2.0.77.15：敏感操作 OTP 通用弹窗（6 个高危操作共用）
+    // ════════════════════════════════════════════════════════════════
+    let sensitiveOtpResolve = null;
+
+    /**
+     * 弹 OTP 弹窗：先发码，再让用户输入 → 验证 → 返回 otpCode
+     * 用法：const otpCode = await promptSensitiveOtp('禁用公司');
+     *       await api('POST', url, { emailOtpCode: otpCode });
+     */
+    window.promptSensitiveOtp = function(operationLabel) {
+      return new Promise((resolve, reject) => {
+        sensitiveOtpResolve = { resolve, reject };
+        document.getElementById('sensitiveOtpLabel').textContent = operationLabel;
+        document.getElementById('sensitiveOtpInput').value = '';
+        document.getElementById('sensitiveOtpSendBtn').disabled = false;
+        document.getElementById('sensitiveOtpSendBtn').textContent = '📧 发送验证码';
+        document.getElementById('sensitiveOtpVerifyBtn').disabled = true;
+        document.getElementById('sensitiveOtpHint').textContent = '点击"发送验证码"获取邮件 OTP';
+        openModal('sensitiveOtp');
+      });
+    };
+
+    window.sensitiveOtpSend = async function() {
+      const btn = document.getElementById('sensitiveOtpSendBtn');
+      btn.disabled = true;
+      btn.textContent = '发送中...';
+      try {
+        const operationLabel = document.getElementById('sensitiveOtpLabel').textContent;
+        const resp = await api('POST', '/api/auth/sensitive-otp/send', { operation: operationLabel });
+        if (resp.code !== 0) {
+          showToast('发送失败：' + resp.message, 'error');
+          btn.disabled = false;
+          btn.textContent = '📧 重新发送';
+          return;
+        }
+        btn.textContent = '✓ 已发送';
+        document.getElementById('sensitiveOtpVerifyBtn').disabled = false;
+        document.getElementById('sensitiveOtpHint').innerHTML =
+          '验证码已发到当前账号邮箱（' + (getUser()?.email || '?') + '），10 分钟内有效';
+        document.getElementById('sensitiveOtpInput').focus();
+      } catch (e) {
+        showToast('发送失败：' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '📧 重新发送';
+      }
+    };
+
+    window.sensitiveOtpVerify = async function() {
+      const otp = document.getElementById('sensitiveOtpInput').value.trim();
+      if (!otp) { showToast('请输入验证码', 'error'); return; }
+      if (sensitiveOtpResolve) {
+        const resolve = sensitiveOtpResolve.resolve;
+        sensitiveOtpResolve = null;
+        closeModal('sensitiveOtp');
+        resolve(otp);  // 直接把 otpCode 交给业务调用方，业务方法在请求 body 带 emailOtpCode
+      }
+    };
+
+    window.sensitiveOtpCancel = function() {
+      if (sensitiveOtpResolve) {
+        sensitiveOtpResolve.reject(new Error('用户取消'));
+        sensitiveOtpResolve = null;
+      }
+      closeModal('sensitiveOtp');
+    };
 
     // ── 全局状态 ─────────────────────────
     let companiesCache = [];
@@ -1834,8 +1931,12 @@
         const companyId = parseInt(btn.dataset.cid);
         const company = companiesCache.find(c => c.id === companyId);
         if (!confirm(`确认禁用公司「${company ? company.name : '#'+companyId}」？\n禁用后该公司用户将无法登录。`)) return;
+        // V2.0.77.15：敏感操作 OTP 二次验证
+        let otpCode = null;
+        try { otpCode = await promptSensitiveOtp('禁用公司「' + (company ? company.name : '#'+companyId) + '」'); }
+        catch (_) { return; /* 用户取消 */ }
         try {
-          await api('POST', `/api/admin/companies/${companyId}/suspend`);
+          await api('POST', `/api/admin/companies/${companyId}/suspend`, { emailOtpCode: otpCode });
           showToast('公司已禁用', 'success');
           await loadAll();
         } catch (e) { showToast('禁用失败：' + e.message, 'error'); }
@@ -1843,8 +1944,11 @@
       const companyId = parseInt(btn.dataset.cid);
       const company = companiesCache.find(c => c.id === companyId);
       if (!confirm(`确认激活公司「${company ? company.name : '#'+companyId}」？`)) return;
+      let otpCode = null;
+      try { otpCode = await promptSensitiveOtp('激活公司「' + (company ? company.name : '#'+companyId) + '」'); }
+      catch (_) { return; }
       try {
-        await api('POST', `/api/admin/companies/${companyId}/activate`);
+        await api('POST', `/api/admin/companies/${companyId}/activate`, { emailOtpCode: otpCode });
         showToast('公司已激活', 'success');
         await loadAll();
       } catch (e) { showToast('激活失败：' + e.message, 'error'); }
@@ -1852,8 +1956,11 @@
       const userId = parseInt(btn.dataset.uid);
       const username = btn.dataset.uname || ('#' + userId);
       if (!confirm(`确认重置用户「${username}」的密码？\n\n系统将生成新的随机密码（12 位，含大小写+数字+特殊字符），重置后该用户下次登录会被强制修改密码。`)) return;
+      let otpCode = null;
+      try { otpCode = await promptSensitiveOtp('重置用户「' + username + '」密码'); }
+      catch (_) { return; }
       try {
-        const result = await api('POST', `/api/admin/users/${userId}/reset-password`);
+        const result = await api('POST', `/api/admin/users/${userId}/reset-password`, { emailOtpCode: otpCode });
         showToast('密码已重置', 'success');
         showCreatedAccountView(result.username, result.newPassword, true);
       } catch (e) { showToast('重置失败：' + e.message, 'error'); }

@@ -10,6 +10,7 @@ import com.lingyao.platform.security.CurrentUser;
 import com.lingyao.platform.security.JwtAuthFilter;
 import com.lingyao.platform.security.TenantContext;
 import com.lingyao.platform.service.CompanyAdminService;
+import com.lingyao.platform.service.SensitiveOtpService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +33,8 @@ public class CompanyAdminController {
     @Autowired private TenantContext tenantContext;
     @Autowired private CompanyUserRepository companyUserRepo;
     @Autowired private CompanyAuditLogRepository companyAuditLogRepo;
+    // V2.0.77.15：敏感操作 OTP（改角色/改 SSO/移除用户等）
+    @Autowired private SensitiveOtpService sensitiveOtpService;
 
     // ═══════════════════════ 守卫 ═══════════════════════
 
@@ -121,17 +124,23 @@ public class CompanyAdminController {
         }
     }
 
+    /**
+     * V2.0.77.15：改用户角色 → 强制敏感操作 OTP
+     * 请求体：{"role": "ADMIN", "emailOtpCode": "123456"}
+     */
     @PutMapping("/users/{userId}/role")
     public ApiResponse<CompanyUser> changeRole(@PathVariable Long userId, @RequestBody Map<String, Object> req) {
         ApiResponse<?> deny = requireTenantAdmin();
         if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         Long companyId = getScopedCompanyId();
         if (companyId == null) return ApiResponse.fail(403, "未关联公司");
-        Long currentUserId = JwtAuthFilter.getCurrentUser().getUserId();
         String newRole = (String) req.get("role");
+        String otpCode = (String) req.get("emailOtpCode");
+        CurrentUser cu = JwtAuthFilter.getCurrentUser();
         try {
+            sensitiveOtpService.verify("CHANGE_USER_ROLE", otpCode, cu.getUsername());
             return ApiResponse.ok("角色已修改",
-                    companyAdminService.changeUserRole(currentUserId, companyId, userId, newRole));
+                    companyAdminService.changeUserRole(cu.getUserId(), companyId, userId, newRole));
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());
         }

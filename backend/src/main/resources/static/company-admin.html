@@ -4,8 +4,8 @@
   <meta charset="UTF-8" data-page-node-id="auiTgYX4IJxtECjjaDChxO">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="49XOtBPqD4wzFqIoRjfjGL">
   <title>凌瑶智数 · 公司管理后台</title>
-  <meta name="app-version" content="V2.0.62">
-  <script>console.log('%c company-admin.html V2.0.62 · 审计日志 tab ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <meta name="app-version" content="V2.0.77.15">
+  <script>console.log('%c company-admin.html V2.0.77.15 · 敏感操作 OTP 二次验证 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css" data-page-node-id="niMXLtvcDrCVI7MhTHu5BY">
   <style>
     .ca-shell { min-height: 100vh; padding: 96px 32px 64px; max-width: 1320px; margin: 0 auto; }
@@ -382,6 +382,36 @@
     </div>
   </div>
 
+  <!-- 模态：敏感操作 OTP 二次验证（V2.0.77.15，复用自 admin.html） -->
+  <div class="modal" id="sensitiveOtpModal">
+    <div class="modal-backdrop" onclick="sensitiveOtpCancel()"></div>
+    <div class="modal-content">
+      <button class="modal-close" onclick="sensitiveOtpCancel()">&times;</button>
+      <div class="modal-header">
+        <h3>🔐 敏感操作二次验证</h3>
+        <p>操作：<strong id="sensitiveOtpLabel">-</strong></p>
+      </div>
+      <div style="padding:8px 0;">
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;line-height:1.6;">
+          本操作涉及公司商业变更或全员登录安全，需要您当前账号邮箱二次验证。
+          点击下方按钮发送验证码 → 收到邮件后输入 6 位数字 → 验证后操作才会真正执行。
+        </p>
+        <div style="margin-bottom:14px;">
+          <button type="button" class="btn-primary-sm" id="sensitiveOtpSendBtn" onclick="sensitiveOtpSend()">📧 发送验证码</button>
+        </div>
+        <div class="form-field">
+          <label>邮箱验证码</label>
+          <input id="sensitiveOtpInput" type="text" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="6 位数字" autocomplete="off">
+          <span class="help" id="sensitiveOtpHint">点击"发送验证码"获取邮件 OTP</span>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost-sm" onclick="sensitiveOtpCancel()">取消</button>
+        <button type="button" class="btn-primary-sm" id="sensitiveOtpVerifyBtn" onclick="sensitiveOtpVerify()" disabled>✓ 验证并执行</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div class="toast" id="toast" data-page-node-id="yf3MZBaNVtQsVySef8AScq">
     <span class="toast-icon" data-page-node-id="koveiOZwr7PmUEL2qEWJLI">ℹ️</span>
@@ -399,6 +429,71 @@
       const s = localStorage.getItem(USER_KEY);
       return s ? JSON.parse(s) : null;
     }
+
+    // ════════════════════════════════════════════════════════════════
+    // V2.0.77.15：敏感操作 OTP 通用弹窗（复用自 admin.html）
+    // 用法：const otpCode = await promptSensitiveOtp('修改用户角色');
+    //       await api('PUT', url, { role: newRole, emailOtpCode: otpCode });
+    // ════════════════════════════════════════════════════════════════
+    let sensitiveOtpResolve = null;
+
+    window.promptSensitiveOtp = function(operationLabel) {
+      return new Promise((resolve, reject) => {
+        sensitiveOtpResolve = { resolve, reject };
+        document.getElementById('sensitiveOtpLabel').textContent = operationLabel;
+        document.getElementById('sensitiveOtpInput').value = '';
+        document.getElementById('sensitiveOtpSendBtn').disabled = false;
+        document.getElementById('sensitiveOtpSendBtn').textContent = '📧 发送验证码';
+        document.getElementById('sensitiveOtpVerifyBtn').disabled = true;
+        document.getElementById('sensitiveOtpHint').textContent = '点击"发送验证码"获取邮件 OTP';
+        openModal('sensitiveOtp');
+      });
+    };
+
+    window.sensitiveOtpSend = async function() {
+      const btn = document.getElementById('sensitiveOtpSendBtn');
+      btn.disabled = true;
+      btn.textContent = '发送中...';
+      try {
+        const operationLabel = document.getElementById('sensitiveOtpLabel').textContent;
+        const resp = await api('POST', '/api/auth/sensitive-otp/send', { operation: operationLabel });
+        if (resp.code !== 0) {
+          showToast('发送失败：' + resp.message, 'error');
+          btn.disabled = false;
+          btn.textContent = '📧 重新发送';
+          return;
+        }
+        btn.textContent = '✓ 已发送';
+        document.getElementById('sensitiveOtpVerifyBtn').disabled = false;
+        document.getElementById('sensitiveOtpHint').innerHTML =
+          '验证码已发到当前账号邮箱（' + (getUser()?.email || '?') + '），10 分钟内有效';
+        document.getElementById('sensitiveOtpInput').focus();
+      } catch (e) {
+        showToast('发送失败：' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '📧 重新发送';
+      }
+    };
+
+    window.sensitiveOtpVerify = async function() {
+      const otp = document.getElementById('sensitiveOtpInput').value.trim();
+      if (!otp) { showToast('请输入验证码', 'error'); return; }
+      if (sensitiveOtpResolve) {
+        const resolve = sensitiveOtpResolve.resolve;
+        sensitiveOtpResolve = null;
+        closeModal('sensitiveOtp');
+        resolve(otp);
+      }
+    };
+
+    window.sensitiveOtpCancel = function() {
+      if (sensitiveOtpResolve) {
+        sensitiveOtpResolve.reject(new Error('用户取消'));
+        sensitiveOtpResolve = null;
+      }
+      closeModal('sensitiveOtp');
+    };
+
     function logout() {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
@@ -765,8 +860,12 @@
       }
       if (newRole === currentRole) { showToast('角色未变化', 'info'); return; }
       if (!confirm(`确认将「${username}」改为 ${newRole} ?`)) return;
+      // V2.0.77.15：敏感操作 OTP 二次验证
+      let otpCode = null;
+      try { otpCode = await promptSensitiveOtp('修改用户「' + username + '」角色为 ' + newRole); }
+      catch (_) { return; /* 用户取消 */ }
       try {
-        await api('PUT', `/api/company-admin/users/${userId}/role`, { role: newRole });
+        await api('PUT', `/api/company-admin/users/${userId}/role`, { role: newRole, emailOtpCode: otpCode });
         showToast(`已改为 ${newRole}`, 'success');
         await loadAll();
       } catch (_) {}
@@ -955,8 +1054,12 @@
       }
       // 清理空值（避免覆盖已有密文）
       if (!body.app_secret) delete body.app_secret;
+      // V2.0.77.15：敏感操作 OTP 二次验证（改 SSO 配置 → 影响全员登录）
+      let otpCode = null;
+      try { otpCode = await promptSensitiveOtp('修改' + (sp ? sp.name : pcode) + ' SSO 配置'); }
+      catch (_) { return; /* 用户取消 */ }
       try {
-        await api('POST', '/api/company-admin/sso-config/' + pcode, body);
+        await api('POST', '/api/company-admin/sso-config/' + pcode, { ...body, emailOtpCode: otpCode });
         showToast(sp.name + ' SSO 配置已保存', 'success');
         closeModal('ssoProv');
         await loadSsoConfig();

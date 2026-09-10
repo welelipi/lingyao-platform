@@ -5,6 +5,7 @@ import com.lingyao.platform.entity.CompanySsoConfig;
 import com.lingyao.platform.security.CurrentUser;
 import com.lingyao.platform.security.JwtAuthFilter;
 import com.lingyao.platform.security.TenantContext;
+import com.lingyao.platform.service.SensitiveOtpService;
 import com.lingyao.platform.service.SsoConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,8 @@ public class SsoConfigController {
 
     @Autowired private SsoConfigService ssoConfigService;
     @Autowired private TenantContext tenantContext;
+    // V2.0.77.15：敏感操作 OTP（改/删 SSO 配置）
+    @Autowired private SensitiveOtpService sensitiveOtpService;
 
     // ═══════════════════════ 守卫 ═══════════════════════
 
@@ -113,9 +116,14 @@ public class SsoConfigController {
 
         Long companyId = getScopedCompanyId();
         CurrentUser cu = JwtAuthFilter.getCurrentUser();
+        // V2.0.77.15：敏感操作 OTP（改 SSO 配置 → 影响全员登录）
+        String otpCode = body.get("emailOtpCode") == null ? null : String.valueOf(body.get("emailOtpCode"));
         try {
+            sensitiveOtpService.verify("CHANGE_SSO_CONFIG", otpCode, cu.getUsername());
             Map<String, Object> result = ssoConfigService.upsertConfig(cu.getUserId(), companyId, p, body);
             return ApiResponse.ok("保存成功", result);
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(e.getMessage());
         } catch (Exception e) {
             return ApiResponse.fail(400, e.getMessage());
         }
@@ -125,7 +133,7 @@ public class SsoConfigController {
      * DELETE /api/company-admin/sso-config/{provider} — 删除某 Provider 配置
      */
     @DeleteMapping("/{provider}")
-    public ApiResponse<Void> delete(@PathVariable String provider) {
+    public ApiResponse<Void> delete(@PathVariable String provider, @RequestBody(required = false) Map<String, String> otpBody) {
         ApiResponse<?> guard = requireTenantAdmin();
         if (guard != null) return ApiResponse.fail(guard.getCode(), guard.getMessage());
 
@@ -138,8 +146,15 @@ public class SsoConfigController {
 
         Long companyId = getScopedCompanyId();
         CurrentUser cu = JwtAuthFilter.getCurrentUser();
-        ssoConfigService.deleteConfig(cu.getUserId(), companyId, p);
-        return ApiResponse.ok("删除成功", null);
+        // V2.0.77.15：删除 SSO 配置 → 同样要 OTP
+        String otpCode = otpBody != null ? otpBody.get("emailOtpCode") : null;
+        try {
+            sensitiveOtpService.verify("DELETE_SSO_CONFIG", otpCode, cu.getUsername());
+            ssoConfigService.deleteConfig(cu.getUserId(), companyId, p);
+            return ApiResponse.ok("删除成功", null);
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.fail(e.getMessage());
+        }
     }
 
     /**

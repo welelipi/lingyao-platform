@@ -15,6 +15,7 @@ import com.lingyao.platform.repository.*;
 import com.lingyao.platform.security.CurrentUser;
 import com.lingyao.platform.security.JwtAuthFilter;
 import com.lingyao.platform.service.AuditLogService;
+import com.lingyao.platform.service.SensitiveOtpService;
 import com.lingyao.platform.service.TenantAdminService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,8 @@ public class AdminController {
     @Autowired private CompanyUserRepository companyUserRepo;
     @Autowired private ProductUserGrantRepository grantRepo;
     @Autowired private SubTaskRepository subTaskRepo;
+    // V2.0.77.15：敏感操作 OTP（改 GEOM/合同/删公司/重置密码）
+    @Autowired private SensitiveOtpService sensitiveOtpService;
 
     // ──────────────── P1-B 鉴权工具 ────────────────
 
@@ -109,47 +112,72 @@ public class AdminController {
     /**
      * V2.0.10：更新公司信息（仅 platformAdmin）。
      * code 不可改（唯一标识）；其他字段可改；高危操作前端二次确认。
+     *
+     * V2.0.77.15：敏感操作 OTP 二次验证（改 GEOM/合同/套餐等高危字段）
+     * 请求体额外字段：emailOtpCode（前端弹窗发码后从邮箱复制）
      */
     @PutMapping("/companies/{id}")
     public ApiResponse<Company> updateCompany(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateCompanyRequest req) {
+            @Valid @RequestBody UpdateCompanyRequest req,
+            @RequestBody(required = false) Map<String, String> otpBody) {
         ApiResponse<?> deny = requirePlatformAdmin();
         if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        CurrentUser cu = JwtAuthFilter.getCurrentUser();
+        String otpCode = otpBody != null ? otpBody.get("emailOtpCode") : null;
         try {
+            sensitiveOtpService.verify("COMPANY_CHANGE_GEOM_OR_CONTRACT", otpCode, cu.getUsername());
             return ApiResponse.ok("公司更新成功", tenantAdminService.updateCompany(id, req));
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());
         }
     }
 
+    /**
+     * V2.0.77.15：禁用公司 → 强制敏感操作 OTP
+     */
     @PostMapping("/companies/{id}/suspend")
-    public ApiResponse<Company> suspendCompany(@PathVariable Long id) {
+    public ApiResponse<Company> suspendCompany(@PathVariable Long id, @RequestBody(required = false) Map<String, String> otpBody) {
         ApiResponse<?> deny = requirePlatformAdmin();
         if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        CurrentUser cu = JwtAuthFilter.getCurrentUser();
+        String otpCode = otpBody != null ? otpBody.get("emailOtpCode") : null;
         try {
+            sensitiveOtpService.verify("COMPANY_SUSPEND", otpCode, cu.getUsername());
             return ApiResponse.ok("公司已禁用", tenantAdminService.suspendCompany(id));
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());
         }
     }
 
+    /**
+     * V2.0.77.15：激活公司 → 强制敏感操作 OTP
+     */
     @PostMapping("/companies/{id}/activate")
-    public ApiResponse<Company> activateCompany(@PathVariable Long id) {
+    public ApiResponse<Company> activateCompany(@PathVariable Long id, @RequestBody(required = false) Map<String, String> otpBody) {
         ApiResponse<?> deny = requirePlatformAdmin();
         if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        CurrentUser cu = JwtAuthFilter.getCurrentUser();
+        String otpCode = otpBody != null ? otpBody.get("emailOtpCode") : null;
         try {
+            sensitiveOtpService.verify("COMPANY_ACTIVATE", otpCode, cu.getUsername());
             return ApiResponse.ok("公司已激活", tenantAdminService.activateCompany(id));
         } catch (IllegalArgumentException e) {
             return ApiResponse.fail(e.getMessage());
         }
     }
 
+    /**
+     * V2.0.77.15：重置用户密码 → 强制敏感操作 OTP（防止内部人员滥用）
+     */
     @PostMapping("/users/{userId}/reset-password")
-    public ApiResponse<TenantAdminService.ResetPasswordResult> resetUserPassword(@PathVariable Long userId) {
+    public ApiResponse<TenantAdminService.ResetPasswordResult> resetUserPassword(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> otpBody) {
         ApiResponse<?> deny = requirePlatformAdmin();
         if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
+        CurrentUser cu = JwtAuthFilter.getCurrentUser();
+        String otpCode = otpBody != null ? otpBody.get("emailOtpCode") : null;
         try {
+            sensitiveOtpService.verify("ADMIN_RESET_USER_PASSWORD", otpCode, cu.getUsername());
             TenantAdminService.ResetPasswordResult result = tenantAdminService.resetUserPassword(userId);
             return ApiResponse.ok("密码已重置，请将新密码告知用户", result);
         } catch (IllegalArgumentException e) {

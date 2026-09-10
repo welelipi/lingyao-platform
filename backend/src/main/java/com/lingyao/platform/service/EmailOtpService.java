@@ -71,6 +71,7 @@ public class EmailOtpService {
     public static final String PURPOSE_DEVICE_LOGIN = "DEVICE_LOGIN";   // D：新设备登录
     public static final String PURPOSE_CHANGE_PASSWORD = "CHANGE_PWD";  // B：改密码
     public static final String PURPOSE_ADMIN_CREATE_USER = "ADMIN_CU";  // B：管理员建号
+    public static final String PURPOSE_SENSITIVE_OPERATION = "SENSITIVE_OP";  // V2.0.77.15：敏感操作 OTP（改 GEOM/合同/删公司/改角色/改 SSO/重置密码）
 
     private record OtpEntry(String code, LocalDateTime expiresAt, int failedAttempts, LocalDateTime lockedUntil) {}
 
@@ -210,6 +211,7 @@ public class EmailOtpService {
             case PURPOSE_DEVICE_LOGIN -> "新设备登录验证";
             case PURPOSE_CHANGE_PASSWORD -> "修改密码验证";
             case PURPOSE_ADMIN_CREATE_USER -> "创建账号验证";
+            case PURPOSE_SENSITIVE_OPERATION -> "敏感操作验证（改 GEOM/合同/删公司/改角色/改 SSO 等）";
             default -> "身份验证";
         };
         String html = String.format("""
