@@ -75,6 +75,8 @@ public class LoginResponse {
         private String code;
         private String name;
         private String licensePlan;
+        /** V2.0.77.13：GEOM 棱镜套餐（basic/pro/flagship），契约 GEOM_quota_contract.md §1 */
+        private String geomPlan;
     }
 
     @Data

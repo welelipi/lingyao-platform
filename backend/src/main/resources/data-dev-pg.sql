@@ -14,8 +14,11 @@
 -- 1. 平台超管账号（主人）
 -- 用户名: admin   密码: admin123
 -- password_changed=TRUE（不触发首登强制改密）
+-- V2.0.77.5（主人 2026-09-07 拍板）：admin email 改 188407408@qq.com（主人期望邮箱，
+--   主流程接收设备验证码/安全告警邮件）。修复链路：admin@lingyao.cn → 188407408@qq.com
+--   （dev/H2 的 data.sql V2.0.77.2 已修；dev-pg/PG 库 V2.0.77.5 同步修；private/PG 私有化 V2.0.77.5 同步修）
 INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, two_factor_enabled, created_at, updated_at)
-VALUES (1, 'admin', '$2a$10$sGGMda/K1XOkDq/gg5B18.Xu99jzot/vt/Et6k6KUi5NVa1hKM6hK', '平台超管', 'admin@lingyao.cn', 'ACTIVE', TRUE, TRUE, FALSE, NOW(), NOW())
+VALUES (1, 'admin', '$2a$10$sGGMda/K1XOkDq/gg5B18.Xu99jzot/vt/Et6k6KUi5NVa1hKM6hK', '平台超管', '188407408@qq.com', 'ACTIVE', TRUE, TRUE, FALSE, NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- 2. 演示公司 A（V2.0.52 口径：仅 GEO）

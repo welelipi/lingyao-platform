@@ -18,6 +18,11 @@ ALTER TABLE company DROP CONSTRAINT IF EXISTS company_status_check;
 ALTER TABLE company ADD CONSTRAINT company_status_check
     CHECK (status IN ('PENDING', 'ACTIVE', 'EXPIRED', 'SUSPENDED', 'DELETED'));
 
+-- ── 1.5) V2.0.77.13：GEOM 套餐 geom_plan 列（契约 GEOM_quota_contract.md §1）──────────
+-- 幂等：ADD COLUMN IF NOT EXISTS 是 PostgreSQL 9.6+ 语法
+-- 默认 'basic'（契约 §2 R1 缺省兜底）
+ALTER TABLE company ADD COLUMN IF NOT EXISTS geom_plan VARCHAR(16) DEFAULT 'basic' NOT NULL;
+
 -- ── 2) 创建 license_reminder_log 表 ──────────
 -- V2.0.10 修复：字段名 daysBefore → noticeDays（Spring Data JPA 解析方法名歧义）
 -- 老 jar 启动失败时 Hibernate 已经建过 days_before 列，需 RENAME 迁移

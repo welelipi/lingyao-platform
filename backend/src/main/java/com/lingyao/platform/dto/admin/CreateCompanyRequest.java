@@ -31,6 +31,13 @@ public class CreateCompanyRequest {
     @Pattern(regexp = "TRIAL|STANDARD|ENTERPRISE", message = "许可证等级必须为 TRIAL/STANDARD/ENTERPRISE")
     private String licensePlan = "STANDARD";
 
+    /**
+     * V2.0.77.13：GEOM 棱镜套餐（basic/pro/flagship），契约 GEOM_quota_contract.md §1
+     * 缺省 basic — M1 前端选择器尚未上线，主人拍板「主站先 M2 上线，默认 basic」
+     */
+    @Pattern(regexp = "basic|pro|flagship", message = "GEOM 套餐必须为 basic/pro/flagship")
+    private String geomPlan = "basic";
+
     @Min(value = 1, message = "最大用户数至少为 1")
     @Max(value = 10000, message = "最大用户数最多 10000")
     private Integer maxUsers = 10;

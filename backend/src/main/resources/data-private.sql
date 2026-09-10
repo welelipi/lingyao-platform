@@ -16,9 +16,10 @@
 
 -- 1. 私有化超管账号（默认密码 admin123，首次登录强制改密）
 -- BCrypt hash of "admin123" — 与 data.sql admin 同密码保持一致
+-- V2.0.77.5（主人 2026-09-07 拍板）：admin email 改 188407408@qq.com（主人期望邮箱）
 -- password_changed=FALSE 触发首登强制改密
 INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, two_factor_enabled, created_at, updated_at)
-VALUES (1, 'admin', '$2a$10$sGGMda/K1XOkDq/gg5B18.Xu99jzot/vt/Et6k6KUi5NVa1hKM6hK', '私有化超管', 'admin@private.local', 'ACTIVE', TRUE, FALSE, FALSE, NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
+VALUES (1, 'admin', '$2a$10$sGGMda/K1XOkDq/gg5B18.Xu99jzot/vt/Et6k6KUi5NVa1hKM6hK', '私有化超管', '188407408@qq.com', 'ACTIVE', TRUE, FALSE, FALSE, NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
 
 -- 2. 私有化客户公司（只有 1 家）
 -- deployment_mode=PRIVATE 标识这是私有化租户

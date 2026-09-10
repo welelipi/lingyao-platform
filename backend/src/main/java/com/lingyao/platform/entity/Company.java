@@ -45,6 +45,18 @@ public class Company {
     @Column(name = "license_plan", length = 32)
     private LicensePlan licensePlan = LicensePlan.STANDARD;
 
+    /**
+     * V2.0.77.13 GEOM 棱镜套餐：basic / pro / flagship
+     * 契约：/tmp/GEOM_quota_contract.md §1 + §2
+     * - basic:    3 分类 / 每分类 10 品牌
+     * - pro:      5 分类 / 每分类 20 品牌
+     * - flagship: 10 分类 / 每分类 50 品牌
+     * 默认 'basic'（缺省兜底，与契约 §2 R1 一致）
+     * 列定义在 application 启动前手工 ALTER TABLE 已加（V2.0.77.13 DDL）
+     */
+    @Column(name = "geom_plan", length = 16)
+    private String geomPlan = "basic";
+
     @Enumerated(EnumType.STRING)
     @Column(length = 32, nullable = false)
     private CompanyStatus status = CompanyStatus.ACTIVE;

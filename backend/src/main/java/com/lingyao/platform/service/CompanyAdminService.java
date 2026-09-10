@@ -80,6 +80,8 @@ public class CompanyAdminService {
         companyMap.put("code", company.getCode());
         companyMap.put("status", company.getStatus().name());
         companyMap.put("licensePlan", company.getLicensePlan() != null ? company.getLicensePlan().name() : "STANDARD");
+        // V2.0.77.13：GEOM 棱镜套餐（basic/pro/flagship）契约 GEOM_quota_contract.md §1
+        companyMap.put("geomPlan", company.getGeomPlan() != null ? company.getGeomPlan() : "basic");
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("company", companyMap);

@@ -65,6 +65,8 @@ public class TenantAdminService {
         company.setCode(req.getCode());
         company.setDeploymentMode(Company.DeploymentMode.valueOf(req.getDeploymentMode()));
         company.setLicensePlan(Company.LicensePlan.valueOf(req.getLicensePlan()));
+        // V2.0.77.13：GEOM 套餐 basic/pro/flagship（契约 GEOM_quota_contract.md §1）
+        company.setGeomPlan(req.getGeomPlan() != null ? req.getGeomPlan() : "basic");
         // V2.0.10：新建公司默认状态 = PENDING（开通中），由大超管手动改 ACTIVE 完成开通
         company.setStatus(Company.CompanyStatus.PENDING);
         company.setMaxUsers(req.getMaxUsers() != null ? req.getMaxUsers() : 10);
@@ -307,6 +309,13 @@ public class TenantAdminService {
             diff.append("licensePlan: ").append(company.getLicensePlan())
                     .append(" → ").append(newLicensePlan).append("; ");
             company.setLicensePlan(newLicensePlan);
+        }
+        // V2.0.77.13：GEOM 套餐 basic/pro/flagship（契约 GEOM_quota_contract.md §1）
+        // 可选字段：req.getGeomPlan() 为 null 表示保持原值
+        if (req.getGeomPlan() != null && !req.getGeomPlan().equals(company.getGeomPlan())) {
+            diff.append("geomPlan: ").append(company.getGeomPlan())
+                    .append(" → ").append(req.getGeomPlan()).append("; ");
+            company.setGeomPlan(req.getGeomPlan());
         }
         // 状态（高危，前端二次确认）
         Company.CompanyStatus newStatus = Company.CompanyStatus.valueOf(req.getStatus());

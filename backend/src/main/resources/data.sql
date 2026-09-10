@@ -6,8 +6,10 @@
 -- 1. 平台超管账号（主人）
 -- 用户名: admin   密码: admin123
 -- password_changed=TRUE（SAAS 老用户已改密，不触发首登强制改密）
+-- V2.0.77.5（主人 2026-09-07 拍板）：admin email 改 188407408@qq.com（主人期望邮箱，
+--   主流程接收设备验证码/安全告警邮件）。同时修复 V2.0.77.2 reset 撤销导致 jar 内默认值回归 admin@lingyao.cn
 INSERT INTO sys_user (id, username, password_hash, display_name, email, status, is_platform_admin, password_changed, two_factor_enabled, created_at, updated_at)
-VALUES (1, 'admin', '$2a$10$sGGMda/K1XOkDq/gg5B18.Xu99jzot/vt/Et6k6KUi5NVa1hKM6hK', '平台超管', 'admin@lingyao.cn', 'ACTIVE', TRUE, TRUE, FALSE, NOW(), NOW());
+VALUES (1, 'admin', '$2a$10$sGGMda/K1XOkDq/gg5B18.Xu99jzot/vt/Et6k6KUi5NVa1hKM6hK', '平台超管', '188407408@qq.com', 'ACTIVE', TRUE, TRUE, FALSE, NOW(), NOW());
 
 -- 2. 演示公司 A：购买了 GEO + 医院潜力预测
 INSERT INTO company (id, name, code, deployment_mode, license_plan, status, max_users, contact_email, created_at, updated_at)

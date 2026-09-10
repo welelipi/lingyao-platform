@@ -169,6 +169,14 @@ public class SsoCallbackController {
             // 5) dept_mapping（飞书部门 ID → 凌瑶 BU）
             String bu = resolveBu(config, userInfo.getDeptIds());
 
+            // 5.5) V2.0.77.13：读公司 GEOM 套餐（契约 GEOM_quota_contract.md §2）
+            String geomPlan = "basic";   // 兜底
+            if (entry.companyId != null) {
+                geomPlan = companyRepo.findById(entry.companyId)
+                        .map(c -> c.getGeomPlan() != null ? c.getGeomPlan() : "basic")
+                        .orElse("basic");
+            }
+
             // 6) 签 JWT（含 6 个新 claim + 现有 claim）
             String platformToken = jwtUtil.generateSsoToken(
                 userInfo.getEmployeeId(),      // 主平台员工 ID（飞书 open_id / 钉钉 unionid）
@@ -176,7 +184,8 @@ public class SsoCallbackController {
                 entry.subProductCode,
                 p.name(),                       // source
                 userInfo.getDeptIds() != null && !userInfo.getDeptIds().isEmpty() ? userInfo.getDeptIds().get(0) : null,
-                bu
+                bu,
+                geomPlan                        // V2.0.77.13：GEOM 套餐 basic/pro/flagship
             );
 
             // 7) 更新 audit_log

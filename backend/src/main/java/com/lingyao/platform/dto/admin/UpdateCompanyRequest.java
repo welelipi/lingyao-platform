@@ -36,6 +36,13 @@ public class UpdateCompanyRequest {
     @Pattern(regexp = "TRIAL|STANDARD|ENTERPRISE", message = "许可证等级必须为 TRIAL/STANDARD/ENTERPRISE")
     private String licensePlan;
 
+    /**
+     * V2.0.77.13：GEOM 棱镜套餐（basic/pro/flagship），契约 GEOM_quota_contract.md §1
+     * 更新公司时可选（为 null 表示保持原值）
+     */
+    @Pattern(regexp = "basic|pro|flagship", message = "GEOM 套餐必须为 basic/pro/flagship")
+    private String geomPlan;
+
     /** 公司状态：PENDING / ACTIVE / EXPIRED / SUSPENDED / DELETED */
     @NotNull(message = "公司状态不能为空")
     @Pattern(regexp = "PENDING|ACTIVE|EXPIRED|SUSPENDED|DELETED",
