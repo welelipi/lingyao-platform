@@ -84,4 +84,14 @@ public class UpdateCompanyRequest {
 
     @Size(max = 512)
     private String remark;
+
+    /**
+     * V2.0.77.15c（SEC-02 / ARCH-005 修复）：敏感操作邮箱 OTP 验证码。
+     * 修复前该端点有两个 @RequestBody（req + Map otpBody）——Spring 只反序列化一次 body，
+     * otpBody 恒 null → OTP 永远验不过，编辑公司功能端到端不可用（fail-closed 方向对但功能失效）。
+     * 现并入 DTO：前端把 emailOtpCode 放进同一个 JSON body 即可。
+     * @Size(6)：6 位数字验证码；空串/null 会被 SensitiveOtpService.verify 拒绝（fail-closed 保留）。
+     */
+    @Size(max = 6, message = "邮箱验证码最多 6 位")
+    private String emailOtpCode;
 }

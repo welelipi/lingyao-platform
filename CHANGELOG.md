@@ -1,5 +1,74 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.77.15c (2026-09-10 14:00) — r5 质量环阶段 1 即时反修：SEC-02 DTO 合并 + 版本号四处对齐（ARCH-007）
+
+主人 13:56 拍板「A、B」（先反修 SEC-02，再进阶段 2 PRD）。r5 主站质量环 run：`.workbuddy/quality-loop/2026-09-10-r5-main-site/`（architect-r5 6.5/10 + security-r5 6.5/10）。
+
+### SEC-02 修复（P1 · 编辑公司 OTP 链路断裂）
+- **根因**：`AdminController.updateCompany` 有两个 `@RequestBody`（UpdateCompanyRequest + Map otpBody）——Spring 只反序列化一次 body，otpBody 恒 null → OTP 永远验不过。主线程活体复测实锤：全量 body + 非空假 OTP → 仍报「验证码不能为空」（推翻架构师「碰巧可用」结论，采纳安全专家判定）
+- **修法（DTO 合并方案）**：
+  - `UpdateCompanyRequest` 新增 `@Size(max=6) String emailOtpCode` 字段
+  - `AdminController.java:119-134` 删除第二个 `@RequestBody Map otpBody`，改读 `req.getEmailOtpCode()`
+  - fail-closed 语义保留：空 OTP 仍被 SensitiveOtpService.verify 拒绝
+- 前端 saveEditCompany 本就把 emailOtpCode 放同一 body，无需改动
+
+### ARCH-007 修复（P1 · 版本号四处漂移）
+- `application.yml:56`：2.0.71 → **2.0.77.15**
+- `website/index.html:1292`：script.js?v=2.0.73 → **v=2.0.77.15**
+- `website/portal.html:7`：V2.0.66 → **V2.0.77.15**
+- `website/admin.html`：补 `<meta name="app-version" content="V2.0.77.15">`（原本缺失）
+- company-admin.html 已是 V2.0.77.15（唯一正确项）
+
+### 部署
+- `cp` 双副本（admin/company-admin → static/）+ `mvn package -DskipTests` + 正式 daemon 脚本重启
+
+### 活体验证
+- E2E：全量 body + 假 OTP → 修复后应返回「验证码错误」（OTP 已被读到）而非「验证码不能为空」
+- `/api/health` 或 config 端点确认 app.version=2.0.77.15
+
+## V2.0.77.15 (2026-09-10 12:45) — 6 端点敏感操作 OTP 二次验证（A 选项 · 软 2FA 扩展）
+
+主人 12:29 拍板 A（6 个高危操作全接 OTP）。10 文件 712±23 DELTA。
+
+### 后端新增
+- `SensitiveOtpService.java`（130 行）：sendSensitiveOtp / verifyAndIssueTicket / verify，ConcurrentHashMap ticketStore（5min TTL）
+- `SensitiveOtpController.java`：POST /api/auth/sensitive-otp/send + POST /api/auth/sensitive-otp/ticket
+- EmailOtpService.java：新增 `PURPOSE_SENSITIVE_OPERATION`（"敏感操作验证"）
+
+### 后端接管 OTP 的 6 个 endpoint（prev 无二次验证，现在直接在 endpoint 内 verify）
+AdminController（4）：PUT companies/{id}、POST suspend、POST activate、POST reset-password
+CompanyAdminController（1）：PUT users/{userId}/role（改角色 → 影响访问控制）
+SsoConfigController（2）：POST upsert、DELETE delete（改/删 SSO → 影响全员登录）
+
+### 前端
+- **admin.html**：sensitiveOtpModal + promptSensitiveOtp/send/verify/cancel 4 函数；suspend-company/activate-company/reset-password 3 处已接 OTP
+- **company-admin.html**（V2.0.62 → V2.0.77.15）：新增 sensitiveOtpModal（复用）；doChangeRole + doSaveSsoProvider 接 OTP
+
+### 未暴露 UI 的后端 OTP
+- PUT /companies/{id}（admin.html 无公司信息修改入口 → 后端 OTP 就绪但前端暂不触发）
+- DELETE /sso-config/{provider}（company-admin.html 无删除入口 → 同上）
+
+### V2.0.77.15 补丁（13:00 · commit 12218e1）
+- **② 编辑公司 OTP**：admin.html 公司行加「✏️」按钮 + editCompanyModal → PUT /api/admin/companies/{id}
+- **③ 删除 SSO OTP**：company-admin.html SSO 卡片加「🗑️」按钮 + doDeleteSsoProvider → DELETE /sso-config/{provider}
+- **① M3 套餐用量统计**：admin.html 新增「📊 套餐用量」Tab（KPI 5 卡 + 明细表），数据源 companiesCache 自洽不需 GEOM API
+- 至此 V2.0.77.15 完整收口：8 个 endpoint 后端 + 前端全部 OTP + M3 用量面板
+
+### 部署
+- `cp website/admin.html backend/src/main/resources/static/admin.html`
+- `cp website/company-admin.html backend/src/main/resources/static/company-admin.html`
+- `mvn -f backend/pom.xml package -DskipTests` + daemon 重启 → 9091 PID 18252
+
+### E2E 验证
+- JS AST 语法检查：company-admin.html ALL SCRIPTS OK
+- 9091 存活：lsof -i :9091 返回 java PID 18252
+- /api/auth/config 401（已保护，需登录）→ 200（company-admin.html + sensitiveOtpModal）
+- admin.html：sensitiveOtpModal=1，promptSensitiveOtp=5
+
+### 待办
+- 主人登录 http://localhost:9091/admin.html 实测 OTP 弹窗 + http://localhost:9091/company-admin.html 实测改角色/改 SSO OTP
+- 主站 98 个未 push commit，待选推送窗口（18:00 or 23:00）
+
 ## V2.0.77.14 (2026-09-10 12:30) — 主站 M4 定价与合同模板（GEOM 三级套餐契约 §4 M4）+ 软 2FA 现状文档化
 
 主人 12:21 拍板 B1（M4 定价与合同模板）+ B2（软 2FA）都做。本版本：

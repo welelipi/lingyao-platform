@@ -119,12 +119,14 @@ public class AdminController {
     @PutMapping("/companies/{id}")
     public ApiResponse<Company> updateCompany(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateCompanyRequest req,
-            @RequestBody(required = false) Map<String, String> otpBody) {
+            @Valid @RequestBody UpdateCompanyRequest req) {
+        // V2.0.77.15c（SEC-02 修复）：删除了第二个 @RequestBody Map otpBody——
+        // Spring 对同一 JSON body 只反序列化一次，otpBody 恒 null 导致 OTP 永远验不过。
+        // emailOtpCode 现并入 UpdateCompanyRequest（见 DTO 字段注释）。
         ApiResponse<?> deny = requirePlatformAdmin();
         if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         CurrentUser cu = JwtAuthFilter.getCurrentUser();
-        String otpCode = otpBody != null ? otpBody.get("emailOtpCode") : null;
+        String otpCode = req.getEmailOtpCode();
         try {
             sensitiveOtpService.verify("COMPANY_CHANGE_GEOM_OR_CONTRACT", otpCode, cu.getUsername());
             return ApiResponse.ok("公司更新成功", tenantAdminService.updateCompany(id, req));
