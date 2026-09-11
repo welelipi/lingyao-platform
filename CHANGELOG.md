@@ -1,5 +1,19 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.77.20 (2026-09-11 18:05) — GEO 入口端口修正 5182→5180 + portal「演示环境」按钮（主人 09-11 双拍板）
+
+**问题 1（进入报错）**：portal 点击棱镜「进入」跳 `localhost:5182` → ERR_CONNECTION_REFUSED。根因：V2.0.77.12 把 GEO 入口默认值改成 5182 的前提（「daemon 实跑 5182」）不成立——实际生效的是 launchd `com.geo.dev-frontend`，vite 钉在 127.0.0.1:5180（HTTP 200 实测）；5182 无人监听（502 来自沙箱代理）。DB sub_task 表 geo 行一直就是 5180（与运行现实一致），两处配置改错方向。
+
+**修复**：`application.yml` L116 + `SsoCallbackController` L266 两处 5182 → 5180。mvn package 后 /api/sub/GEO/enter 返回 5180 链接。
+
+**问题 2（演示环境入口）**：主人拍板形态 = GEO 产品行「已开通/进入/复制入口链接」旁追加「🎬 演示环境」按钮。
+
+**落地**（主站 + GEOM 配套各半）：
+- portal.html `renderProductList`：geo 行追加 `enter-demo` 按钮（仅已开通可见）
+- portal.html `enterModule(code, {redirectToDemo})`：跳转 URL 追加 `redirect_to=demo`
+- GEOM 侧（geo-frontend LingyaoSsoCallback.vue，~25 行）：SSO 登录成功后识别 `redirect_to=demo` → 自动调 `POST /api/demo/enter`（demo token 0.5h，token 栈机制）→ 直落演示空间（只读 423）。fail-soft：切换失败正常落地公司空间
+- 版本四方 bump V2.0.77.20
+
 ## V2.0.77.19 (2026-09-11 17:15) — SSO 配置保存免 OTP，改「变更通知邮件」（主人拍板方案 A）
 
 **问题**：portal「配置飞书 SSO」弹窗保存报「敏感操作验证码不能为空（请先弹窗发码）」——V2.0.77.15 给 `POST /api/company-admin/sso-config/{provider}` 加了强制 OTP，但 portal 弹窗没有发码 UI，保存被卡死。主人质疑「这里有这么敏感吗」。

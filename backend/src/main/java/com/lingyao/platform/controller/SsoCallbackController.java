@@ -254,7 +254,7 @@ public class SsoCallbackController {
 
     /**
      * 拼子产品 callback URL（按 sub_product_code 路由到对应子产品前端回调路由）
-     * 例：GEO → http://localhost:5182/auth/lingyao/sso-callback#platform_token=xxx
+     * 例：GEO → http://localhost:5180/auth/lingyao/sso-callback#platform_token=xxx
      *
      * V2.0.48 契约对齐（GEOM 窗口交接文档 §四）：
      * - GEOM 前端是 Vue hash 路由，回调路由 = /auth/lingyao/sso-callback#platform_token=<JWT>
@@ -263,7 +263,7 @@ public class SsoCallbackController {
     private String buildSubProductCallbackUrl(String subProductCode, String platformToken, String redirectTo) {
         // 子产品「域名 + 前端回调路由」映射（dev 环境 localhost）
         String target = switch (subProductCode.toUpperCase()) {
-            case "GEO"  -> "http://localhost:5182/auth/lingyao/sso-callback";   // V2.0.70：5180 被 sandbox broker 占用，GEOM 前端 daemon 实跑 5182（见 scripts/start_geom_frontend_daemon.py）
+            case "GEO"  -> "http://localhost:5180/auth/lingyao/sso-callback";   // V2.0.77.20：5182→5180 修正——launchd vite 实跑 5180（HTTP 200 实测），5182 无人监听；V2.0.70 改 5182 的前提不成立
             case "DINFO" -> "http://localhost:5181/auth/lingyao/sso-callback";  // 同契约预留
             case "HPD", "MPDM" -> "http://localhost:3100/auth/lingyao/sso-callback";
             case "AIDD" -> "http://localhost:13000/auth/lingyao/sso-callback";

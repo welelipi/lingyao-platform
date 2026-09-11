@@ -53,7 +53,7 @@ spring:
 
 # ---------- 业务配置（所有 profile 共享）----------
 app:
-  version: 2.0.77.19
+  version: 2.0.77.20
   release: ${APP_RELEASE:stable}
   build-time: ${APP_BUILD_TIME:}
   git-commit: ${APP_GIT_COMMIT:dev}
@@ -109,8 +109,11 @@ lingyao:
   subtask:
     routes:
       geo:
-        # V2.0.77.12（2026-09-09）：5180 → 5182 · 与 SsoCallbackController L257 保持一致（V2.0.70 改 5182 但漏改此处，主人点击棱镜跳转 ERR_CONNECTION_REFUSED）
-        base-url: ${LINGYAO_SUBTASK_GEO_BASE_URL:http://localhost:5182/#/auth/lingyao/sso-callback}
+        # V2.0.77.20（2026-09-11）：5182 → 5180 修正——实际运行事实是 launchd com.geo.dev-frontend
+        # 把 vite 钉在 127.0.0.1:5180（HTTP 200 实测）；5182 无人监听（502 来自沙箱代理，浏览器
+        # 表现 = ERR_CONNECTION_REFUSED）。V2.0.77.12 改 5182 的前提（daemon 实跑 5182）不成立。
+        # scripts/start_geom_frontend_daemon.py（5182 版）与 launchd plist（5180 版）并存，当前生效的是 launchd。
+        base-url: ${LINGYAO_SUBTASK_GEO_BASE_URL:http://localhost:5180/#/auth/lingyao/sso-callback}
         health-url: ${LINGYAO_SUBTASK_GEO_HEALTH_URL:http://127.0.0.1:8090/api/health}
         entry-path: ${LINGYAO_SUBTASK_GEO_ENTRY_PATH:/subtask/geo}
       hpd:

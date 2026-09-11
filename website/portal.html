@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 产品门户</title>
-  <meta name="app-version" content="V2.0.77.19">
+  <meta name="app-version" content="V2.0.77.20">
   <script>console.log('%c portal.html V2.0.66 · 图形验证码 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css">
   <style>
@@ -1389,8 +1389,14 @@
         let statusHtml, actionsHtml;
         if (isGranted) {
           statusHtml = isReady ? '<span class="pr-status">✓ 已开通</span>' : '<span class="pr-status" style="border-color:rgba(95,94,90,.5);color:var(--text-dim);background:rgba(95,94,90,.12);">⏳ 待部署</span>';
+          // V2.0.77.20：GEO 行追加「演示环境」按钮（主人 09-11 拍板形态：已开通/进入/复制链接旁）
+          // 点击 = 正常 SSO 进 GEO 后自动切入演示空间（只读，金赛真实业务数据已脱敏）
+          const demoBtnHtml = code === 'geo'
+            ? `<button class="pr-btn" data-action="enter-demo" data-code="${m.productCode}" title="进入棱镜演示空间（只读 · 脱敏数据）">🎬 演示环境</button>`
+            : '';
           actionsHtml = `
             ${isReady ? `<button class="pr-btn primary" data-action="enter" data-code="${m.productCode}">进入</button>` : ''}
+            ${demoBtnHtml}
             ${canManage && isReady ? `<button class="pr-btn" data-action="copy-link" data-pcode="${m.productCode}" data-pname="${(m.productName||'').replace(/"/g,'&quot;')}">🔗 复制入口链接</button>` : ''}
           `;
         } else {
@@ -1417,6 +1423,10 @@
       // 事件绑定
       listEl.querySelectorAll('[data-action="enter"]').forEach(btn => {
         btn.addEventListener('click', () => enterModule(btn.dataset.code));
+      });
+      // V2.0.77.20：演示环境按钮 → enterModule 带 demo 意图（redirect_to=demo）
+      listEl.querySelectorAll('[data-action="enter-demo"]').forEach(btn => {
+        btn.addEventListener('click', () => enterModule(btn.dataset.code, { redirectToDemo: true }));
       });
       listEl.querySelectorAll('[data-action="copy-link"]').forEach(btn => {
         btn.addEventListener('click', () => doCopyLink(btn.dataset.pcode, btn.dataset.pname));
@@ -1705,9 +1715,13 @@
     // ── 模块跳转 ─────────────────────────
     // 通过后端 /api/sub/{code}/enter 获取带 JWT 的跳转 URL
     // SSO 直登铁律：主网站鉴权后没权限 → 主网站弹窗告知，不跳转子网站
-    async function enterModule(moduleCode) {
+    async function enterModule(moduleCode, opts = {}) {
       try {
-        const res = await fetch(`${API_BASE}/api/sub/${moduleCode}/enter`, {
+        // V2.0.77.20：演示环境入口——redirect_to=demo 参数随 SSO 链路透传，
+        // GEO 侧 LingyaoSsoCallback 登录成功后识别该参数自动切入演示空间（token 栈机制）
+        let enterPath = `/api/sub/${moduleCode}/enter`;
+        if (opts.redirectToDemo) enterPath += '?redirect_to=demo';
+        const res = await fetch(`${API_BASE}${enterPath}`, {
           headers: { 'Authorization': `Bearer ${getToken()}` }
         });
 
@@ -1736,7 +1750,13 @@
         const data = body && body.data ? body.data : {};
         // 模式 1: 子任务已部署 → 直接跳转
         if (data.mode === 'DIRECT_REDIRECT' && data.redirectUrl) {
-          window.location.href = data.redirectUrl;
+          // V2.0.77.20：演示意图时主站前端补参数（后端 redirectUrl 格式为 url?query#fragment，
+          // redirect_to 落在 ? 段，GEO 侧 LingyaoSsoCallback 从 hash 内 query 读取）
+          let url = data.redirectUrl;
+          if (opts.redirectToDemo) {
+            url += (url.includes('?') ? '&' : '?') + 'redirect_to=demo';
+          }
+          window.location.href = url;
           return;
         }
         // 模式 2: 路由层降级 → 跳 entryPath
