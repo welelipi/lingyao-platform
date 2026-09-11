@@ -1,5 +1,18 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.77.19 (2026-09-11 17:15) — SSO 配置保存免 OTP，改「变更通知邮件」（主人拍板方案 A）
+
+**问题**：portal「配置飞书 SSO」弹窗保存报「敏感操作验证码不能为空（请先弹窗发码）」——V2.0.77.15 给 `POST /api/company-admin/sso-config/{provider}` 加了强制 OTP，但 portal 弹窗没有发码 UI，保存被卡死。主人质疑「这里有这么敏感吗」。
+
+**评估**：SSO 配置是全员登录信任根（当初加 OTP 的理由），但保存属「配置迭代型」操作——首次配置要连续保存 3~5 次试参，每次收码 + 发码端点 IP 10/h 限流会把正常配置流程卡死；OTP 防会话劫持收益有限，而审计（R5-03：SSO_CONFIG_UPSERT 含 secretChanged 标记）已留痕。拦截式校验错配场景。
+
+**方案 A 落地**（安全口径：拦截 → 检测）：
+1. `SsoConfigController.upsert` 去掉 `sensitiveOtpService.verify("CHANGE_SSO_CONFIG", ...)` 调用；**DELETE 仍保留 OTP**（删除不可恢复，值得一拦）
+2. `SsoConfigService.upsertConfig` 新增变更通知邮件：保存成功后立即给操作者邮箱发「SSO 配置已新建/更新（公司 · Provider · 是否含密钥变更），如非本人操作请立即改密」——fail-soft，邮件失败不影响保存；secret 本体不入邮件
+3. 版本四方 bump V2.0.77.19（application.yml / index.html script.js?v= / portal.html / admin.html meta）
+
+**前端零改动**：portal 报错随免 OTP 自然消失；admin/company-admin 的 promptSensitiveOtp 弹窗不受影响（各自场景仍用）。
+
 ## V2.0.77.18b (2026-09-10 15:50) — r5 阶段 5 安全验收 AX-01 反修（OTP 爆破审计落库失败）
 
 安全维验收（06-acceptance-security.md，8.5/10 有条件通过）实锤 AX-01：`EmailOtpService.verifyOtp` 调 `recordFailureWithMeta` 参数错位——31 字符的 `"/api/auth/sensitive-otp/verify"` 误落 requestMethod 槽位（varchar(8)），INSERT 报 value too long 被静默吞，R5-05② 的 OTP 爆破审计全量落库失败（psql 实测 OTP_VERIFY_FAIL 计数=0）。

@@ -9,6 +9,7 @@ import com.lingyao.platform.security.JwtAuthFilter;
 import com.lingyao.platform.security.TenantContext;
 import com.lingyao.platform.sso.SsoSecretCipher;
 import com.lingyao.platform.service.AuditLogService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +31,7 @@ import java.util.*;
  *
  * 越权防护：调用方必须先通过 CompanyAdminController.requireTenantAdmin() 守卫
  */
+@Slf4j
 @Service
 public class SsoConfigService {
 
@@ -38,6 +40,10 @@ public class SsoConfigService {
     @Autowired private SsoSecretCipher cipher;
     @Autowired private TenantContext tenantContext;
     @Autowired private AuditLogService auditLogService;
+    // V2.0.77.19（方案 A）：保存免 OTP 后的安全对价——变更通知邮件（拦截→检测口径）
+    @Autowired private EmailOtpService emailOtpService;
+    @Autowired private com.lingyao.platform.repository.SysUserRepository sysUserRepo;
+    @Autowired private com.lingyao.platform.repository.CompanyRepository companyRepo;
 
     // ═══════════════════════ 配置 CRUD ═══════════════════════
 
@@ -111,7 +117,51 @@ public class SsoConfigService {
                 (existing.isPresent() ? "更新" : "新建") + " SSO 配置: " + provider
                         + (secretChanged ? "（含密钥变更）" : "（未变更密钥）"));
 
+        // V2.0.77.19（方案 A · 主人 09-11 拍板）：保存免 OTP 的安全对价——
+        // 变更后立即给操作者邮箱发通知（fail-soft：邮件失败不影响保存结果）。
+        sendChangeNoticeEmail(currentUserId, companyId, provider, secretChanged, existing.isPresent());
+
         return toMap(saved, false);
+    }
+
+    /**
+     * V2.0.77.19：SSO 配置变更通知邮件（安全口径 = 检测而非拦截）。
+     * 收件人 = 操作者本人邮箱；secret 本体绝不入邮件；发送失败仅 WARN 不抛异常。
+     */
+    private void sendChangeNoticeEmail(Long operatorUserId, Long companyId,
+                                       CompanySsoConfig.Provider provider,
+                                       boolean secretChanged, boolean isNew) {
+        try {
+            var user = sysUserRepo.findById(operatorUserId).orElse(null);
+            if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
+                log.info("[SSO通知] 操作者 id={} 无邮箱，跳过变更通知", operatorUserId);
+                return;
+            }
+            String companyName = companyRepo.findById(companyId)
+                    .map(com.lingyao.platform.entity.Company::getName).orElse("#" + companyId);
+            String action = isNew ? "新建" : "更新";
+            String subject = "【凌瑶智数】SSO 配置已" + action + "（" + companyName + " · " + provider + "）";
+            String html = """
+                    <div style="font-family:-apple-system,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
+                      <h2 style="color:#1a1a2e;font-size:18px;margin:0 0 12px;">SSO 配置变更通知</h2>
+                      <p style="color:#4a4a68;font-size:14px;line-height:1.8;margin:0 0 8px;">
+                        您的账号刚刚<strong>%s</strong>了公司「<strong>%s</strong>」的 <strong>%s</strong> SSO 登录配置%s。
+                      </p>
+                      <p style="color:#4a4a68;font-size:14px;line-height:1.8;margin:0 0 8px;">
+                        该配置影响贵公司全员通过 SSO 登录凌瑶智数各产品。如这是您本人的操作，请忽略本邮件；
+                        <strong style="color:#c0392b;">如非本人操作</strong>，请立即登录主站修改密码并联系平台管理员。
+                      </p>
+                      <p style="color:#8a8aa0;font-size:12px;margin:16px 0 0;">此为系统自动邮件，请勿回复 · %s</p>
+                    </div>
+                    """.formatted(action, companyName, provider,
+                    secretChanged ? "（含密钥变更）" : "",
+                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+            boolean sent = emailOtpService.sendMail(user.getEmail(), subject, html);
+            log.info("[SSO通知] 变更通知邮件 {}至 {}（{} {} secretChanged={}）",
+                    sent ? "已发送" : "未发送(DEV/失败)", user.getEmail(), action, provider, secretChanged);
+        } catch (Exception e) {
+            log.warn("[SSO通知] 发送失败（不影响保存）: {}", e.getMessage());
+        }
     }
 
     /**

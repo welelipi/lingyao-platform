@@ -27,8 +27,7 @@ public class SsoConfigController {
 
     @Autowired private SsoConfigService ssoConfigService;
     @Autowired private TenantContext tenantContext;
-    // V2.0.77.15：敏感操作 OTP（改/删 SSO 配置）
-    @Autowired private SensitiveOtpService sensitiveOtpService;
+    @Autowired private SensitiveOtpService sensitiveOtpService;  // V2.0.77.19：仅 delete() 保留 OTP（保存已免）
 
     // ═══════════════════════ 守卫 ═══════════════════════
 
@@ -116,10 +115,10 @@ public class SsoConfigController {
 
         Long companyId = getScopedCompanyId();
         CurrentUser cu = JwtAuthFilter.getCurrentUser();
-        // V2.0.77.15：敏感操作 OTP（改 SSO 配置 → 影响全员登录）
-        String otpCode = body.get("emailOtpCode") == null ? null : String.valueOf(body.get("emailOtpCode"));
+        // V2.0.77.19（主人 09-11 拍板方案 A）：保存不再强制 OTP——SSO 配置属「配置迭代型」操作
+        // （首次配置需连续保存试参，每次收码 + IP 10/h 限流会把正常流程卡死），安全口径从
+        // 「拦截」改「检测」：审计留痕（R5-03）+ 变更通知邮件（service 层），删除仍保留 OTP。
         try {
-            sensitiveOtpService.verify("CHANGE_SSO_CONFIG", otpCode, cu.getUsername());
             Map<String, Object> result = ssoConfigService.upsertConfig(cu.getUserId(), companyId, p, body);
             return ApiResponse.ok("保存成功", result);
         } catch (IllegalArgumentException e) {
