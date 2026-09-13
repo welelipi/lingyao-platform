@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>凌瑶智数 · 免费试用 7 天</title>
+  <meta name="app-version" content="V2.0.78.0">
+  <!-- V2.0.77.24：API_BASE 环境变量化 -->
+  <meta name="api-base" content="http://localhost:9091">
+  <meta name="description" content="凌瑶智数 · 免费试用 7 天 · 扫码开通 5 大产品 · GEO/HPD/AIDD/DINFO/PORM 一站体验">
+  <style>
+    /* ============================================================
+       V2.0.78.0 trial 报名页 · 主色板
+       主色 #16325C（凌瑶品牌深海军蓝 · 标题/CTA/链接）
+       强调色 #4A6B3A（trial 套餐绿 · 「免费试用」徽标/倒计时/chip）
+       ============================================================ */
+    :root {
+      --brand-primary: #16325C;
+      --brand-primary-hover: #1F4178;
+      --trial-green: #4A6B3A;
+      --trial-green-hover: #5C7E48;
+      --trial-green-bg: #EAF1E5;
+      --canvas: #F5F4EE;
+      --border: #E5E5E0;
+      --text-primary: #1A1A1A;
+      --text-secondary: #5A5F6B;
+      --danger: #B23A2F;
+      --success: #4A6B3A;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--canvas);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 920px;
+      width: 100%;
+      background: #FFFFFF;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(22, 50, 92, 0.08);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+    }
+
+    /* 左面板：品牌区 */
+    .left-panel {
+      background: linear-gradient(135deg, #16325C 0%, #1F4178 100%);
+      color: #FFFFFF;
+      padding: 48px 36px;
+      display: flex;
+      flex-direction: column;
+    }
+    .left-panel .logo {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 32px;
+    }
+    .left-panel h1 {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 12px;
+    }
+    .left-panel .subtitle {
+      font-size: 14px;
+      opacity: 0.85;
+      margin-bottom: 28px;
+    }
+    /* trial 徽标（强调色 #4A6B3A） */
+    .trial-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--trial-green);
+      color: #FFFFFF;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 600;
+      width: fit-content;
+      margin-bottom: 24px;
+    }
+    .trial-badge::before {
+      content: "✦";
+      font-size: 14px;
+    }
+
+    .features {
+      list-style: none;
+      margin-top: 16px;
+    }
+    .features li {
+      padding: 8px 0;
+      font-size: 14px;
+      opacity: 0.92;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .features li::before {
+      content: "✓";
+      color: var(--trial-green);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .footer-info {
+      margin-top: auto;
+      font-size: 12px;
+      opacity: 0.7;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    /* 右面板：表单区 */
+    .right-panel {
+      padding: 48px 40px;
+    }
+    .right-panel h2 {
+      font-size: 22px;
+      color: var(--brand-primary);
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .right-panel .form-desc {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+    .form-group label {
+      display: block;
+      color: var(--brand-primary);
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .form-group label .required {
+      color: var(--danger);
+      margin-left: 2px;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: 15px;
+      color: var(--text-primary);
+      background: #FAF9F5;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: var(--brand-primary);
+      background: #FFFFFF;
+      box-shadow: 0 0 0 3px rgba(22, 50, 92, 0.08);
+    }
+
+    .submit-btn {
+      width: 100%;
+      background: var(--brand-primary);
+      color: #FFFFFF;
+      border: none;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: all 0.15s ease;
+      letter-spacing: 0.5px;
+    }
+    .submit-btn:hover:not(:disabled) {
+      background: var(--brand-primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(22, 50, 92, 0.18);
+    }
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* 倒计时徽标（已开通后显示） */
+    .countdown-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--trial-green-bg);
+      color: var(--trial-green);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      margin: 12px 0;
+      border: 1px solid var(--trial-green);
+    }
+
+    .terms {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 18px;
+      line-height: 1.5;
+    }
+    .terms a {
+      color: var(--brand-primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .terms a:hover { text-decoration: underline; }
+
+    /* 状态消息 */
+    .status-msg {
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 18px;
+      display: none;
+    }
+    .status-msg.success {
+      background: var(--trial-green-bg);
+      color: var(--trial-green);
+      border: 1px solid var(--trial-green);
+    }
+    .status-msg.error {
+      background: #FCEAE8;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    .status-msg.show { display: block; }
+
+    .credentials {
+      background: #F8F8F4;
+      border: 1px dashed var(--trial-green);
+      border-radius: 6px;
+      padding: 16px;
+      margin: 16px 0;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+    .credentials .cred-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+    .credentials .cred-label {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .credentials .cred-value {
+      color: var(--brand-primary);
+      font-weight: 700;
+      font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    }
+
+    @media (max-width: 768px) {
+      .container { grid-template-columns: 1fr; }
+      .left-panel { padding: 32px 28px; }
+      .right-panel { padding: 32px 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 左面板：品牌区 -->
+    <div class="left-panel">
+      <div class="logo">凌瑶智数 LingYao</div>
+      <span class="trial-badge">免费试用 7 天</span>
+      <h1>5 大产品<br>一站体验</h1>
+      <div class="subtitle">扫码开通 · 无需邀请码 · 无需信用卡</div>
+      <ul class="features">
+        <li>智能 GEO 监测平台</li>
+        <li>智能医院潜力预测平台</li>
+        <li>医药研发信息智能体</li>
+        <li>智能信息填报系统</li>
+        <li>智能协作平台</li>
+        <li>试用期内 1 席位 · 全功能解锁</li>
+      </ul>
+      <div class="footer-info">
+        © 2026 凌瑶智数 · LingYao Digital<br>
+        服务热线 188407408@qq.com
+      </div>
+    </div>
+
+    <!-- 右面板：表单区 -->
+    <div class="right-panel">
+      <h2>立即开通试用</h2>
+      <div class="form-desc">填写信息后，系统将自动创建您的试用账号，开通链接将发送至您的邮箱</div>
+
+      <div id="statusMsg" class="status-msg"></div>
+
+      <form id="trialForm">
+        <div class="form-group">
+          <label>手机号<span class="required">*</span></label>
+          <input type="tel" id="phone" name="phone" placeholder="13800138000" maxlength="11" required>
+        </div>
+
+        <div class="form-group">
+          <label>邮箱<span class="required">*</span></label>
+          <input type="email" id="email" name="email" placeholder="you@example.com" maxlength="128" required>
+        </div>
+
+        <div class="form-group">
+          <label>公司名称<span class="required">*</span></label>
+          <input type="text" id="companyName" name="companyName" placeholder="例：某某医药科技公司" maxlength="128" required>
+        </div>
+
+        <div class="form-group">
+          <label>来源渠道</label>
+          <select id="source" name="source">
+            <option value="官网首页">官网首页</option>
+            <option value="直播扫码">直播扫码</option>
+            <option value="朋友介绍">朋友介绍</option>
+            <option value="会议活动">会议活动</option>
+            <option value="广告投放">广告投放</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+
+        <button type="submit" id="submitBtn" class="submit-btn">立即开通试用</button>
+
+        <div class="terms">
+          提交即表示您同意 <a href="/portal.html" target="_blank">《凌瑶智数服务条款》</a> 与 <a href="#" onclick="alert('请联系商务获取隐私政策详情');return false;">《隐私政策》</a><br>
+          试用期内 1 席位 · 到期 15 天内可找回 · 冻结 60 天后清库
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // V2.0.77.24：API_BASE 从 <meta name="api-base"> 读
+    const API_BASE = (() => {
+      const v = document.querySelector('meta[name="api-base"]')?.content?.trim();
+      return v || '';
+    })();
+
+    const form = document.getElementById('trialForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusMsg = document.getElementById('statusMsg');
+
+    function showStatus(type, msg, html) {
+      statusMsg.className = `status-msg ${type} show`;
+      statusMsg.innerHTML = html || msg;
+      statusMsg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      submitBtn.textContent = '正在开通...';
+      statusMsg.className = 'status-msg';
+      statusMsg.innerHTML = '';
+
+      const payload = {
+        phone: document.getElementById('phone').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        companyName: document.getElementById('companyName').value.trim(),
+        source: document.getElementById('source').value
+      };
+
+      try {
+        const r = await fetch(`${API_BASE}/api/trial/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await r.json();
+
+        if (json.code === 0) {
+          const d = json.data;
+          const html = `
+            <strong>✓ ${json.message}</strong>
+            <div class="credentials">
+              <div class="cred-row"><span class="cred-label">试用账号</span><span class="cred-value">${d.username}</span></div>
+              <div class="cred-row"><span class="cred-label">默认密码</span><span class="cred-value">${d.defaultPassword}</span></div>
+              <div class="cred-row"><span class="cred-label">登录入口</span><span class="cred-value">${d.loginUrl}</span></div>
+              <div class="cred-row"><span class="cred-label">试用期至</span><span class="cred-value">${d.trialExpiresAt.replace('T', ' ')}</span></div>
+              <div class="cred-row"><span class="cred-label">开通产品</span><span class="cred-value">${d.products.join(' · ')}</span></div>
+            </div>
+            <div class="countdown-chip">⏱ 试用期 <strong>${d.trialDays} 天</strong></div>
+            <div style="margin-top:12px;font-size:13px;color:var(--text-secondary)">
+              开通链接已发送至 <strong>${payload.email}</strong> · 首次登录后请立即修改默认密码
+            </div>
+          `;
+          showStatus('success', null, html);
+          form.reset();
+        } else {
+          showStatus('error', '✗ ' + (json.message || '开通失败，请稍后再试'));
+        }
+      } catch (err) {
+        showStatus('error', '✗ 网络错误：' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '立即开通试用';
+      }
+    });
+  </script>
+</body>
+</html>

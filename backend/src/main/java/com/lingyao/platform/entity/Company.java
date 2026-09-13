@@ -75,6 +75,17 @@ public class Company {
     @Column(name = "contract_template", length = 16)
     private ContractTemplate contractTemplate = ContractTemplate.NONE;
 
+    /**
+     * V2.0.77.22 D-4 trial 套餐支持：试用到期时间
+     * 契约：/tmp/MainSite_plan_contract_V3.md §1 trial 档
+     * - NULL：非 trial 公司（按合同/付费档位生效）
+     * - 非 NULL：trial 倒计时到期时间（默认开通时 NOW() + 30 天）
+     * 到期处理：每日定时任务扫描 → 到期转 EXPIRED + geom_plan 保留（只读） + 通知商务
+     * 配套 retention 任务：flagship 全量数据归档（半年清理一次）
+     */
+    @Column(name = "trial_expires_at")
+    private LocalDateTime trialExpiresAt;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 32, nullable = false)
     private CompanyStatus status = CompanyStatus.ACTIVE;

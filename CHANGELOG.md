@@ -1,5 +1,182 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.78.1 (2026-09-13 17:38) — 主站 trial 健康度 + 首巡检 + 周报/月报 全链路（主人 09-13 17:30 拍板 Day 2 主站做）
+
+**主站侧 3 项功能落地**：
+- ③ 首巡检邮件触发 → **B 主站轮询**（每 6h cron 扫表 + 写 first_inspection_at）
+- ④ 周报/月报发送方 → **A 主站代发**（周一 09:00 周报 + 1 号 09:00 月报）
+- ⑤ 健康度分诊计算 → **A 主站算**（每日 02:00 cron 重算 score 0~100）
+
+**修复 V2.0.78.0 已知 bug**：
+- 重复注册撞 sys_user.username 唯一约束 → 返回 500 暴露 SQL
+- 改为 `trialRepo.findByPhone(phone).isPresent()` 先查 + 抛 IllegalArgumentException → 400 友好提示
+
+**新增 6 文件**：
+1. `entity/TrialHealthScore.java` — trial_health_score 表 entity（含 band 枚举 HEALTHY/WATCH/INACTIVE + score 0~100）
+2. `repository/TrialHealthScoreRepository.java` — 4 查询方法
+3. `service/TrialHealthScoreService.java` — 计算逻辑（login>3 +30 / inspection>1 +40 / active≤3d +30）+ 跑批
+4. `service/TrialInspectionService.java` — 首巡检触发（写 first_inspection_at + 邮件占位）
+5. `service/TrialReportService.java` — 周报/月报发送（日志占位 · Day 3 接入完整模板）
+6. `scheduler/TrialInspectionScheduler.java` — cron `0 0 0/6 * * *`（每 6h 扫首巡检）
+7. `scheduler/TrialReportScheduler.java` — cron `0 0 9 ? * MON`（周报）+ `0 0 9 1 * *`（月报）
+
+**修改 1 文件**：
+- `TrialRegistrationService.java`：加 `healthScoreRepo` 依赖 + ACTIVATED 步骤后建初始 TrialHealthScore + 先 findByPhone 查重
+- `application.yml` version: 2.0.78.0 → 2.0.78.1
+
+**scheduler 复用现有框架**：
+- @EnableScheduling 已在 LingyaoApplication 启用（V2.0.10）—— **无需新增注解**
+- 与 AuditArchiveScheduler / LicenseExpirationScheduler / DeviceTrustCleanupScheduler 并列于 scheduler/ 目录
+
+**E2E 验证全绿**（pid=57583）：
+- ✅ version=2.0.78.1
+- ✅ 重复注册 → 400 "手机号 13800001111 已注册过试用，请直接登录"
+- ✅ 新手机号注册成功（regId=4, companyId=1005）+ 建初始 TrialHealthScore 记录
+- ✅ Scheduler 加载成功（cron 表达式已注册到 Spring）
+
+**GEOM 配合文档**：`docs/trial-geom-cooperation.md`（同时落 /tmp 与仓库 docs/）
+- 列出 3 个主站需要的 GEOM 端点（第二批 · 不在 Day 2 范围 · 主人单独通知 GEOM 窗口）
+
+**关联**：`/tmp/MainSite_D5_alignment_2026-09-13.md` + `docs/trial-geom-cooperation.md`
+
+## V2.0.78.0 (2026-09-13 14:38) — 主站 trial 注册端到端落地（主人 09-13 14:18 拍板 D-5 7 项 · Day 1 完成）
+
+**主架 8h 完工 · 5A+1B+1认可全部落地**：
+- ① 报名公开性 → A 纯公开：POST /api/trial/register 无需鉴权（CsrfFilter + SecurityConfig 双白名单）
+- ② 试用用户名 → A 手机号：trial_registration.phone 11 位 + @Pattern 校验
+- ③ 首巡检邮件触发 → B 主站轮询（Day 2 落 cron）
+- ④ 周报/月报发送方 → A 主站代发：复用 TrialInviteService.sendTrialInviteAsync
+- ⑤ 健康度分诊计算 → A 主站算（Day 2 落 score 算法）
+- ⑥ 延长试用审批 → B 商务+超管（Day 3 落审批流）
+- ⑦ 冻结 15 天 / 删除 T+60 → 认可（Day 3 落状态机 cron）
+
+**新增 5 文件**：
+1. `backend/.../entity/TrialRegistration.java` — trial_registration 表 entity（含 status 枚举 PENDING/ACTIVATED/EXPIRED/FROZEN/DELETED · phone/email/companyName/source/companyId/trialExpiresAt/firstInspectionAt/healthScore/ipAddress）
+2. `backend/.../repository/TrialRegistrationRepository.java` — 4 个查询方法（findByPhone / findByStatus / countByPhoneSince / countByIpSince / findExpiredTrials）
+3. `backend/.../dto/TrialRegistrationRequest.java` — DTO @Pattern 校验手机号 11 位 + @Email + @NotBlank
+4. `backend/.../service/TrialRegistrationService.java` — 注册核心服务（限流 + 创建 trial 公司 + 创建超管 + 绑定 CompanyUser + 发送开通邮件）
+5. `backend/.../controller/TrialRegistrationController.java` — POST /api/trial/register 公开端点 + IP 提取（XFF 兼容）
+
+**修改 3 文件**：
+- `CsrfFilter.java` EXEMPT_EXACT 加 `/api/trial/register`
+- `SecurityConfig.java` permitAll 加 `/api/trial/register` + `/api/trial/check`
+- `TrialInviteService.java` LOGIN_URL：8765 → 9091（V2.0.77.25 8765 退役一致性）
+- `application.yml` version: 2.0.77.25 → 2.0.78.0
+
+**前端**：
+- `website/trial.html`（13KB）— V2.0.78.0 报名页 · 主站品牌深蓝 #16325C + trial 绿 #4A6B3A（主人 09-13 14:23 拍板）
+  - 左面板品牌区：logo + 「免费试用 7 天」trial 徽标 + 5 大产品列表
+  - 右面板表单：手机号/邮箱/公司名/来源渠道
+  - 成功后展示：账号/默认密码/登录入口/试用期至/产品列表/倒计时徽标
+  - API_BASE 走 <meta name="api-base">（V2.0.77.24 环境变量化）
+
+**频次限流**：手机号 + IP 各 24h × 3 次（主人 09-13 14:25 拍板推荐）
+
+**E2E 验证全绿**（pid=46917）：
+- ✅ trial.html → HTTP 200
+- ✅ 注册 #1（13800001111）→ 公司 ID 1002，trial_expires_at = 2026-09-20
+- ✅ 注册 #2（13800002222）→ 公司 ID 1004
+- ✅ 错误手机号格式 → DTO @Pattern 拦截（"手机号格式错误（11 位 · 1 开头）"）
+- ✅ 错误公司名长度 → DTO @NotBlank + @Size 拦截
+
+**已知问题（Day 2 修）**：
+- 重复注册时 RateLimiter 没拦到（被 sys_user.username 唯一约束挡了，返回 500 暴露内部异常）—— Day 2 改成 `findByPhone` 先查再注册
+- 错误信息暴露了数据库 SQL —— 后续 catch 包一层 `ApiResponse.fail("手机号已被注册")`
+
+**关联**：`/tmp/MainSite_D5_alignment_2026-09-13.md` + `/tmp/MainSite_trial_journey_2026-09-11.md`
+
+## V2.0.77.25 (2026-09-13 14:10) — 端口稳定性治理 · 8765 portal-backend-py 退役公告（主人 09-11 拍板）
+
+**退役原因**：8765 = `scripts/start_frontend_daemon.py` 启动的 Python http.server，服务 `website/*.html` 静态资源。从 V2.0.77.24 起，jar 内已 cp 同步完整 4 个 HTML（`backend/src/main/resources/static/`），所有 `http://localhost:9091/{portal,admin,company-admin,index}.html` 已 200。8765 的实际收益 = 0（同一份 HTML 两处副本，靠手动 cp 同步，反而有 V2.0.66 vs V2.0.77.24 这种漂移风险）。
+
+**保留项（兼容性契约）**：
+- `application.yml` CORS 白名单的 `http://localhost:8765` / `http://127.0.0.1:8765`：**保留**（OAuth 跨域回调仍可能用 8765 dev 入口）
+- `SsoConfigController.java:178,243` `@Value("${lingyao.platform.base-url:http://localhost:8765}")`：**保留**（兼容老 SSO config DB 记录）
+- `SsoCallbackController.java:56` `@Value` 默认值：**保留**
+- `TrialInviteService.java:39` 邀请邮件 LOGIN_URL：**保留**（独立邮件模板，老邀请链接仍可用）
+- `docs/portal-sso-design/*` 注释：**保留**（描述 dev 历史现状）
+- `geom/HANDOVER.md:579` `LINGYAO_MAIN_SITE_URL` 默认值：**主站窗口不动**（越权，主人单独通知 GEOM 窗口接力）
+
+**改动清单**：
+1. **杀 8765 进程**（实际运行中已无 PID，`lsof -iTCP:8765 -sTCP:LISTEN` 验证为空）
+2. **`scripts/start_frontend_daemon.py`** 顶部加 8 行 DEPRECATED 注释（保留脚本本体作为紧急回退，完全删除计划 2026-Q4 推 master 后再删）
+3. **`README.md` 启动方式章节**：删 "启动前端（端口 8765）" 段，改"前端由 9091 jar 内置 static 服务"
+4. **`README.md:50`**：`start_frontend_daemon.py` 描述加 `⚠️ DEPRECATED V2.0.77.25` 标记
+5. **`backend/README.md:103`**：「http://localhost:8765/ 凌瑶智数官网首页」→ 「http://localhost:9091/」
+6. **`deploy/cvm/DEPLOYMENT.md:30~34`**：架构图删 "Lingyao Frontend :8765" 框，加 V2.0.77.25 退役注释
+7. **`deploy/cvm/DEPLOYMENT.md:339`**：验证命令 `curl :8765` → `curl :9091`
+8. **`infra/check-port-consistency.sh:63`**：regex 删 `:8765`（避免 8765 命中）
+9. **`infra/port-allocation.md`**：§1 8765 行划掉 + §2 历史变更轨迹加 V2.0.77.25 行 + §6 待办勾掉 8765 项 + §7 端口扫描循环删 8765
+10. **`application.yml`**：`app.version: 2.0.77.24 → 2.0.77.25`
+
+**验证**：
+- `mvn -f backend/pom.xml -q -DskipTests package` exit 0
+- 重启 PID（待主人确认）+ `/api/_diag/version` 返回 `version=2.0.77.25`
+- `lsof -iTCP:8765 -sTCP:LISTEN` 验证空（8765 无监听）
+- `lsof -iTCP:9091 -sTCP:LISTEN` 验证仍 LISTEN（9091 不受影响）
+- 3 个 HTML 在 9091 服务端 HTTP 200：`portal/admin/index`
+- CI 端口一致性脚本：主站 website/ 继续「无硬编码端口 ✓」
+
+**迁移路径（给浏览器书签/老 SSO 配置用户）**：
+- `http://localhost:8765/portal.html` → `http://localhost:9091/portal.html`
+- `http://localhost:8765/admin.html` → `http://localhost:9091/admin.html`
+- `http://localhost:8765/company-admin.html` → `http://localhost:9091/company-admin.html`
+- `http://localhost:8765/` → `http://localhost:9091/`
+
+**关联**：`infra/port-allocation.md` §2 + `infra/nginx-sub-filter-template.conf` + `scripts/start_frontend_daemon.py` 顶部注释
+
+## V2.0.77.24 (2026-09-13 11:53) — 端口稳定性治理 · 主站 4 HTML API_BASE 环境变量化 + Nginx sub_filter 模板（主人 09-11 拍板）
+
+**问题**：portal/admin/company-admin 3 个 HTML 的 API_BASE 三元硬编码 `location.hostname+':9091'`（每个文件 1~2 处）；OAuth 回调 URL 提示文案里又重复写了 4 次 `location.hostname+':9091/api/sso/...'`（portal 2 处 + company-admin 3 处）。改端口要 grep 3 文件 + 改 7 处硬编码字符串，没有真源；生产 Nginx 同源反代后还要再改一次才能正常。
+
+**修复**：按 `infra/port-config-env-template.md §2` 主站 frontend meta 方案
+1. **4 HTML 加 `<meta name="api-base">`**：dev 默认值 `http://localhost:9091`（直连后端）；prod 由 `infra/nginx-sub-filter-template.conf` 把 content 替换成 `""`（同源反代走 `/api` 相对路径）
+2. **3 处 API_BASE 三元表达式统一替换为**：
+   ```js
+   const API_BASE = (() => {
+     const v = document.querySelector('meta[name="api-base"]')?.content?.trim();
+     return v || '';
+   })();
+   ```
+3. **OAuth 回调 URL** 用 `API_ORIGIN = API_BASE || window.location.origin` 替代 `location.hostname+':9091'` 直拼（portal 2 处 + company-admin 3 处）
+4. **index.html 顺手补 app-version meta**（原本缺失，对齐到 V2.0.77.24）+ 加 api-base meta 占位
+5. **infra/nginx-sub-filter-template.conf** 新增：完整生产 Nginx 配置模板（sub_filter 替换 + 反代 + 安全头 + 静态缓存）；staging 复制 server block 改证书路径即可
+6. **3 份 portal.html 同步**：website/portal.html（开发真源）→ website/static/portal.html（历史遗留副本，对齐 sha1）→ backend/src/main/resources/static/portal.html（部署真源）
+7. **application.yml L57**：`app.version: 2.0.77.23 → 2.0.77.24`
+
+**验证**：
+- `mvn -q -DskipTests package` exit 0（用绝对路径 `mvn -f backend/pom.xml` 避免 cwd 漂移）
+- 重启 PID 21943（9091 listen），`/api/_diag/version` 返回 `version=2.0.77.24`
+- 4 HTML 服务端验证：`curl http://localhost:9091/{portal,admin,company-admin,index}.html | grep api-base` 全有 `content="http://localhost:9091"`
+- CI 端口一致性脚本：主站 website/ 「命中 4 处」→「无硬编码端口 ✓」
+- portal.html 三份 sha1 一致：`1d6c3eb349ac7cd8b86afa630f5462a14aa6ccd0`
+
+**关联**：`infra/nginx-sub-filter-template.conf` + `infra/port-config-env-template.md §2` + `infra/port-allocation.md`
+
+## V2.0.77.23 (2026-09-13 11:14) — 端口稳定性治理 · CORS 白名单抽配置 + CI 端口一致性脚本（主人 09-11 拍板「P0 都做」）
+
+**问题**：CORS 白名单 22 个 origin 硬编码在 `WebConfig.java` L31~L52，每次改 origin 要 Java 重编 → jar 重打包 → 进程重启（5 分钟）。CI 阶段无人巡检「硬编码端口 vs port-allocation.md 真源是否一致」，端口漂移无人察觉。
+
+**修复**：
+1. **CORS 抽配置**（单一真源 = `application.yml`）：
+   - `application.yml` L66~L125 新增 `app.cors.*` 配置块（22 origin + methods/headers/credentials/max-age 全留）
+   - `WebConfig.java` 重构：内嵌静态 `CorsProperties` 类（`@ConfigurationProperties(prefix="app.cors")`）+ 类级 `@EnableConfigurationProperties` + 构造器注入；`corsConfigurationSource()` 全从 `corsProperties.getXxx()` 读
+   - **踩坑**：第一版有 2 个致命错——同名 `@Bean corsProperties()` 重复定义（启动报 `BeanDefinitionOverrideException`）+ `@EnableConfigurationProperties` 写在 `@Bean` 方法上（不生效）。修正后启动正常，preflight/actual 5 个 CORS 头全返回正确
+2. **CI 端口一致性脚本** `infra/check-port-consistency.sh`（executable）：
+   - 扫描 `website/` / `backend/` / `geo-frontend/` 硬编码端口 + CORS origin
+   - 与 `infra/port-allocation.md` 真源比对，输出未登记命中（注释 / 日志 / dev hint 标 low-risk 跳过）
+   - 首跑结果：11 端口命中（low）+ 1 CORS 命中（被本次抽配置消除）→ 复跑应只剩 11 个 low
+3. **配套 SOP** 4 篇（已落 `infra/`）：port-allocation / port-change-checklist / oauth-redirect-uri-registry / port-config-env-template
+4. **application.yml L57**：`app.version: 2.0.77.20 → 2.0.77.23`；`/api/_diag/version` 返回新版本号
+
+**验证**：
+- `mvn -q -DskipTests package` exit 0
+- 重启 PID 11074（9091 listen），`/api/_diag/version` 返回 `version=2.0.77.23`
+- CORS preflight：`curl -X OPTIONS /api/auth/login -H "Origin: http://localhost:9091"` → 5 个 CORS 头全 200
+- CORS actual：`curl /api/_diag/version -H "Origin: http://localhost:8765"` → `Access-Control-Allow-Origin: http://localhost:8765`
+
+**关联**：`infra/port-allocation.md` + `infra/port-change-checklist.md §3.2` + `infra/check-port-consistency.sh`
+
 ## V2.0.77.20 (2026-09-11 18:05) — GEO 入口端口修正 5182→5180 + portal「演示环境」按钮（主人 09-11 双拍板）
 
 **问题 1（进入报错）**：portal 点击棱镜「进入」跳 `localhost:5182` → ERR_CONNECTION_REFUSED。根因：V2.0.77.12 把 GEO 入口默认值改成 5182 的前提（「daemon 实跑 5182」）不成立——实际生效的是 launchd `com.geo.dev-frontend`，vite 钉在 127.0.0.1:5180（HTTP 200 实测）；5182 无人监听（502 来自沙箱代理）。DB sub_task 表 geo 行一直就是 5180（与运行现实一致），两处配置改错方向。

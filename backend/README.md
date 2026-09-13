@@ -100,7 +100,7 @@ python3 -m http.server 8765
 
 | 地址 | 用途 |
 |---|---|
-| http://localhost:8765/ | 凌瑶智数官网首页 |
+| http://localhost:9091/ | 凌瑶智数官网首页（V2.0.77.25 起 · 8765 退役） |
 | http://localhost:9091/admin/ | 超管后台 |
 | http://localhost:9091/h2-console/ | H2 数据库控制台（dev） |
 | http://localhost:9091/api/health | 后端健康检查 |

@@ -78,6 +78,8 @@ public class SecurityConfig {
                         "/api/invitations/token/*",   // 公开：校验邀请 token
                         "/api/invitations/redeem",    // 公开：通过邀请注册
                         "/api/feedback",              // 公开：反馈提交（前端兜底本地存储）
+                        "/api/trial/register",        // V2.0.78.0：trial 公开注册（① 纯公开 · D-5 拍板）
+                        "/api/trial/check",           // V2.0.78.0：trial 手机号重复检测（公开 · 前端表单实时校验）
                         "/api/sub-product/*/verify-link",  // V2.0.19 W6 阶段 2：专属链接验签（子平台调用，员工可能还没账号）
                         "/api/internal/**",           // V2.0.39：服务间接口（grants sync），接口内自验 service JWT（audience=lingyao-service）
                         "/api/sso/**",                // V2.0.48：公司 SSO 发起+回调（员工未登录/飞书回跳均无会话；login 校验 company_code，callback 验 state+code，均自防伪造）

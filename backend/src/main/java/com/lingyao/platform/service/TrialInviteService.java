@@ -35,8 +35,8 @@ public class TrialInviteService {
 
     private static final Logger log = LoggerFactory.getLogger(TrialInviteService.class);
 
-    /** 登录入口（主站登录页） */
-    private static final String LOGIN_URL = "http://localhost:8765/portal.html";
+    /** V2.0.77.25：8765 退役 → 登录入口改 9091 内置静态资源 */
+    private static final String LOGIN_URL = "http://localhost:9091/portal.html";
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy年M月d日");
 

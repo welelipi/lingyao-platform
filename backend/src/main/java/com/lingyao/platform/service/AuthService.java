@@ -588,6 +588,9 @@ public class AuthService {
                 cv.setId(c.getId());
                 cv.setCode(c.getCode());
                 cv.setName(c.getName());
+                // V2.0.77.21 D-3 套餐露出：补回 licensePlan + geomPlan（login 已回，/me 漏了）
+                cv.setLicensePlan(c.getLicensePlan() != null ? c.getLicensePlan().name() : "STANDARD");
+                cv.setGeomPlan(c.getGeomPlan() != null ? c.getGeomPlan() : "basic");
                 resp.setCompany(cv);
             });
         }
@@ -761,6 +764,9 @@ public class AuthService {
                 cv.setId(c.getId());
                 cv.setCode(c.getCode());
                 cv.setName(c.getName());
+                // V2.0.77.21 D-3 套餐露出：补回 licensePlan + geomPlan（login 已回，/me 漏了）
+                cv.setLicensePlan(c.getLicensePlan() != null ? c.getLicensePlan().name() : "STANDARD");
+                cv.setGeomPlan(c.getGeomPlan() != null ? c.getGeomPlan() : "basic");
                 resp.setCompany(cv);
             });
         }

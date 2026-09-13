@@ -4,8 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 产品门户</title>
-  <meta name="app-version" content="V2.0.66">
-  <script>console.log('%c portal.html V2.0.66 · 图形验证码 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <meta name="app-version" content="V2.0.77.24">
+  <!-- V2.0.77.24：API_BASE 环境变量化（替代三元硬编码）
+       dev 默认值 = http://localhost:9091 直连后端
+       prod 部署由 infra/nginx-sub-filter-template.conf 把 content 替换成 ""（同源反代走 /api） -->
+  <meta name="api-base" content="http://localhost:9091">
+  <script>console.log('%c portal.html V2.0.77.24 · API_BASE 环境变量化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css">
   <style>
     /* ── Portal 专属样式（复用凌瑶 CSS 变量） ─────── */
@@ -379,6 +383,15 @@
     .kpi-card.danger .kpi-value { color: #E24B4A; }
     .kpi-card.clickable { cursor: pointer; transition: var(--transition); }
     .kpi-card.clickable:hover { border-color: var(--border-hover); box-shadow: var(--shadow-glow); }
+    /* V2.0.77.21 D-3 GEO 套餐 4 色徽标（trial/basic/pro/flagship） */
+    .kpi-card[data-plan="trial"]    { border-left: 3px solid #4A6B3A; }
+    .kpi-card[data-plan="trial"]    .kpi-value { color: #4A6B3A; }
+    .kpi-card[data-plan="basic"]    { border-left: 3px solid #5A5F6B; }
+    .kpi-card[data-plan="basic"]    .kpi-value { color: #5A5F6B; }
+    .kpi-card[data-plan="pro"]      { border-left: 3px solid #3D5A80; }
+    .kpi-card[data-plan="pro"]      .kpi-value { color: #3D5A80; }
+    .kpi-card[data-plan="flagship"] { border-left: 3px solid #8B6914; }
+    .kpi-card[data-plan="flagship"] .kpi-value { color: #8B6914; }
 
     /* ── V2.0.36 工作台：产品列表 ─────── */
     .ws-section-title {
@@ -840,6 +853,12 @@
         <div class="kpi-value" id="kpiProducts">-</div>
         <div class="kpi-sub" id="kpiProductsSub">-</div>
       </div>
+      <!-- V2.0.77.21 D-3 GEO 套餐露出 · 第四卡：套餐名 + 颜色徽标（已用/上限待 GEOM usage 端点就位） -->
+      <div class="kpi-card" id="kpiGeomCard" data-plan="basic">
+        <div class="kpi-label">GEO 套餐</div>
+        <div class="kpi-value" id="kpiGeomPlan">-</div>
+        <div class="kpi-sub" id="kpiGeomSub">-</div>
+      </div>
     </div>
 
     <!-- ═══ V2.0.36 工作台：产品列表（所有人可见，替代原卡片网格）═══ -->
@@ -1054,14 +1073,16 @@
     const USER_KEY = 'lingyao_user';
     // V2.0.3: 老 key fallback 列表（ly_token / geo_token 是对外版历史 key，老用户 localStorage 兼容）
     const TOKEN_KEYS_LEGACY = ['ly_token', 'geo_token'];
-    // 后端 API 基础地址（开发期直连 9091；生产可改为同源 /api）
-    // V2.0.32：必须用 location.hostname 拼接（与页面同 host）！
-    // 之前硬编码 127.0.0.1 导致 localhost 页面 → 127.0.0.1 跨站：
-    // SameSite=Lax 的 XSRF-TOKEN cookie 跨站不携带不落盘 → CsrfFilter 403「cookie 缺失」
-    // 同 host 不同端口 = same-site，cookie 正常落盘携带
-    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? window.location.protocol + '//' + window.location.hostname + ':9091'
-      : '';  // 空字符串 = 相对路径，走 Nginx 反代（生产 IP / 域名都适用）
+    // V2.0.77.24：API_BASE 从 <meta name="api-base"> 读，替代三元硬编码
+    // dev：head 里 content="http://localhost:9091"（直连后端）
+    // prod：由 infra/nginx-sub-filter-template.conf 把 content 替换成 "" → 走同源 /api 相对路径
+    // V2.0.32 同 host 注释保留（同 host 不同端口 = same-site，cookie 正常落盘）
+    const API_BASE = (() => {
+      const v = document.querySelector('meta[name="api-base"]')?.content?.trim();
+      return v || '';  // 空 = 相对路径
+    })();
+    // V2.0.77.24：API_ORIGIN 给 OAuth 回调用（同 API_BASE；空时退化为 location.origin）
+    const API_ORIGIN = API_BASE || window.location.origin;
 
     function getToken() {
       // 优先读新 key
@@ -1374,6 +1395,11 @@
         listEl.innerHTML = '<div class="ws-empty">暂无可用产品</div>';
         return;
       }
+      // V2.0.77.21 D-3：套餐徽标（仅 GEO 行 + 已开通时显示，4 色同 KPI 卡）
+      const planName = ((WS.overview && WS.overview.company && WS.overview.company.geomPlan) || 'basic').toLowerCase();
+      const planZh2 = {trial:'试用', basic:'基础', pro:'专业', flagship:'旗舰'}[planName] || planName;
+      const planColor = ({trial:'#4A6B3A',basic:'#5A5F6B',pro:'#3D5A80',flagship:'#8B6914'})[planName] || '#5A5F6B';
+      const planBadge = `<span data-plan="${planName}" title="GEO 套餐：${planZh2}" style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:600;border-radius:3px;background:${planColor};color:#fff;margin-left:4px;vertical-align:middle;">${planZh2}</span>`;
       const grantedCodes = new Set((user && user.subProductGrants) || []);
       const isPlatformAdmin = !!(user && user.isPlatformAdmin);
       const isTenantAdmin = !!(user && user.isTenantAdmin);
@@ -1388,9 +1414,17 @@
         const locked = !isGranted;
         let statusHtml, actionsHtml;
         if (isGranted) {
-          statusHtml = isReady ? '<span class="pr-status">✓ 已开通</span>' : '<span class="pr-status" style="border-color:rgba(95,94,90,.5);color:var(--text-dim);background:rgba(95,94,90,.12);">⏳ 待部署</span>';
+          // V2.0.77.21 D-3：GEO 行追加套餐徽标（仅已开通）
+          const geomPlanBadge = (isReady && code === 'geo') ? planBadge : '';
+          statusHtml = (isReady ? '<span class="pr-status">✓ 已开通</span>' : '<span class="pr-status" style="border-color:rgba(95,94,90,.5);color:var(--text-dim);background:rgba(95,94,90,.12);">⏳ 待部署</span>') + geomPlanBadge;
+          // V2.0.77.20：GEO 行追加「演示环境」按钮（主人 09-11 拍板形态：已开通/进入/复制链接旁）
+          // 点击 = 正常 SSO 进 GEO 后自动切入演示空间（只读，金赛真实业务数据已脱敏）
+          const demoBtnHtml = code === 'geo'
+            ? `<button class="pr-btn" data-action="enter-demo" data-code="${m.productCode}" title="进入棱镜演示空间（只读 · 脱敏数据）">🎬 演示环境</button>`
+            : '';
           actionsHtml = `
             ${isReady ? `<button class="pr-btn primary" data-action="enter" data-code="${m.productCode}">进入</button>` : ''}
+            ${demoBtnHtml}
             ${canManage && isReady ? `<button class="pr-btn" data-action="copy-link" data-pcode="${m.productCode}" data-pname="${(m.productName||'').replace(/"/g,'&quot;')}">🔗 复制入口链接</button>` : ''}
           `;
         } else {
@@ -1417,6 +1451,10 @@
       // 事件绑定
       listEl.querySelectorAll('[data-action="enter"]').forEach(btn => {
         btn.addEventListener('click', () => enterModule(btn.dataset.code));
+      });
+      // V2.0.77.20：演示环境按钮 → enterModule 带 demo 意图（redirect_to=demo）
+      listEl.querySelectorAll('[data-action="enter-demo"]').forEach(btn => {
+        btn.addEventListener('click', () => enterModule(btn.dataset.code, { redirectToDemo: true }));
       });
       listEl.querySelectorAll('[data-action="copy-link"]').forEach(btn => {
         btn.addEventListener('click', () => doCopyLink(btn.dataset.pcode, btn.dataset.pname));
@@ -1495,6 +1533,18 @@
       else if (days < 90) licCard.classList.add('warning');
       document.getElementById('kpiProducts').textContent = o.license.activeProducts;
       document.getElementById('kpiProductsSub').textContent = '本公司已开通';
+      // V2.0.77.21 D-3 套餐露出：第四卡 = GEO 套餐名 + 颜色 + 已用/上限占位
+      const plan = (o.company.geomPlan || 'basic').toLowerCase();
+      const planLabel = {trial:'试用', basic:'基础', pro:'专业', flagship:'旗舰'}[plan] || plan;
+      const planQuota = {trial:'1 分类 · 3 品牌', basic:'3 分类 · 10 品牌', pro:'5 分类 · 20 品牌', flagship:'10 分类 · 50 品牌'}[plan] || '—';
+      const geomCard = document.getElementById('kpiGeomCard');
+      const geomValue = document.getElementById('kpiGeomPlan');
+      const geomSub = document.getElementById('kpiGeomSub');
+      if (geomCard && geomValue && geomSub) {
+        geomCard.setAttribute('data-plan', plan);
+        geomValue.textContent = planLabel;
+        geomSub.textContent = planQuota + '（用量待 GEOM 端点）';
+      }
     }
 
     function fmtDateLocal(s) {
@@ -1656,8 +1706,9 @@
       wsSsoModalCtx = { providerCode, existing };
       document.getElementById('wsSsoModalTitle').textContent = `配置 ${providerName} SSO`;
       document.getElementById('wsSsoModalDesc').textContent =
-        providerCode === 'OIDC' ? '填写 IdP 颁发的 Client 信息与 Issuer 地址；回调地址请在 IdP 侧登记：' + location.hostname + ':9091/api/sso/oidc/callback'
-        : '请在' + providerName + '开放平台创建应用后填写；回调/重定向 URL 填：' + location.hostname + ':9091/api/sso/' + providerCode.toLowerCase() + '/callback';
+        // V2.0.77.24：OAuth 回调 URL 走 API_ORIGIN（meta 读），不再 location.hostname+':9091' 直拼
+        providerCode === 'OIDC' ? '填写 IdP 颁发的 Client 信息与 Issuer 地址；回调地址请在 IdP 侧登记：' + API_ORIGIN + '/api/sso/oidc/callback'
+        : '请在' + providerName + '开放平台创建应用后填写；回调/重定向 URL 填：' + API_ORIGIN + '/api/sso/' + providerCode.toLowerCase() + '/callback';
       document.getElementById('wsSsoAppId').value = existing ? (existing.app_id || existing.appId || '') : '';
       document.getElementById('wsSsoAppSecret').value = '';
       document.getElementById('wsSsoBaseUrl').value = existing ? (existing.base_url || existing.baseUrl || '') : '';
@@ -1705,9 +1756,13 @@
     // ── 模块跳转 ─────────────────────────
     // 通过后端 /api/sub/{code}/enter 获取带 JWT 的跳转 URL
     // SSO 直登铁律：主网站鉴权后没权限 → 主网站弹窗告知，不跳转子网站
-    async function enterModule(moduleCode) {
+    async function enterModule(moduleCode, opts = {}) {
       try {
-        const res = await fetch(`${API_BASE}/api/sub/${moduleCode}/enter`, {
+        // V2.0.77.20：演示环境入口——redirect_to=demo 参数随 SSO 链路透传，
+        // GEO 侧 LingyaoSsoCallback 登录成功后识别该参数自动切入演示空间（token 栈机制）
+        let enterPath = `/api/sub/${moduleCode}/enter`;
+        if (opts.redirectToDemo) enterPath += '?redirect_to=demo';
+        const res = await fetch(`${API_BASE}${enterPath}`, {
           headers: { 'Authorization': `Bearer ${getToken()}` }
         });
 
@@ -1736,7 +1791,13 @@
         const data = body && body.data ? body.data : {};
         // 模式 1: 子任务已部署 → 直接跳转
         if (data.mode === 'DIRECT_REDIRECT' && data.redirectUrl) {
-          window.location.href = data.redirectUrl;
+          // V2.0.77.20：演示意图时主站前端补参数（后端 redirectUrl 格式为 url?query#fragment，
+          // redirect_to 落在 ? 段，GEO 侧 LingyaoSsoCallback 从 hash 内 query 读取）
+          let url = data.redirectUrl;
+          if (opts.redirectToDemo) {
+            url += (url.includes('?') ? '&' : '?') + 'redirect_to=demo';
+          }
+          window.location.href = url;
           return;
         }
         // 模式 2: 路由层降级 → 跳 entryPath

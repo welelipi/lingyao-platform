@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="app-version" content="V2.0.77.20">
+  <meta name="app-version" content="V2.0.77.24">
+  <!-- V2.0.77.24：API_BASE 环境变量化（详见 portal.html 同名 meta 注释 + infra/nginx-sub-filter-template.conf） -->
+  <meta name="api-base" content="http://localhost:9091">
   <title>凌瑶智数 · 平台超管后台</title>
   <link rel="stylesheet" href="/css/style.css?v=2.0.64">
   <style>
@@ -1110,8 +1112,11 @@
     // ── 数据层 ─────────────────────────
     const TOKEN_KEY = 'lingyao_token';
     const USER_KEY = 'lingyao_user';
-    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? window.location.protocol + '//' + window.location.hostname + ':9091' : '';
+    // V2.0.77.24：API_BASE 从 <meta name="api-base"> 读（详见 portal.html 同段注释）
+    const API_BASE = (() => {
+      const v = document.querySelector('meta[name="api-base"]')?.content?.trim();
+      return v || '';
+    })();
 
     function getToken() { return localStorage.getItem(TOKEN_KEY); }
     function getUser() {

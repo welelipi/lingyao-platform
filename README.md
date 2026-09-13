@@ -47,7 +47,7 @@
 └── scripts/                          # 守护进程启动器
     ├── start_backend_daemon.py      # private profile（prod）
     ├── start_dev_daemon.py          # dev profile（H2 内存库）
-    └── start_frontend_daemon.py     # Python http.server :8765
+    └── start_frontend_daemon.py     # ⚠️ DEPRECATED V2.0.77.25（8765 退役，前端由 9091 服务）
 ```
 
 ## SSO 协议 V1.0（V2.0.11 标准化）
@@ -87,12 +87,17 @@ python3 scripts/start_dev_daemon.py
 # → http://localhost:9091/  · 默认账号 admin/admin123
 ```
 
-### 2. 启动前端（端口 8765）
+### 2. 访问前端（V2.0.77.25 · 8765 退役）
+
+> 静态资源由后端 9091 jar 内置服务（`backend/src/main/resources/static/*.html`），
+> 不再需要独立启动 Python http.server :8765。
+> 改前端代码 → `cp website/*.html backend/src/main/resources/static/` → `mvn package` → 重启 9091。
 
 ```bash
-cd /Users/hua/Documents/myself/凌瑶
-python3 scripts/start_frontend_daemon.py
-# → http://localhost:8765/portal.html
+# → http://localhost:9091/portal.html
+# → http://localhost:9091/admin.html
+# → http://localhost:9091/company-admin.html
+# → http://localhost:9091/index.html
 ```
 
 ### 3. 跨仓启动（主子产品联调）

@@ -25,13 +25,12 @@
 │  │  Lingyao Backend :9091       │                       │
 │  │  (Spring Boot + JDK 21)      │                       │
 │  │  lingyao-backend.service     │                       │
+│  │  ⚡ V2.0.77.25：静态资源内置 │                       │
+│  │  (BOOT-INF/classes/static/)   │                       │
 │  └──────────────────────────────┘                       │
-│           ↑                                                │
-│  ┌────────┴────────────────────┐                       │
-│  │  Lingyao Frontend :8765      │                       │
-│  │  (Python http.server)        │                       │
-│  │  start_frontend_daemon.py    │                       │
-│  └──────────────────────────────┘                       │
+│                                                          │
+│  (V2.0.77.25 退役：8765 Python http.server 已下线，     │
+│   前端统一由 9091 jar 内置静态资源服务)                  │
 └─────────────────────────────────────────────────────────┘
            ↑
            │ (公网访问)
@@ -335,8 +334,8 @@ curl http://127.0.0.1:8280/api/_diag/version    # PORM
 # 后端
 curl http://127.0.0.1:9091/api/version
 
-# 前端（看 Login 页底部）
-curl -s http://127.0.0.1:8765/portal.html | grep -E "V[0-9]+\."
+# 前端（V2.0.77.25 起：8765 退役，统一走 9091 内置静态资源）
+curl -s http://127.0.0.1:9091/portal.html | grep -E "V[0-9]+\."
 ```
 
 前后端版本号必须一致（铁律：前端 `src/version.ts` + 后端 `application.yml app.version`）。

@@ -4,8 +4,10 @@
   <meta charset="UTF-8" data-page-node-id="auiTgYX4IJxtECjjaDChxO">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="49XOtBPqD4wzFqIoRjfjGL">
   <title>凌瑶智数 · 公司管理后台</title>
-  <meta name="app-version" content="V2.0.77.18">
-  <script>console.log('%c company-admin.html V2.0.77.15 · 敏感操作 OTP 二次验证 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <meta name="app-version" content="V2.0.77.24">
+  <!-- V2.0.77.24：API_BASE 环境变量化（详见 portal.html 同名 meta 注释 + infra/nginx-sub-filter-template.conf） -->
+  <meta name="api-base" content="http://localhost:9091">
+  <script>console.log('%c company-admin.html V2.0.77.24 · API_BASE 环境变量化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css" data-page-node-id="niMXLtvcDrCVI7MhTHu5BY">
   <style>
     .ca-shell { min-height: 100vh; padding: 96px 32px 64px; max-width: 1320px; margin: 0 auto; }
@@ -421,8 +423,12 @@
   <script>
     const TOKEN_KEY = 'lingyao_token';
     const USER_KEY = 'lingyao_user';
-    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? window.location.protocol + '//' + window.location.hostname + ':9091' : '';
+    const API_BASE = (() => {
+      const v = document.querySelector('meta[name="api-base"]')?.content?.trim();
+      return v || '';
+    })();
+    // V2.0.77.24：API_ORIGIN 给 OAuth 回调用（详见 portal.html 同名常量注释）
+    const API_ORIGIN = API_BASE || window.location.origin;
 
     function getToken() { return localStorage.getItem(TOKEN_KEY); }
     function getUser() {
@@ -738,6 +744,11 @@
     function renderUsers() {
       const tb = document.getElementById('usersTbody');
       const me = getUser();
+      // V2.0.77.21 D-3：套餐色块（4 套餐共用样式，按 plan 切换 data 属性 + title）
+      const planColors = { trial: '#4A6B3A', basic: '#5A5F6B', pro: '#3D5A80', flagship: '#8B6914' };
+      const planName = (overviewCache && overviewCache.company && overviewCache.company.geomPlan) || 'basic';
+      const planZh = { trial: '试用', basic: '基础', pro: '专业', flagship: '旗舰' }[planName] || planName;
+      const planSwatch = `<span data-plan="${planName}" title="公司 GEO 套餐：${planZh}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${planColors[planName] || '#5A5F6B'};margin-left:6px;vertical-align:middle;"></span>`;
       tb.innerHTML = usersCache.map(u => {
         const isMe = u.username === (me?.username);
         const canModify = !isMe;
@@ -750,7 +761,7 @@
           <tr>
             <td><strong>${escapeHtml(u.username)}</strong>${isMe ? ' <span style="color:var(--accent);font-size:11px;">（你）</span>' : ''}</td>
             <td>${escapeHtml(u.displayName || '-')}</td>
-            <td>${roleBadge}</td>
+            <td>${roleBadge}${planSwatch}</td>
             <td><span class="status-tag ${u.status}">${zh(u.status)}</span></td>
             <td style="font-size:12px;color:var(--text-dim);">${fmtDate(u.joinedAt)}</td>
             <td style="font-size:12px;color:var(--text-dim);">${fmtDate(u.lastLoginAt)}</td>
@@ -946,9 +957,10 @@
     let ssoConfigCache = [];      // 已保存的 Provider 配置列表（后端 /sso-config）
     let ssoProductsCache = [];    // 本公司已开通产品列表（后端 /products）
     const SSO_PROVIDERS = [
-      { code: 'FEISHU', name: '飞书', icon: '🔵', fields: ['app_id', 'app_secret'], hint: '飞书开放平台 → 企业自建应用 → 凭证与基础信息。回调地址需登记为：' + location.protocol + '//' + location.hostname + ':9091/api/sso/feishu/callback' },
-      { code: 'DINGTALK', name: '钉钉', icon: '⚫', fields: ['app_id', 'app_secret'], hint: '钉钉开放平台 → 应用信息。回调地址需登记为：' + location.protocol + '//' + location.hostname + ':9091/api/sso/dingtalk/callback' },
-      { code: 'WECOM', name: '企业微信', icon: '🟢', fields: ['app_id', 'app_secret'], hint: '企业微信管理端 → 应用管理。回调地址需登记为：' + location.protocol + '//' + location.hostname + ':9091/api/sso/wecom/callback' },
+      // V2.0.77.24：OAuth 回调 URL 走 API_ORIGIN（meta 读），不再 location.hostname+':9091' 直拼
+      { code: 'FEISHU', name: '飞书', icon: '🔵', fields: ['app_id', 'app_secret'], hint: '飞书开放平台 → 企业自建应用 → 凭证与基础信息。回调地址需登记为：' + API_ORIGIN + '/api/sso/feishu/callback' },
+      { code: 'DINGTALK', name: '钉钉', icon: '⚫', fields: ['app_id', 'app_secret'], hint: '钉钉开放平台 → 应用信息。回调地址需登记为：' + API_ORIGIN + '/api/sso/dingtalk/callback' },
+      { code: 'WECOM', name: '企业微信', icon: '🟢', fields: ['app_id', 'app_secret'], hint: '企业微信管理端 → 应用管理。回调地址需登记为：' + API_ORIGIN + '/api/sso/wecom/callback' },
       { code: 'GENERIC_OIDC', name: 'OIDC / 其他', icon: '⚪', fields: ['app_id', 'app_secret', 'base_url'], hint: '任意标准 OIDC 提供商。base_url 填 issuer 地址（如 https://idp.example.com）' },
     ];
 

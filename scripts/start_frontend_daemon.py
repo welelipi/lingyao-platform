@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""凌瑶前端守护启动器：双重 fork + setsid，让 python http.server 脱离 sandbox 父进程。"""
+"""凌瑶前端守护启动器：双重 fork + setsid，让 python http.server 脱离 sandbox 父进程。
+
+⚠️ DEPRECATED V2.0.77.25（2026-09-13）· 8765 退役公告
+────────────────────────────────────────────────────
+- 静态资源改由 9091 jar 内置服务（BOOT-INF/classes/static/）
+- 改前端代码 → cp website/*.html backend/src/main/resources/static/ → mvn package → 重启 9091
+- 本脚本仍可启动 8765 用于紧急回退，但不推荐新部署使用
+- 完全删除计划：等主人 2026-Q4 推 master 后再删
+────────────────────────────────────────────────────
+"""
 from __future__ import annotations
 import os, sys
 

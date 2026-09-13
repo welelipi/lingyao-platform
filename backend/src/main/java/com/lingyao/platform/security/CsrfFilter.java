@@ -121,7 +121,8 @@ public class CsrfFilter extends OncePerRequestFilter {
             "/api/feedback",
             "/api/health",
             "/api/version",
-            "/api/_diag/version"
+            "/api/_diag/version",
+            "/api/trial/register"   // V2.0.78.0：trial 公开注册（① 纯公开 · D-5 拍板）
     );
 
     /** 前缀匹配的豁免路径 */

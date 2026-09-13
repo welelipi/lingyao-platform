@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>凌瑶智数 LingYao · 医药垂直软件服务起家 · GEO 全行业通用</title>
+  <!-- V2.0.77.24：API_BASE 环境变量化（首页仅展示，无 API 调用，仅对齐元数据；如未来接入业务 API 同样走 meta） -->
+  <meta name="api-base" content="http://localhost:9091">
+  <meta name="app-version" content="V2.0.77.24">
 <meta name="description" content="凌瑶智数 — 医药垂直软件服务起家，提供棱镜 GEO 品牌监测（全行业通用）、源策 SCOUT 研发信息搜集、皓元 HPD 医院潜力预测、医呈 MEDPPT 医学 PPT 生成四大产品线。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,7 +48,6 @@
       <a href="#products" class="nav-link">产品矩阵</a>
       <a href="#solutions" class="nav-link">解决方案</a>
       <a href="#advantages" class="nav-link">技术优势</a>
-      <a href="#cases" class="nav-link">客户案例</a>
       <a href="#contact" class="nav-link">联系我们</a>
     </div>
 
@@ -827,99 +829,6 @@
   </div>
 </section>
 
-<!-- 客户案例 -->
-<section class="section section-cases" id="cases">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-tag">CASES</div>
-      <h2 class="section-title">
-        <span class="title-line">真实客户</span>
-        <span class="gradient-text">真实价值</span>
-      </h2>
-      <p class="section-subtitle">
-        我们已为多家头部药企提供软件服务，累计创造年化价值过亿
-      </p>
-    </div>
-
-    <div class="cases-showcase reveal">
-      <div class="case-banner">
-        <div class="case-brand">
-          <div class="brand-logo">金赛药业</div>
-          <div class="brand-tag">Gensci Pharma</div>
-        </div>
-        <div class="case-quote">
-          "凌瑶智数的棱镜 GEO 平台和皓元 HPD 医院潜力模型，让我们的市场决策从经验走向数据驱动的精准决策。
-          模型 WMAPE 6.6% 的精度，让我们对每一家医院的销售潜力都心中有数。"
-        </div>
-        <div class="case-author">
-          <div class="author-avatar">金</div>
-          <div>
-            <div class="author-name">金赛药业 · 数据团队</div>
-            <div class="author-title">使用棱镜 GEO + 皓元 HPD 双产品矩阵</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="case-metrics">
-        <div class="metric">
-          <div class="metric-value">¥<span>3,193</span>万</div>
-          <div class="metric-label">两品牌年化价值</div>
-        </div>
-        <div class="metric">
-          <div class="metric-value">¥<span>9,908</span>万</div>
-          <div class="metric-label">四品牌叠加年化价值</div>
-        </div>
-        <div class="metric">
-          <div class="metric-value"><span>47</span>×</div>
-          <div class="metric-label">平均投入产出比</div>
-        </div>
-        <div class="metric">
-          <div class="metric-value"><span>6.6</span>%</div>
-          <div class="metric-label">模型 WMAPE 精度</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 真实场景案例 -->
-    <div class="case-scenarios reveal">
-      <h3 class="scenario-title">📋 真实场景，看看凌瑶如何落地</h3>
-      <div class="scenario-grid">
-        <div class="scenario-card">
-          <div class="scenario-icon">🏥</div>
-          <h4>销售代表的早 9 点</h4>
-          <p>打开 <strong>医院潜力预测</strong>，输入「四川省肿瘤医院，床位数 1500」</p>
-          <p class="scenario-result">→ 2 秒后得到：CACS 药品潜力 <strong>1,240 支/月</strong>，信心度 92%</p>
-          <p class="scenario-tip">💡 当月拜访目标锁定 — 不再凭经验判断</p>
-        </div>
-
-        <div class="scenario-card">
-          <div class="scenario-icon">📊</div>
-          <h4>MSL 医学事务经理的报告撰写</h4>
-          <p>打开 <strong>医呈 MEDPPT</strong>，选择「科室会」模板，输入「卡瑞利珠单抗 + 肝癌二线」</p>
-          <p class="scenario-result">→ 30 秒后得到 12 页专业科室会 PPT，含 4 张自动图表 + 指南引用</p>
-          <p class="scenario-tip">💡 8 小时人工活变 30 秒，幻觉率 &lt; 5%</p>
-        </div>
-
-        <div class="scenario-card">
-          <div class="scenario-icon">🔬</div>
-          <h4>数据分析师的模型校准</h4>
-          <p>打开 <strong>医院潜力预测 · V3.1</strong>，上传 50 家样本医院参数</p>
-          <p class="scenario-result">→ 模型 WMAPE 从 8.2% 降至 6.6%，新增 12 家可入组医院</p>
-          <p class="scenario-tip">💡 1 条校准 = 每年节省 80 小时人工</p>
-        </div>
-
-        <div class="scenario-card">
-          <div class="scenario-icon">🎯</div>
-          <h4>品牌经理的 GEO 优化</h4>
-          <p>打开 <strong>GEO 智策</strong>，发现 DeepSeek 对「生长激素」的一句话推荐没有提到自家品牌</p>
-          <p class="scenario-result">→ 自动生成 3 条优化行动项，2 周后推荐率从 12% 升至 47%</p>
-          <p class="scenario-tip">💡 不再"我以为 AI 知道"</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- 注册试用 -->
 <section class="section section-trial" id="trial">
   <div class="container">
@@ -1057,7 +966,7 @@
           </svg>
         </div>
         <h4>销售热线</h4>
-        <p class="contact-value">400-888-凌瑶</p>
+        <p class="contact-value">15510855337</p>
         <p class="contact-desc">工作日 9:00-21:00 · 7×24 紧急响应</p>
       </div>
 
@@ -1069,7 +978,7 @@
           </svg>
         </div>
         <h4>商务邮箱</h4>
-        <p class="contact-value">contact@lingyao-digital.com</p>
+        <p class="contact-value">188407408@qq.com</p>
         <p class="contact-desc">一般咨询 · 24 小时内回复</p>
       </div>
 
@@ -1081,7 +990,7 @@
           </svg>
         </div>
         <h4>公司地址</h4>
-        <p class="contact-value">上海市浦东新区张江高科</p>
+        <p class="contact-value">上海市闵行区浦江镇浦星公路1919弄绿地峰尚汇1号楼623室</p>
         <p class="contact-desc">欢迎预约到访考察</p>
       </div>
 
@@ -1161,7 +1070,6 @@
         <div class="footer-col">
           <h5>关于我们</h5>
           <a href="#about">公司简介</a>
-          <a href="#cases">客户案例</a>
           <a href="#contact">联系我们</a>
           <a href="#">加入我们</a>
         </div>

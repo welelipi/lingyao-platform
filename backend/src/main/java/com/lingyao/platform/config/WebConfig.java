@@ -1,5 +1,7 @@
 package com.lingyao.platform.config;
 
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -9,6 +11,8 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.List;
+
 /**
  * Web 配置 — Bug-13 修复 CORS / Bug-16 修复 /admin 路由
  *
@@ -16,9 +20,46 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * 原因：MVC 层 addCorsMappings 只对走完过滤链的请求生效；CsrfFilter/RateLimitFilter
  * 直接拒掉的 403 响应不带 Access-Control-Allow-Origin，浏览器会报 "Load failed"
  * 而非真实错误，前端无法提示原因。filter 层 CORS 让错误响应也带 CORS 头。
+ *
+ * V2.0.77.23 端口稳定性治理：CORS 白名单抽到 application.yml（app.cors.*）
+ * 单一真源，关联 infra/port-allocation.md + infra/port-change-checklist.md §3.2
+ * 改 origin：直接编辑 application.yml 的 app.cors.allowed-origin-patterns 列表
+ * 无需改本文件。
  */
 @Configuration
+@EnableConfigurationProperties(WebConfig.CorsProperties.class)
 public class WebConfig implements WebMvcConfigurer {
+
+    /**
+     * V2.0.77.23：CORS 配置项绑定（从 application.yml 读 app.cors.*）
+     * Spring 通过类级 @EnableConfigurationProperties 把它注册为 Bean，
+     * 构造器注入即可拿到绑定好的实例。
+     */
+    @ConfigurationProperties(prefix = "app.cors")
+    public static class CorsProperties {
+        private List<String> allowedOriginPatterns = List.of();
+        private List<String> allowedMethods = List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS");
+        private List<String> allowedHeaders = List.of("*");
+        private Boolean allowCredentials = true;
+        private Long maxAge = 3600L;
+
+        public List<String> getAllowedOriginPatterns() { return allowedOriginPatterns; }
+        public void setAllowedOriginPatterns(List<String> v) { this.allowedOriginPatterns = v; }
+        public List<String> getAllowedMethods() { return allowedMethods; }
+        public void setAllowedMethods(List<String> v) { this.allowedMethods = v; }
+        public List<String> getAllowedHeaders() { return allowedHeaders; }
+        public void setAllowedHeaders(List<String> v) { this.allowedHeaders = v; }
+        public Boolean getAllowCredentials() { return allowCredentials; }
+        public void setAllowCredentials(Boolean v) { this.allowCredentials = v; }
+        public Long getMaxAge() { return maxAge; }
+        public void setMaxAge(Long v) { this.maxAge = v; }
+    }
+
+    private final CorsProperties corsProperties;
+
+    public WebConfig(CorsProperties corsProperties) {
+        this.corsProperties = corsProperties;
+    }
 
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
@@ -29,62 +70,16 @@ public class WebConfig implements WebMvcConfigurer {
 
     /**
      * V2.0.31：filter 层 CORS 源 — Security http.cors() 自动检测此 Bean。
-     * 白名单与原 MVC 层完全一致（含主站/5 子平台 dev/CVM 生产/备案域名）。
+     * V2.0.77.23：白名单从 application.yml 的 app.cors.allowed-origin-patterns 读取
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(java.util.List.of(
-                // ── 本地主站 ─────
-                "http://localhost:8765",
-                "http://127.0.0.1:8765",
-                "http://localhost:9091",
-                "http://127.0.0.1:9091",
-                // ── DINFO 辰录（强耦合 · 配合登录 P0）─────
-                "http://localhost:5181",
-                "http://127.0.0.1:5181",
-                "http://localhost:8281",
-                "http://127.0.0.1:8281",
-                // ── POR-M 明枢（强耦合 · 跟主站同窗口推送）─────
-                "http://localhost:8280",
-                "http://127.0.0.1:8280",
-                "http://localhost:3190",
-                "http://127.0.0.1:3190",
-                // ── GEOM 棱镜 ─────
-                "http://localhost:5180",
-                "http://127.0.0.1:5180",
-                "http://localhost:5182",
-                "http://127.0.0.1:5182",
-                "http://localhost:8090",
-                "http://127.0.0.1:8090",
-                // ── MPDM 皓元 ─────
-                "http://localhost:3100",
-                "http://127.0.0.1:3100",
-                "http://localhost:8100",
-                "http://127.0.0.1:8100",
-                // ── AIDD 源策 ─────
-                "http://localhost:13000",
-                "http://127.0.0.1:13000",
-                "http://localhost:18080",
-                "http://127.0.0.1:18080",
-                // ── MED-PPT ─────
-                "http://localhost:19880",
-                "http://127.0.0.1:19880",
-                "http://localhost:19881",
-                "http://127.0.0.1:19881",
-                // ── 腾讯云 CVM 生产（公网 IP） ─────
-                "http://118.195.197.15",
-                "http://118.195.197.15:*",
-                // ── 备案后域名（ICP 通过后启用） ─────
-                "https://www.lydmed.com",
-                "https://lydmed.com",
-                "http://www.lydmed.com",
-                "http://lydmed.com"
-        ));
-        config.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        config.setAllowedHeaders(java.util.List.of("*"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
+        config.setAllowedOriginPatterns(corsProperties.getAllowedOriginPatterns());
+        config.setAllowedMethods(corsProperties.getAllowedMethods());
+        config.setAllowedHeaders(corsProperties.getAllowedHeaders());
+        config.setAllowCredentials(corsProperties.getAllowCredentials());
+        config.setMaxAge(corsProperties.getMaxAge());
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);

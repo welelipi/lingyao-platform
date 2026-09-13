@@ -29,6 +29,14 @@ ALTER TABLE company ADD COLUMN IF NOT EXISTS geom_plan VARCHAR(16) DEFAULT 'basi
 ALTER TABLE company ADD COLUMN IF NOT EXISTS annual_fee_yuan INT DEFAULT 200000 NOT NULL;
 ALTER TABLE company ADD COLUMN IF NOT EXISTS contract_template VARCHAR(16) DEFAULT 'NONE' NOT NULL;
 
+-- ── 1.7) V2.0.77.22 D-4：trial 套餐支持（契约 plan_contract_V3.md §1）──────────
+-- trial_expires_at：试用到期时间（NULL=非 trial 公司；非 NULL=trial 30 天倒计时）
+-- D-4 主人拍板：trial=0元/1分类/3品牌/30天/1席/7天回溯
+ALTER TABLE company ADD COLUMN IF NOT EXISTS trial_expires_at TIMESTAMP DEFAULT NULL;
+-- trial 公司索引（每日定时任务扫描用）
+CREATE INDEX IF NOT EXISTS idx_company_trial_expires_at
+    ON company(trial_expires_at) WHERE trial_expires_at IS NOT NULL;
+
 -- ── 2) 创建 license_reminder_log 表 ──────────
 -- V2.0.10 修复：字段名 daysBefore → noticeDays（Spring Data JPA 解析方法名歧义）
 -- 老 jar 启动失败时 Hibernate 已经建过 days_before 列，需 RENAME 迁移
@@ -285,7 +293,16 @@ CREATE TABLE IF NOT EXISTS auth_audit_event (
     error_code        VARCHAR(64),
     error_message     VARCHAR(512),
     metadata          TEXT,
-    created_at        TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+    -- V2.0.77.18b r5 AX-01：dev-pg 实际 CHECK 约束同步（避免 fresh init 缺枚举导致 OTP 审计落库失败）
+    -- 18 枚举来自 V2.0.26 P2.4，2 个新增 OTP_VERIFY_FAIL/OTP_LOCKED 来自 V2.0.77.17 R5-05 OTP 爆破审计
+    CONSTRAINT auth_audit_event_event_type_check CHECK (event_type IN (
+        'LOGIN_SUCCESS','LOGIN_FAIL','LOGIN_LOCKED','LOGIN_DISABLED','LOGIN_COMPANY_EXPIRED',
+        'LOGOUT','TOKEN_REFRESH','TOKEN_REFRESH_REPLAY','TOKEN_REFRESH_INVALID','TOKEN_BLACKLIST_HIT',
+        'PASSWORD_CHANGED','PASSWORD_RESET_REQUESTED','PASSWORD_RESET','PASSWORD_RESET_INVALID',
+        'PASSWORD_RESET_USER_NOT_FOUND','CSRF_REJECT','RATE_LIMIT_HIT','PERMISSION_DENIED',
+        'OTP_VERIFY_FAIL','OTP_LOCKED'
+    ))
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_audit_type_created
