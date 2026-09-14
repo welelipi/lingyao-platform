@@ -3512,3 +3512,118 @@ Spring Boot + HikariCP + JPA + PostgreSQL 全链路打通。
 - [x] 本任务窗口：完成 deploy/ + scripts/ + CHANGELOG 全部本地沉淀（10:25）
 - [ ] 云端 AI：pull → SSH 部署 → verify /api/version → 切流
 
+---
+
+## V2.0.78.2 (2026-09-14 10:35) — 首页 GEO 深度改造 + HPD/SCOUT/MEDPPT 敬请期待（主人 09-14 10:21 拍板"做一个 Demo 出来吧"）
+
+**首页结构重构 · 完全突出 GEO**：
+- **Hero 区改版**：badge 改 `2026 AI 时代的数据洞察 · GEO 全智能品牌监测`；标题 `AI 时代的 品牌数据洞察 从 GEO 全智能监测 开始`；副标题 `聚焦制药、医学、消费、教育等多个行业 · 一键覆盖 8 大 AI 平台 · 让企业拥有自我校验 AI 得分的能力 · 自动诊断 + 自动生成优化方案`；4 大数据栏同步更新为 `8 大 AI 平台对接 / 5 维 GEO 诊断 / 4+ 重点行业 / 7 天免费试用`
+- **产品矩阵 section 完全重构**（lines 209-654 → 现 GEO 单产品深度展示）：
+  - 主标题：`棱镜 GEO · 让企业在 AI 时代拥有「自我校验」的能力`
+  - **5 大特性**（文图结合，奇偶左右交替 `.geo-feature-row.reverse`）：
+    1. **全智能自动搜索** — 8 大 AI 平台九宫格（ChatGPT/DeepSeek/通义千问/Kimi/文心一言/Perplexity/豆包/智谱 · 全 active）+ 实时扫描动画
+    2. **第三方公平验证** — 3 个徽章（独立第三方/公开方法论/可重复验证）+ 多平台推荐度表格
+    3. **AI 自我校验 · 5 维诊断评分** — Chart.js 雷达图（本品牌 vs 行业均值）+ 5 维度数值条
+    4. **跨平台诊断全景** — 8 大平台水平柱状图（每平台独立配色）
+    5. **自动生成优化解决方案** — 3 张行动卡（高/中/低优先级 + 预计提升分 + 标签）
+  - **数据大屏区** `.geo-data-screen` — 4 KPI（综合得分 82.5 / AI 平台覆盖 8 / 本月扫描 3,847 / 优化建议采纳率 73%）+ 近 30 天趋势图（本品牌 vs 竞品均值双线）
+  - **CTA 体验条** `.geo-cta-bar` — `申请 7 天免费试用` 主按钮 + `查看示例报告` 副按钮
+
+**新增"敬请期待"section（页面底部 · 解决方案之前）**：
+- `.coming-soon-section` 三卡布局（HPD / SCOUT / MEDPPT）每张带 `.product-badge.coming-soon` 角标
+- HPD 简介：`基于床位 / 科室 / 周转率的医院潜力预测 · 帮市场部锁定高潜医院`
+- SCOUT 简介：`自动搜集 PubMed / ClinicalTrials / FDA 三大权威数据库 · 把 3-5 天立项调研压到 10 分钟`
+- MEDPPT 简介：`极速生成专业可信医学 PPT · 5 类差异化模板 · 幻觉率 < 5%`
+- Footer 链接同步：4 个产品矩阵列改 #products / #coming-soon 跳转
+
+**新增 639 行 CSS（V2.0.78.2 块 · 在原 .product-badge 后追加）**：
+- `.section-geo` 主区容器（带渐变背景光晕）
+- `.geo-feature-row` + `.reverse` 左右交替布局
+- `.mockup-frame` 框（与现有 dashboard-mockup 视觉对齐）
+- `.ai-platform-grid` 8 平台九宫格 + `.scan-dot` 脉冲动画
+- `.fair-badge-row` 3 卡 + `.multi-platform-table` 多平台表
+- `.score-radar-wrap` 雷达画布 + `.score-center` 居中分数
+- `.five-dim-row` 5 维数值条
+- `.cross-platform-bars` 跨平台水平柱 + 8 套渐变配色
+- `.action-card.high/.mid/.low` 优先级边框 + `.action-priority` 角标
+- `.geo-data-screen` 大屏（4 KPI + 全宽趋势图）+ `.screen-kpi` 卡片
+- `.geo-cta-bar` CTA 条
+- `.coming-soon-section` + `.coming-soon-card` + `.cs-icon` 三卡（含角标）
+- `@media (max-width: 992px / 600px)` 响应式断点
+
+**新增 169 行 JS（script.js · V2.0.78.2 initGeoRadar / initGeoTrend）**：
+- `initGeoRadar()` — 5 维雷达图（本品牌 vs 行业均值 · Chart.js radar）
+- `initGeoTrend()` — 30 天趋势图（双线 · 渐变填充 · hover tooltip）
+- `bindChartReveal()` — IntersectionObserver 协同（仅当元素进入视口才初始化，节省首屏资源 + 避免图表初始化过早看不到动画）
+- 复用 `chartsInitialized[canvasId]` 字典防重复 init
+
+**修改 3 文件**：
+- `website/index.html` 1031 → 1095 行（+64）· 备份 `_backups/index-pre-geo-refactor-2026-09-14.html`（52KB）
+- `website/css/style.css` 2345 → 2984 行（+639）
+- `website/js/script.js` 884 → 1058 行（+174）— 含 initGeoRadar / initGeoTrend / bindChartReveal
+- `website/js/chart.umd.min.js` 新增 · 205KB · Chart.js v4.4.0（**本地化**，避免 CDN 出站依赖）
+- `backend/src/main/resources/static/{index.html,css/style.css,js/script.js,js/chart.umd.min.js}` 同步（deploy 真源）
+- `backend/src/main/resources/application.yml` version: 2.0.78.1 → **2.0.78.2**
+
+**E2E 验证（9091 · 2026-09-14 10:31 / 10:48 二次）**：
+- ✅ mvn package BUILD SUCCESS（1.049 s · 二次 1.112 s）
+- ✅ dev-pg profile 启动成功（Tomcat 9091 ready · 2.705 s · `Started LingyaoApplication`）
+- ✅ HTTP 200 · 51449 bytes · 41.9 ms
+- ✅ Marker 全中（5 个 geo-feature-row + 5 个 mockup-frame + 1 个 coming-soon-section + 1 个 ai-platform-grid + 1 个 geo-data-screen + 1 个 geo-cta-bar + 1 个 geoRadarChart + 1 个 geoTrendChart + 8 次"敬请期待" + V2.0.78.2 meta）
+- ✅ CSP `script-src 'self' 'unsafe-inline' 'unsafe-eval'` 兼容 Chart.js + tailwind + inline script
+- ✅ 浏览器实测：Hero / 雷达图 / 趋势图 / 敬请期待 4 张截图全部渲染正常（详见 `outputs/v2.0.78.2-homepage-demo/`）
+- ✅ Chart.js IntersectionObserver 触发逻辑：threshold=0.05 + rootMargin='300px 0px' 提前 + setTimeout 兜底，首屏可见时立即 init
+
+**关联**：
+- 主任务单：`/tmp/MainSite_D5_alignment_2026-09-13.md`（首页改造非 D-5 范畴 · 主人单独拍板）
+- 备份：`/Users/hua/Documents/myself/凌瑶/_backups/index-pre-geo-refactor-2026-09-14.html`
+
+---
+
+
+
+---
+
+## V2.0.78.3 (2026-09-14 11:10) — 首页 emoji 工业扁平化 + AI 平台列表收敛（主人 11:00 拍板"首页的图标上边就不要用这些表情了"）
+
+**AI 平台列表收敛 · 11 处 emoji 全部 SVG 化**：
+- **去掉 ChatGPT 和 Perplexity**（不承诺有 ChatGPT · Perplexity 国内访问性差）
+- **实际可监控 8 个**（主人原话）：DeepSeek / Kimi / 元宝 / 豆包 / 千问 / 文心一言 / 智谱 / Minimax
+- **8 个 AI 平台 icon**（九宫格 + 跨平台柱）：从 emoji 改为**首字母 + 渐变色块**（D 深蓝 / K 炭黑 / 元 蓝青 / 豆 紫蓝 / 通 橙红 / 文 蓝 / 谱 绿 / M 紫）— 不照搬品牌 logo 避免商标风险
+- **3 个公平验证徽章**（⚖️🛡️📊）：从 emoji 改为**内联 SVG**（天平 / 盾形 / 柱状图）
+
+**全文 ChatGPT/Perplexity/通义千问 残留清理**（主人 11:00 指示）：
+- L235-242 AI 平台 9 宫格：ChatGPT→DeepSeek · Perplexity→Minimax · 通义千问→千问
+- L306-308 多平台表：3 行重写（DeepSeek / Minimax / 千问）
+- L373-380 跨平台柱：8 个平台全更新（去掉 ChatGPT + Perplexity，色条配色与九宫格 icon 一致）
+- L409 行动卡："ChatGPT" → "Minimax"
+- L421 行动卡："通义千问" → "千问"
+- grep -c 验证：ChatGPT/Perplexity/通义千问 全部 0 命中
+
+**新增 CSS（V2.0.78.3 块）**：
+- `.ai-icon` 容器 22×22 + 圆角 6px + 首字母白字 12px 800 + flex 居中
+- `.ai-icon-ds/.kimi/.yb/.doubao/.qwen/.wxy/.zp/.yy` 8 套独立渐变
+- `.fair-badge .badge-mark` 32×32 圆角 8px 渐变背景 + `.badge-mark svg` 18×18 stroke 配色
+
+**修改文件**：
+- `website/index.html` V2.0.78.2 → V2.0.78.3（meta + script version）
+- `website/css/style.css` 新增 8 套 AI 渐变 + badge-mark 容器样式（~40 行）
+- `backend/.../static/*` 同步
+- `backend/.../application.yml` version 2.0.78.2 → **2.0.78.3**
+
+**E2E 验证（9091 · 11:10）**：
+- ✅ mvn package BUILD SUCCESS 0.961 s · dev-pg ready 2~3 s
+- ✅ HTTP 200 / 51449 bytes
+- ✅ AI 平台 8 个 icon 全部工业扁平风渲染（首字母 + 渐变）
+- ✅ 3 个公平验证徽章 SVG 渲染（天平/盾形/柱状图）
+- ✅ 8 个跨平台柱配色与九宫格 icon 一致
+- ✅ 全文 ChatGPT/Perplexity/通义千问 残留 0
+
+**未触动（保留原 emoji）**：
+- Hero perks 4 个 emoji（⚡🎯🛡️📞）— 原首页试用区装饰
+- 登录弹窗 3 个社交登录 emoji（📱）— 原首页登录区装饰
+- 主人新指示指向 V2.0.78.2 新增的 5 大特性区，原首页部分保守保留
+
+---
+
+

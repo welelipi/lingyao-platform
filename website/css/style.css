@@ -621,16 +621,17 @@ body {
 }
 
 .about-grid {
-  display: grid;
-  grid-template-columns: 2fr 1.2fr;
-  gap: 60px;
-  align-items: start;
+  display: block;
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
 .about-main {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .about-card {
@@ -1603,6 +1604,50 @@ body {
   height: 14px;
 }
 
+/* V2.0.78.5 · 产品 checkbox 锁定 / 置灰 */
+.checkbox-item.is-locked {
+  cursor: not-allowed;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.10), rgba(123, 97, 255, 0.08));
+  border-color: rgba(0, 212, 255, 0.4);
+  box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.15) inset;
+}
+.checkbox-item.is-locked span {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+.checkbox-item.is-locked::after {
+  content: '默认';
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  padding: 2px 8px;
+  background: rgba(0, 212, 255, 0.12);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 999px;
+}
+.checkbox-item.is-locked:hover {
+  border-color: rgba(0, 212, 255, 0.4);
+}
+.checkbox-item.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  background: rgba(255, 255, 255, 0.02);
+  border-style: dashed;
+}
+.checkbox-item.is-disabled:hover {
+  border-color: var(--border);
+}
+.checkbox-item.is-disabled span {
+  color: var(--text-dim);
+  text-decoration: line-through;
+  text-decoration-color: rgba(148, 163, 184, 0.4);
+}
+.checkbox-item.is-disabled input {
+  cursor: not-allowed;
+}
+
 .form-check {
   display: flex;
   align-items: flex-start;
@@ -2342,4 +2387,676 @@ body {
   background: linear-gradient(135deg, rgba(255, 140, 66, 0.15), rgba(255, 94, 148, 0.15));
   color: #FF8C42;
   border: 1px solid rgba(255, 140, 66, 0.35);
+}
+
+/* ═══════════════════════ V2.0.78.2 · 首页 GEO 深度改造 ═══════════════════════ */
+
+/* ── .section-geo 主区容器 ── */
+.section-geo {
+  position: relative;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(0, 212, 255, 0.08), transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(123, 97, 255, 0.08), transparent 50%),
+    var(--bg-section);
+}
+
+/* ── 5 特性行布局 ── */
+.geo-features {
+  margin-top: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 96px;
+}
+.geo-feature-row {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 56px;
+  align-items: center;
+}
+.geo-feature-row.reverse {
+  grid-template-columns: 1fr 1.15fr;
+}
+.geo-feature-row.reverse .geo-feature-visual {
+  order: 2;
+}
+.geo-feature-row.reverse .geo-feature-text {
+  order: 1;
+}
+.feature-num {
+  font-family: 'Inter', sans-serif;
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  opacity: 0.85;
+  margin-bottom: 12px;
+}
+.feature-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 14px;
+  line-height: 1.3;
+}
+.feature-desc {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--text-dim);
+  margin-bottom: 18px;
+}
+.feature-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.feature-points li {
+  position: relative;
+  padding-left: 26px;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+.feature-points li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ── mockup 框（与 dashboard-mockup 视觉对齐） ── */
+.mockup-frame {
+  background: linear-gradient(135deg, rgba(10, 31, 61, 0.85), rgba(22, 50, 92, 0.75));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.5s ease, box-shadow 0.5s ease;
+}
+.mockup-frame:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 60px rgba(0, 212, 255, 0.18);
+}
+
+/* ① AI 平台九宫格 */
+.ai-platform-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.ai-platform {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid rgba(0, 212, 255, 0.18);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text);
+  transition: all 0.25s ease;
+}
+.ai-platform.active {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.12), rgba(123, 97, 255, 0.10));
+  border-color: rgba(0, 212, 255, 0.4);
+}
+.ai-platform .ai-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  letter-spacing: -0.5px;
+  font-family: 'Inter', sans-serif;
+  flex-shrink: 0;
+}
+/* 8 个 AI 平台首字母渐变（V2.0.78.3 · 不照搬品牌 logo 避免商标风险）*/
+.ai-icon-ds    { background: linear-gradient(135deg, #4D6BFE, #1A2B6B); }   /* DeepSeek 深蓝 */
+.ai-icon-kimi  { background: linear-gradient(135deg, #1B1F26, #4A5568); }   /* Kimi 炭黑 */
+.ai-icon-yb    { background: linear-gradient(135deg, #0099FF, #0055B8); }   /* 元宝 蓝青 */
+.ai-icon-doubao{ background: linear-gradient(135deg, #5E72E4, #825EE4); }   /* 豆包 紫蓝 */
+.ai-icon-qwen  { background: linear-gradient(135deg, #FF6A00, #C2410C); }   /* 千问 橙红 */
+.ai-icon-wxy   { background: linear-gradient(135deg, #2978FF, #1D4ED8); }   /* 文心一言 蓝 */
+.ai-icon-zp    { background: linear-gradient(135deg, #4A6B3A, #2D4A22); }   /* 智谱 绿 */
+.ai-icon-yy    { background: linear-gradient(135deg, #7B61FF, #4C1D95); }   /* Minimax 紫 */
+.mockup-scan-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(0, 212, 255, 0.05);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.scan-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-4);
+  box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+  animation: pulse-dot 1.6s infinite;
+}
+@keyframes pulse-dot {
+  0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+  70%  { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
+/* ② 公平验证徽章 + 表格 */
+.fair-badge-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.fair-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px 8px;
+  background: rgba(123, 97, 255, 0.06);
+  border: 1px solid rgba(123, 97, 255, 0.2);
+  border-radius: 10px;
+  gap: 4px;
+}
+.fair-badge .badge-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.18), rgba(0, 212, 255, 0.12));
+  border: 1px solid rgba(123, 97, 255, 0.3);
+  color: #B4A6FF;
+  font-size: 0;
+  margin-bottom: 4px;
+}
+.fair-badge .badge-mark svg {
+  width: 18px;
+  height: 18px;
+  stroke: #C4B8FF;
+}
+.fair-badge strong {
+  font-size: 13px;
+  color: var(--text-bright);
+  font-weight: 600;
+}
+.fair-badge span:last-child {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.multi-platform-table {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.table-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.7fr 0.7fr 1fr;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--text);
+  align-items: center;
+}
+.table-row.header {
+  background: rgba(0, 212, 255, 0.06);
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+.table-row + .table-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+.table-row .pos {
+  color: var(--accent-4);
+  font-weight: 600;
+}
+
+/* ③ 5 维雷达图 */
+.score-radar-wrap {
+  position: relative;
+  height: 220px;
+  margin-bottom: 16px;
+}
+.score-radar-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+.score-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+.score-num {
+  font-family: 'Inter', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+.score-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+.five-dim-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.dim-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 8px;
+}
+.dim-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.dim-val {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ④ 跨平台对比柱 */
+.cross-platform-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cp-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 32px;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text);
+}
+.cp-name {
+  color: var(--text-dim);
+}
+.cp-bar {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.cp-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.8s ease;
+}
+.cp-score {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  color: var(--text-bright);
+  text-align: right;
+}
+
+/* ⑤ 行动卡片 */
+.action-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.action-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px 14px;
+  align-items: center;
+}
+.action-card.high {
+  border-left: 3px solid #FF5F57;
+}
+.action-card.mid {
+  border-left: 3px solid #FFBD2E;
+}
+.action-card.low {
+  border-left: 3px solid var(--accent-4);
+}
+.action-priority {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.action-card.high .action-priority {
+  background: rgba(255, 95, 87, 0.15);
+  color: #FF8A85;
+}
+.action-card.mid .action-priority {
+  background: rgba(255, 189, 46, 0.15);
+  color: #FFCB66;
+}
+.action-card.low .action-priority {
+  background: rgba(74, 222, 128, 0.15);
+  color: #6EE7A8;
+}
+.action-title {
+  font-size: 13px;
+  color: var(--text-bright);
+  line-height: 1.5;
+}
+.action-impact {
+  font-size: 12px;
+  color: var(--accent-4);
+  font-weight: 600;
+  text-align: right;
+}
+.action-tags {
+  grid-column: 2 / -1;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.action-tags span {
+  font-size: 10px;
+  padding: 2px 8px;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.18);
+  border-radius: 999px;
+  color: var(--text-dim);
+}
+
+/* ── 数据大屏 ── */
+.geo-data-screen {
+  margin-top: 100px;
+  padding: 40px;
+  background:
+    linear-gradient(135deg, rgba(10, 31, 61, 0.92), rgba(22, 50, 92, 0.88)),
+    radial-gradient(ellipse at top left, rgba(0, 212, 255, 0.18), transparent 60%);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+.geo-data-screen::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+}
+.screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.screen-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.screen-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+.screen-kpi {
+  padding: 22px;
+  background: rgba(0, 212, 255, 0.04);
+  border: 1px solid rgba(0, 212, 255, 0.18);
+  border-radius: 14px;
+}
+.screen-kpi.big {
+  grid-column: span 1;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.12), rgba(123, 97, 255, 0.10));
+  border-color: rgba(0, 212, 255, 0.35);
+}
+.screen-kpi-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  letter-spacing: 0.3px;
+}
+.screen-kpi-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--text-bright);
+  line-height: 1;
+}
+.screen-kpi-value .suffix {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+.screen-kpi-trend {
+  font-size: 12px;
+  margin-top: 8px;
+  color: var(--text-dim);
+}
+.screen-kpi-trend.up {
+  color: var(--accent-4);
+  font-weight: 600;
+}
+.screen-chart {
+  grid-column: span 4;
+  padding: 22px;
+  background: rgba(0, 212, 255, 0.04);
+  border: 1px solid rgba(0, 212, 255, 0.18);
+  border-radius: 14px;
+  height: 220px;
+  position: relative;
+}
+.chart-title {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0.3px;
+  margin-bottom: 12px;
+}
+.screen-chart canvas {
+  width: 100% !important;
+  height: calc(100% - 24px) !important;
+}
+
+/* ── CTA Bar ── */
+.geo-cta-bar {
+  margin-top: 56px;
+  padding: 32px 40px;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.10), rgba(123, 97, 255, 0.10));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+.cta-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+}
+.cta-subtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.cta-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cta-actions .btn-outline {
+  border-color: rgba(0, 212, 255, 0.4);
+  color: var(--text-bright);
+  text-decoration: none;
+}
+.cta-actions .btn-outline:hover {
+  background: rgba(0, 212, 255, 0.10);
+}
+
+/* ── 敬请期待（HPD/SCOUT/MEDPPT）── */
+.coming-soon-section {
+  margin-top: 100px;
+  padding-top: 56px;
+  border-top: 1px solid var(--border);
+}
+.coming-soon-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.coming-soon-tag {
+  display: inline-block;
+  padding: 6px 16px;
+  background: linear-gradient(135deg, rgba(255, 140, 66, 0.12), rgba(255, 94, 148, 0.12));
+  border: 1px solid rgba(255, 140, 66, 0.3);
+  border-radius: 999px;
+  color: #FF8C42;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+.coming-soon-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 10px;
+}
+.coming-soon-subtitle {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+.coming-soon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.coming-soon-card {
+  position: relative;
+  padding: 32px 26px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: all var(--transition);
+  overflow: hidden;
+}
+.coming-soon-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, #FF8C42, #FF5E94);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s var(--transition);
+}
+.coming-soon-card:hover::before {
+  transform: scaleX(1);
+}
+.coming-soon-card:hover {
+  border-color: rgba(255, 140, 66, 0.35);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 50px rgba(255, 140, 66, 0.12);
+}
+.cs-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 140, 66, 0.15), rgba(255, 94, 148, 0.15));
+  border: 1px solid rgba(255, 140, 66, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.cs-icon svg {
+  width: 26px;
+  height: 26px;
+  stroke: #FF8C42;
+}
+.cs-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+.cs-name-en {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+.cs-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.65;
+  margin-bottom: 16px;
+}
+.cs-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.cs-foot .product-badge {
+  margin-left: 0;
+}
+.cs-target {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ── 响应式 ── */
+@media (max-width: 992px) {
+  .geo-feature-row,
+  .geo-feature-row.reverse {
+    grid-template-columns: 1fr;
+  }
+  .geo-feature-row.reverse .geo-feature-visual { order: 1; }
+  .geo-feature-row.reverse .geo-feature-text  { order: 2; }
+  .ai-platform-grid { grid-template-columns: repeat(2, 1fr); }
+  .screen-grid { grid-template-columns: repeat(2, 1fr); }
+  .coming-soon-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .geo-features { gap: 64px; }
+  .geo-data-screen { padding: 24px; }
+  .screen-grid { grid-template-columns: 1fr; }
+  .fair-badge-row { grid-template-columns: 1fr; }
+  .five-dim-row { grid-template-columns: repeat(2, 1fr); }
 }

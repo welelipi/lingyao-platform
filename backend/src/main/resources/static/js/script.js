@@ -372,6 +372,190 @@
   setTimeout(() => initProductChart('geo'), 500);
 
   // ==========================================
+  // 8b. V2.0.78.2 · 首页 GEO 雷达图 + 趋势图
+  // ==========================================
+  function initGeoRadar(_retry = 0) {
+    const canvas = document.getElementById('geoRadarChart');
+    if (!canvas) return;
+    if (typeof Chart === 'undefined') {
+      // Chart.js CDN 还没加载完（脚本前置）— 等 200ms 重试，最多 25 次（5s）
+      if (_retry < 25) return setTimeout(() => initGeoRadar(_retry + 1), 200);
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (chartsInitialized['geoRadarChart']) chartsInitialized['geoRadarChart'].destroy();
+
+    chartsInitialized['geoRadarChart'] = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: ['推荐排名', '推荐方向', '情感倾向', '品牌提及', '来源覆盖'],
+        datasets: [
+          {
+            label: '本品牌',
+            data: [76, 84, 88, 79, 85],
+            borderColor: '#00D4FF',
+            backgroundColor: 'rgba(0, 212, 255, 0.20)',
+            pointBackgroundColor: '#00D4FF',
+            pointBorderColor: '#0A1F3D',
+            pointRadius: 4,
+            borderWidth: 2
+          },
+          {
+            label: '行业均值',
+            data: [62, 70, 71, 65, 68],
+            borderColor: '#7B61FF',
+            backgroundColor: 'rgba(123, 97, 255, 0.10)',
+            pointBackgroundColor: '#7B61FF',
+            pointRadius: 3,
+            borderWidth: 1.5,
+            borderDash: [4, 4]
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#94A3B8',
+              font: { size: 11, family: 'Inter' },
+              boxWidth: 10,
+              usePointStyle: true,
+              pointStyle: 'circle'
+            }
+          },
+          tooltip: {
+            backgroundColor: '#0A1F3D',
+            borderColor: '#00D4FF',
+            borderWidth: 1,
+            titleColor: '#fff',
+            bodyColor: '#94A3B8',
+            padding: 10,
+            cornerRadius: 6
+          }
+        },
+        scales: {
+          r: {
+            beginAtZero: true,
+            min: 0,
+            max: 100,
+            ticks: { stepSize: 20, color: '#94A3B8', backdropColor: 'transparent', font: { size: 10 } },
+            grid: { color: 'rgba(255,255,255,0.08)' },
+            angleLines: { color: 'rgba(255,255,255,0.08)' },
+            pointLabels: { color: '#CBD5E1', font: { size: 12 } }
+          }
+        }
+      }
+    });
+  }
+
+  function initGeoTrend(_retry = 0) {
+    const canvas = document.getElementById('geoTrendChart');
+    if (!canvas) return;
+    if (typeof Chart === 'undefined') {
+      // Chart.js CDN 还没加载完（脚本前置）— 等 200ms 重试，最多 25 次（5s）
+      if (_retry < 25) return setTimeout(() => initGeoTrend(_retry + 1), 200);
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (chartsInitialized['geoTrendChart']) chartsInitialized['geoTrendChart'].destroy();
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+    gradient.addColorStop(0, 'rgba(0, 212, 255, 0.45)');
+    gradient.addColorStop(1, 'rgba(0, 212, 255, 0)');
+
+    chartsInitialized['geoTrendChart'] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: Array.from({ length: 30 }, (_, i) => `D-${30 - i}`),
+        datasets: [
+          {
+            label: '品牌综合得分',
+            data: [68, 69, 70, 71, 70, 72, 73, 72, 74, 75, 76, 75, 77, 78, 79, 78, 79, 80, 81, 80, 81, 82, 81, 82, 83, 82, 82.5, 82.5, 82.5, 82.5],
+            borderColor: '#00D4FF',
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            borderWidth: 2
+          },
+          {
+            label: '竞品均值',
+            data: [62, 62, 63, 63, 64, 64, 65, 65, 66, 66, 67, 67, 68, 68, 69, 69, 70, 70, 70, 71, 71, 72, 72, 72, 73, 73, 73, 73, 74, 74],
+            borderColor: 'rgba(123, 97, 255, 0.7)',
+            borderDash: [5, 5],
+            fill: false,
+            tension: 0.3,
+            pointRadius: 0,
+            borderWidth: 1.5
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: '#94A3B8',
+              font: { size: 11, family: 'Inter' },
+              boxWidth: 10,
+              usePointStyle: true,
+              pointStyle: 'line'
+            }
+          },
+          tooltip: {
+            backgroundColor: '#0A1F3D',
+            borderColor: '#00D4FF',
+            borderWidth: 1,
+            titleColor: '#fff',
+            bodyColor: '#94A3B8',
+            padding: 10,
+            cornerRadius: 6
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.04)', display: false },
+            ticks: { color: '#94A3B8', font: { size: 10 }, maxTicksLimit: 8 }
+          },
+          y: {
+            min: 55,
+            max: 90,
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            ticks: { color: '#94A3B8', font: { size: 10 }, stepSize: 5 }
+          }
+        }
+      }
+    });
+  }
+
+  // Reveal 时再初始化（与 IntersectionObserver 协同 · 但首屏可见就立即触发）
+  function bindChartReveal(canvasId, initFn) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) { initFn(); obs.disconnect(); }
+      });
+    }, { threshold: 0.05, rootMargin: '300px 0px' });
+    obs.observe(canvas);
+    // 兜底：若首屏内可见 + 已加载，立即触发（避免 IO 错过时机）
+    setTimeout(() => {
+      const r = canvas.getBoundingClientRect();
+      if (r.top < innerHeight && r.bottom > 0) initFn();
+    }, 100);
+  }
+  bindChartReveal('geoRadarChart', initGeoRadar);
+  bindChartReveal('geoTrendChart', initGeoTrend);
+
+  // ==========================================
   // 9. 弹窗管理
   // ==========================================
   window.openModal = function (type) {
@@ -405,7 +589,7 @@
   // ==========================================
   const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? window.location.protocol + '//' + window.location.hostname + ':9091'
-    : '';
+    : (window.location.pathname.indexOf('/', 1) > 0 ? window.location.pathname.substring(0, window.location.pathname.indexOf('/', 1)) : '');
 
   function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
