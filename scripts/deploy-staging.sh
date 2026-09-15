@@ -149,13 +149,13 @@ if [ "$ALL_OK" = "false" ]; then
     exit 1
 fi
 
-# ── Step 5: 版本号验证（V2.0.3：/api/_diag/version 已加 permitAll 白名单）──
+# ── Step 5: 版本号验证（V2.0.3：/api/health 已加 permitAll 白名单）──
 echo ""
-echo "==== [5/5] 版本号验证（CVM 内 curl /api/_diag/version）===="
-DIAG=$(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" "curl -s --max-time 10 http://127.0.0.1:9092/api/_diag/version")
-echo "  /api/_diag/version: $DIAG"
+echo "==== [5/5] 版本号验证（CVM 内 curl /api/health）===="
+DIAG=$(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "$CVM" "curl -s --max-time 10 http://127.0.0.1:9092/api/health")
+echo "  /api/health: $DIAG"
 if echo "$DIAG" | grep -q '"code":401'; then
-    echo "⚠️  /api/_diag/version 仍被鉴权拦截（需 V2.0.3 jar 已部署）"
+    echo "⚠️  /api/health 仍被鉴权拦截（需 V2.0.3 jar 已部署）"
 fi
 
 echo ""
