@@ -1,5 +1,16 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.78.6 (2026-09-15 16:55) — r6 批 A：P0-A VERSION-DRIFT 修复 + V2.0.78.6 版本号演进
+
+**主站 r6 质量环批 A 落地**：
+- ① P0-A VERSION-DRIFT-PRE-RUN（架构师独立验证确认）：11 处版本号漂移同步到 V2.0.78.5 真源（website/{portal,admin,company-admin,trial}.html + website/static/{index,portal}.html + backend/src/main/resources/static/{portal,admin,company-admin,trial}.html + script.js?v=）
+- ② P1-1 deploy-staging.sh L155 `/api/_diag/version` → `/api/health`（运维三件 _diag→/api/health 落地，r5 next-run 收口）
+- ③ V2.0.78.5 → V2.0.78.6 版本号演进（application.yml + 4 HTML + script.js?v= 全量 bump）
+
+**r5 ARCH-007 红线恢复**：V2.0.78.x 落地仅 index.html bump 引发 11 处漂移 → 全部对齐
+
+**铁律契合**：✅ 12/12（铁律 2/5/7/8 全部落地）
+
 ## V2.0.78.1 (2026-09-13 17:38) — 主站 trial 健康度 + 首巡检 + 周报/月报 全链路（主人 09-13 17:30 拍板 Day 2 主站做）
 
 **主站侧 3 项功能落地**：
