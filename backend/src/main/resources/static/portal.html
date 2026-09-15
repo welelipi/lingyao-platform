@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 产品门户</title>
-  <meta name="app-version" content="V2.0.77.24">
-  <!-- V2.0.77.24：API_BASE 环境变量化（替代三元硬编码）
+  <meta name="app-version" content="V2.0.78.5">
+  <!-- V2.0.78.5：API_BASE 环境变量化（替代三元硬编码）
        dev 默认值 = http://localhost:9091 直连后端
        prod 部署由 infra/nginx-sub-filter-template.conf 把 content 替换成 ""（同源反代走 /api） -->
   <meta name="api-base" content="http://localhost:9091">
-  <script>console.log('%c portal.html V2.0.77.24 · API_BASE 环境变量化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <script>console.log('%c portal.html V2.0.78.5 · API_BASE 环境变量化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css">
   <style>
     /* ── Portal 专属样式（复用凌瑶 CSS 变量） ─────── */
@@ -1073,7 +1073,7 @@
     const USER_KEY = 'lingyao_user';
     // V2.0.3: 老 key fallback 列表（ly_token / geo_token 是对外版历史 key，老用户 localStorage 兼容）
     const TOKEN_KEYS_LEGACY = ['ly_token', 'geo_token'];
-    // V2.0.77.24：API_BASE 从 <meta name="api-base"> 读，替代三元硬编码
+    // V2.0.78.5：API_BASE 从 <meta name="api-base"> 读，替代三元硬编码
     // dev：head 里 content="http://localhost:9091"（直连后端）
     // prod：由 infra/nginx-sub-filter-template.conf 把 content 替换成 "" → 走同源 /api 相对路径
     // V2.0.32 同 host 注释保留（同 host 不同端口 = same-site，cookie 正常落盘）
@@ -1081,7 +1081,7 @@
       const v = document.querySelector('meta[name="api-base"]')?.content?.trim();
       return v || '';  // 空 = 相对路径
     })();
-    // V2.0.77.24：API_ORIGIN 给 OAuth 回调用（同 API_BASE；空时退化为 location.origin）
+    // V2.0.78.5：API_ORIGIN 给 OAuth 回调用（同 API_BASE；空时退化为 location.origin）
     const API_ORIGIN = API_BASE || window.location.origin;
 
     function getToken() {
@@ -1706,7 +1706,7 @@
       wsSsoModalCtx = { providerCode, existing };
       document.getElementById('wsSsoModalTitle').textContent = `配置 ${providerName} SSO`;
       document.getElementById('wsSsoModalDesc').textContent =
-        // V2.0.77.24：OAuth 回调 URL 走 API_ORIGIN（meta 读），不再 location.hostname+':9091' 直拼
+        // V2.0.78.5：OAuth 回调 URL 走 API_ORIGIN（meta 读），不再 location.hostname+':9091' 直拼
         providerCode === 'OIDC' ? '填写 IdP 颁发的 Client 信息与 Issuer 地址；回调地址请在 IdP 侧登记：' + API_ORIGIN + '/api/sso/oidc/callback'
         : '请在' + providerName + '开放平台创建应用后填写；回调/重定向 URL 填：' + API_ORIGIN + '/api/sso/' + providerCode.toLowerCase() + '/callback';
       document.getElementById('wsSsoAppId').value = existing ? (existing.app_id || existing.appId || '') : '';
