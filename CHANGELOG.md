@@ -1,5 +1,15 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.78.7 (2026-09-25 08:25) — CSS 缓存穿透修复 + ICP 备案号上线（主人双重授权：commit and push + 双环境发布）
+
+**前端修复**：
+- ① CSS 缓存穿透（样式事故根治）：16 个 HTML 的 style.css 引用全部补 `?v=` 版本参数（backend/static 10 + website 镜像 6；admin.html 遗留 2.0.64 一并升级）。根因：V2.0.78.6 style.css 43KB→59KB 大改但引用无版本号，浏览器旧缓存渲染新 HTML 全站样式错乱
+- ② 首页 ICP 备案号：占位号 `沪ICP备 2026000001 号` → 真实 **沪ICP备2026048841号**，链接指向工信部核验站 beian.miit.gov.cn（backend/static/index.html + website/index.html + website/static/index.html 三处）
+
+**版本演进**：V2.0.78.6 → V2.0.78.7 全量 bump（application.yml + 11 backend HTML + script.js 引用参数 + website 7 文件）
+
+**发布记录**：主人 08:21 双重授权「发布和生产都发布上去，都commit and push」→ staging + prod 双部署；prod 运行 jar = /home/ubuntu/lingyao/lingyao-platform.jar（lingyao-backend-prod.service，注意 deploy-prod.sh 遗留路径 /opt/lingyao 非当前生效路径，待修正）
+
 ## V2.0.78.6 (2026-09-15 16:55) — r6 批 A：P0-A VERSION-DRIFT 修复 + V2.0.78.6 版本号演进
 
 **主站 r6 质量环批 A 落地**：
