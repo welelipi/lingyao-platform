@@ -1,5 +1,11 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.78.8 (2026-09-25 08:50) — 首页联系区精简（主人 08:43 拍板：双环境发布）
+
+- ① 删除「公司地址」「微信咨询」两张联系卡（含 QR 占位图），保留「销售热线」「商务邮箱」（backend/static/index.html + website/index.html + website/static/index.html 三处）
+- ② contact-grid 桌面布局 repeat(4,1fr) → repeat(2,1fr) 适配两卡（backend + website 双 style.css，中低断点 2 列/1 列不变）
+- ③ 版本演进 V2.0.78.7 → V2.0.78.8 全量 bump（CSS 变更必须穿透缓存，铁律）
+
 ## V2.0.78.7 (2026-09-25 08:25) — CSS 缓存穿透修复 + ICP 备案号上线（主人双重授权：commit and push + 双环境发布）
 
 **前端修复**：
