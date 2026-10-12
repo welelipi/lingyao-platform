@@ -819,9 +819,11 @@ public class AuthService {
         }
 
         // 1) 查用户（邮箱或用户名都行）
-        SysUser user = userRepo.findByEmail(emailOrUsername)
-                .or(() -> userRepo.findByUsername(emailOrUsername))
-                .orElse(null);
+        // V2.0.78.18：邮箱无唯一约束，可能出现多账号共用同一邮箱（staging 实锤：
+        // admin 与 15510855337 同邮箱）。单结果 findByEmail 遇重复抛 NonUniqueResultException
+        // → forgot-password 500。改为取全部匹配后按优先级择一：
+        // 平台管理员 > ACTIVE > id 小者（管理员先受影响，避免旧账号劫持重置链路）。
+        SysUser user = resolveUserForPasswordReset(emailOrUsername);
 
         // ★ 安全：无论用户是否存在，都返回 200
         Map<String, Object> resp = new HashMap<>();
@@ -868,16 +870,83 @@ public class AuthService {
                     user.getId(), user.getUsername(), ip,
                     "/api/auth/forgot-password", "POST");
 
-            // V2.0.71 PRD-1.2：仅 dev 模式（邮件通道未配置）回显 token，生产不回显（与 EmailOtpService dev 判定同语义）
+            // V2.0.78.17：真实发送重置邮件（此前只有 token 生成无发信 → 用户收不到邮件，
+            // 且 portal 登录页无「忘记密码」入口，机制形同虚设）。
+            // 复用 EmailOtpService.sendMail（同款 JavaMailSender + NotifyEmailProperties 通道）。
+            String resetPath = "/reset-password.html?token=" + plainToken;
             boolean devMode = (mailSender == null) || !emailProps.isEnabled();
             if (devMode) {
                 resp.put("devModeToken", plainToken);
-                resp.put("resetUrl", "/reset-password.html?token=" + plainToken);
+                resp.put("resetUrl", resetPath);
                 resp.put("expiresIn", RESET_TOKEN_TTL_SECONDS);
+            } else if (user.getEmail() != null && !user.getEmail().isBlank()) {
+                String baseUrl = System.getenv("LINGYAO_PORTAL_URL");
+                if (baseUrl == null || baseUrl.isBlank()) {
+                    baseUrl = "https://lydmed.com/staging/portal.html";
+                }
+                // portal.html 所在目录即静态根：…/portal.html → …/reset-password.html
+                String resetLink = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1) + "reset-password.html?token=" + plainToken;
+                long ttlMin = RESET_TOKEN_TTL_SECONDS / 60;
+                String html = String.format("""
+                        <div style="max-width:520px;margin:0 auto;font-family:'PingFang SC','Microsoft YaHei',sans-serif;color:#1e293b;">
+                          <h2 style="color:#0A1F3D;">凌瑶智数 · 密码重置</h2>
+                          <p>您好（账号：%s），我们收到了您的密码重置请求。</p>
+                          <p style="margin:24px 0;">
+                            <a href="%s" style="display:inline-block;background:#0A1F3D;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;">重置密码</a>
+                          </p>
+                          <p style="color:#64748B;font-size:13px;">或复制以下链接到浏览器打开（%d 分钟内有效，仅可使用一次）：</p>
+                          <p style="color:#3D5A80;font-size:12px;word-break:break-all;">%s</p>
+                          <p style="color:#64748B;font-size:13px;">若非您本人操作，请忽略本邮件，账号密码不会变更。</p>
+                          <p style="color:#94A3B8;font-size:12px;">凌瑶智数平台 · 系统邮件，请勿回复</p>
+                        </div>
+                        """, user.getUsername(), resetLink, ttlMin, resetLink);
+                boolean sent = emailOtpService.sendMail(user.getEmail(),
+                        "【凌瑶智数】密码重置链接（" + ttlMin + " 分钟内有效）", html);
+                if (!sent) {
+                    // 发信失败必须留痕（AuthService 无 log 变量，走审计表）
+                    auditLogService.recordWithSubject("PASSWORD_RESET_MAIL_FAILED", "USER", user.getId(),
+                            user.getUsername(), "重置邮件发送失败: " + maskEmail(user.getEmail()));
+                }
             }
         }
 
         return resp;
+    }
+
+    /**
+     * V2.0.78.18：为 forgot-password 解析目标用户，容忍同邮箱多账号。
+     * 优先级：平台管理员 > ACTIVE > id 小者。
+     * 理由：管理员账号是重置链路的真实主体（如 admin），避免陈旧/测试账号劫持。
+     */
+    private SysUser resolveUserForPasswordReset(String emailOrUsername) {
+        java.util.List<SysUser> candidates = new java.util.ArrayList<>(userRepo.findAllByEmail(emailOrUsername));
+        if (candidates.isEmpty()) {
+            userRepo.findByUsername(emailOrUsername).ifPresent(candidates::add);
+        }
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        if (candidates.size() == 1) {
+            return candidates.get(0);
+        }
+        candidates.sort((a, b) -> {
+            // 平台管理员最优先
+            boolean aAdmin = Boolean.TRUE.equals(a.getIsPlatformAdmin());
+            boolean bAdmin = Boolean.TRUE.equals(b.getIsPlatformAdmin());
+            if (aAdmin != bAdmin) return aAdmin ? -1 : 1;
+            // ACTIVE 次优先
+            boolean aActive = a.getStatus() == SysUser.UserStatus.ACTIVE;
+            boolean bActive = b.getStatus() == SysUser.UserStatus.ACTIVE;
+            if (aActive != bActive) return aActive ? -1 : 1;
+            // 最后按 id 升序（老账号优先）
+            return Long.compare(a.getId(), b.getId());
+        });
+        auditLogService.recordWithSubject("PASSWORD_RESET_AMBIGUOUS_EMAIL", "USER", candidates.get(0).getId(),
+                candidates.get(0).getUsername(),
+                "忘记密码命中同邮箱多账号(" + candidates.size() + "个)，已选择: " + candidates.get(0).getUsername()
+                        + "，其余: " + candidates.subList(1, candidates.size()).stream()
+                        .map(SysUser::getUsername).collect(java.util.stream.Collectors.joining(",")));
+        return candidates.get(0);
     }
 
     /**

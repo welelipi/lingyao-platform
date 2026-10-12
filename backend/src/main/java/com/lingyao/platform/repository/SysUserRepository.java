@@ -15,6 +15,14 @@ import java.util.Optional;
 public interface SysUserRepository extends JpaRepository<SysUser, Long> {
     Optional<SysUser> findByUsername(String username);
     Optional<SysUser> findByEmail(String email);
+
+    /**
+     * V2.0.78.18：邮箱字段历史上无唯一约束，可能出现多账号共用同一邮箱
+     * （staging 实锤：admin 与测试账号 15510855337 共用 188407408@qq.com）。
+     * 单结果 findByEmail 遇重复数据抛 NonUniqueResultException → forgot-password 500。
+     * 此查询返回全部匹配，由调用方按「平台管理员 > ACTIVE > id 小」择一。
+     */
+    List<SysUser> findAllByEmail(String email);
     List<SysUser> findByIsPlatformAdminTrue();
     boolean existsByUsername(String username);
 

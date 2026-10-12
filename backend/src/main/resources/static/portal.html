@@ -780,8 +780,30 @@
       <button type="submit" class="login-btn" id="loginBtn">登录控制台</button>
       <div class="error-msg" id="errorMsg"></div>
     </form>
+    <!-- V2.0.78.17：忘记密码入口（后端 /api/auth/forgot-password 已有，此前前端无入口） -->
+    <div style="text-align:right;margin-top:-6px;margin-bottom:10px;">
+      <a href="javascript:void(0)" id="forgotPwdLink" style="font-size:13px;color:#3D5A80;text-decoration:none;">忘记密码？</a>
+    </div>
     <div class="back-home">
       <a href="/">← 返回凌瑶智数官网</a>
+    </div>
+  </div>
+
+  <!-- V2.0.78.17：忘记密码弹窗 -->
+  <div id="forgotPwdView" class="login-container" style="display:none;">
+    <h2>找回密码</h2>
+    <p class="hint">输入账号绑定的邮箱，我们将发送重置链接（30 分钟内有效）</p>
+    <form id="forgotPwdForm">
+      <div class="form-group">
+        <label for="forgotEmail">邮箱或用户名</label>
+        <input type="text" id="forgotEmail" placeholder="you@example.com" required autocomplete="username">
+      </div>
+      <button type="submit" class="login-btn" id="forgotPwdBtn">发送重置链接</button>
+      <div class="error-msg" id="forgotPwdMsg" style="color:#4A6B3A;"></div>
+      <div class="error-msg" id="forgotPwdError"></div>
+    </form>
+    <div class="back-home">
+      <a href="javascript:void(0)" id="forgotBackLink">← 返回登录</a>
     </div>
   </div>
 
@@ -1137,6 +1159,55 @@
       document.getElementById('portalView').style.display = 'none';
       document.getElementById('changePasswordView').style.display = 'block';
     }
+    // ── V2.0.78.17 忘记密码视图切换 ─────────────────────────
+    function showForgotPwd() {
+      document.getElementById('loginView').style.display = 'none';
+      document.getElementById('forgotPwdView').style.display = 'block';
+      document.getElementById('forgotPwdMsg').textContent = '';
+      document.getElementById('forgotPwdError').textContent = '';
+    }
+    function backToLogin() {
+      document.getElementById('forgotPwdView').style.display = 'none';
+      document.getElementById('loginView').style.display = 'block';
+    }
+    document.getElementById('forgotPwdLink').addEventListener('click', showForgotPwd);
+    document.getElementById('forgotBackLink').addEventListener('click', backToLogin);
+    document.getElementById('forgotPwdForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const val = document.getElementById('forgotEmail').value.trim();
+      const msg = document.getElementById('forgotPwdMsg');
+      const err = document.getElementById('forgotPwdError');
+      const btn = document.getElementById('forgotPwdBtn');
+      msg.textContent = ''; err.textContent = '';
+      btn.disabled = true; btn.textContent = '发送中...';
+      try {
+        const res = await fetch(API_BASE + '/api/auth/forgot-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)
+              ? { 'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/)[1]) } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify(val.includes('@') ? { email: val } : { username: val })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.code === 0) {
+          // 防枚举：无论账号是否存在都显示同一段话；dev 模式下后端回显 resetUrl 供本地测试
+          msg.textContent = data.message || '如果该邮箱已注册，重置链接已发送，请查收（含垃圾邮件夹）';
+          if (data.data && data.data.resetUrl) {
+            msg.textContent += '（本地开发模式：' + data.data.resetUrl + '）';
+          }
+          document.getElementById('forgotEmail').value = '';
+        } else {
+          err.textContent = data.message || ('请求失败（HTTP ' + res.status + '）');
+        }
+      } catch (e2) {
+        err.textContent = '网络错误：' + e2.message;
+      } finally {
+        btn.disabled = false; btn.textContent = '发送重置链接';
+      }
+    });
     function showPortal(user) {
       document.getElementById('loginView').style.display = 'none';
       document.getElementById('portalView').style.display = 'block';
