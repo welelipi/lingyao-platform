@@ -885,7 +885,7 @@
 
     <!-- ═══ V2.0.36 工作台：产品列表（所有人可见，替代原卡片网格）═══ -->
     <h2 class="ws-section-title">产品列表</h2>
-    <p class="ws-section-sub" id="productListSub">点击「进入」直接使用；未开通的产品请联系公司超管开通</p>
+    <p class="ws-section-sub" id="productListSub">仅显示已开通产品；新产品请联系公司超管开通</p>
     <div class="product-list" id="productList">
       <div class="ws-loading">加载产品中…</div>
     </div>
@@ -1417,8 +1417,8 @@
       document.getElementById('kpiRow').style.display = showAdminArea ? 'grid' : 'none';
       document.getElementById('wsAdminArea').style.display = showAdminArea ? 'block' : 'none';
       document.getElementById('productListSub').textContent = showAdminArea
-        ? '点击「进入」直接使用；「复制入口链接」可把子平台地址发给员工（登录后按权限进入）'
-        : '点击「进入」直接使用；未开通产品请联系公司超管开通';
+        ? '仅显示已开通产品；「复制入口链接」可把子平台地址发给员工（登录后按权限进入）'
+        : '仅显示已开通产品；新产品请联系公司超管开通';
 
       await loadProductList(user);
       if (showAdminArea) {
@@ -1476,7 +1476,21 @@
       const isTenantAdmin = !!(user && user.isTenantAdmin);
       const canManage = isPlatformAdmin || isTenantAdmin;
 
-      listEl.innerHTML = modules.map(m => {
+      // V2.0.78.10（V2.0.78.20 重做）：未开通产品直接隐藏（主人 10-10 拍板「直接隐藏掉」）。
+      // 平台超管例外：需要看到全产品做运营（开通/复制链接），未开通行保留运营提示。
+      // 7810 版当年只部署未入 git，7815~7819 重新打包时静默回退——本次修正并立即 commit。
+      const visibleModules = isPlatformAdmin
+        ? modules
+        : modules.filter(m => {
+            const code = (m.productCode || '').toLowerCase();
+            return grantedCodes.has(code) || grantedCodes.has((m.productCode || '').toUpperCase());
+          });
+      if (!visibleModules.length) {
+        listEl.innerHTML = '<div class="ws-empty">暂无已开通产品；请联系公司超管开通</div>';
+        return;
+      }
+
+      listEl.innerHTML = visibleModules.map(m => {
         const code = (m.productCode || '').toLowerCase();
         const isReady = m.status === 'REGISTERED' || m.status === 'ACTIVE';
         // V2.0.50：平台超管不再万能放行——已开通严格按真实授权（subProductGrants），
