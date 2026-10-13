@@ -247,23 +247,17 @@ public class CompanyAdminService {
     // ═══════════════════════ 3. 产品授权 ═══════════════════════
 
     public List<Map<String, Object>> listCompanyProducts(Long currentUserId, Long companyId) {
-        List<CompanyProduct> companyProducts = companyProductRepo.findByCompanyId(companyId);
+        // V2.0.78.22（主人 10-13 拍板）：产品授权表只列「已开通」产品，与上方产品列表同口径。
+        // 此前用 findByCompanyId 返回全部授权行（含 SUSPENDED），导致 HPD/AIDD 等
+        // 未开通产品仍出现在授权管理表里，出现「上面 2 个、下面 4 个」的自相矛盾。
+        // 已开通严格按 CompanyProduct.Status.ACTIVE 判定。
+        List<CompanyProduct> companyProducts = companyProductRepo.findByCompanyIdAndStatus(companyId, CompanyProduct.Status.ACTIVE);
         List<Map<String, Object>> result = new ArrayList<>();
         for (CompanyProduct cp : companyProducts) {
             Map<String, Object> m = toCompanyProductMap(cp);
-            // 计算已授权人数
-            long grantedUsers = grantRepo.findByCompanyIdAndProductIdAndUserId(companyId, cp.getProductId(), null) != null ? 0 : 0;
-            // 用 existsBy... 更简洁，但 ProductUserGrantRepository 没这方法 → 直接遍历
-            // 简化：用 findByCompanyIdAndUserId 然后过滤 productId
-            List<ProductUserGrant> allGrants = grantRepo.findByCompanyIdAndUserId(companyId, null) == null
-                ? Collections.emptyList()
-                : Collections.emptyList(); // 占位，下面用 SQL
-            // 实际查询：company_id + product_id 的 grants
-            List<ProductUserGrant> grants = grantRepo.findAll().stream()
-                .filter(g -> g.getCompanyId().equals(companyId)
-                          && g.getProductId().equals(cp.getProductId())
-                          && g.getStatus() == ProductUserGrant.Status.ACTIVE)
-                .collect(Collectors.toList());
+            // 计算已授权人数：只数该产品下 ACTIVE 的用户授权（V2.0.78.22 用精确查询替代 findAll 全表扫描）
+            List<ProductUserGrant> grants = grantRepo
+                    .findByCompanyIdAndProductIdAndStatus(companyId, cp.getProductId(), ProductUserGrant.Status.ACTIVE);
             m.put("grantedUsers", grants.size());
             m.put("remainingSlots", Math.max(0, (cp.getMaxUsers() != null ? cp.getMaxUsers() : 50) - grants.size()));
             // 已授权用户列表
