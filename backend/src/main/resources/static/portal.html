@@ -484,17 +484,8 @@
     .ws-mini-btn.warn { border-color: rgba(226,75,74,0.5); color: #E24B4A; }
     .ws-mini-btn.warn:hover { border-color: #E24B4A; }
     .ws-empty { text-align: center; padding: 32px; color: var(--text-dim); font-size: 13px; }
-    .ws-sso-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-    .ws-sso-card {
-      background: var(--glass-light, rgba(255,255,255,0.03));
-      border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 18px; display: flex; flex-direction: column; gap: 10px;
-    }
-    .ws-sso-card .sso-head { display: flex; justify-content: space-between; align-items: center; }
-    .ws-sso-card .sso-name { font-size: 14.5px; font-weight: 600; color: var(--text-bright); }
-    .ws-sso-card .sso-desc { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
 
-    /* ── V2.0.36 SSO Provider 配置弹窗（复用 modal 体系）─────── */
+    /* ── V2.0.78.23：.ws-sso-* 样式随主站 SSO 配置入口一并下线 ── */
     .ws-modal-form label { display: block; font-size: 12px; color: var(--text-dim); margin: 14px 0 6px; }
     .ws-modal-form input, .ws-modal-form select {
       width: 100%; padding: 10px 12px; border-radius: 8px;
@@ -891,46 +882,22 @@
     </div>
 
     <!-- ═══ V2.0.36 工作台：管理 Tab（公司超管可见 · V2.0.38 审批 Tab 下线）═══ -->
+    <!-- V2.0.78.23（主人 10-13 拍板）：移除「SSO 配置」Tab。
+         SSO 改为各子产品自行配置、与主站解耦 —— 理由：主站集中配置会把各产品的
+         回调地址 / 登录凭据堆在一处，多套 SSO 混排容易错乱且难以个性化。
+         后端 /api/company-admin/sso-config 端点保留（子产品 SSO 尚未上线前不动底层），
+         仅下线主站 UI 入口。 -->
     <div id="wsAdminArea" style="display:none;">
       <div class="ws-tabs" id="wsTabs">
         <button class="ws-tab" data-tab="users">用户管理</button>
         <button class="ws-tab" data-tab="grants">产品授权</button>
-        <button class="ws-tab" data-tab="sso">SSO 配置</button>
       </div>
       <div class="ws-panel" id="ws-panel-users"><div class="ws-loading">加载中…</div></div>
       <div class="ws-panel" id="ws-panel-grants"><div class="ws-loading">加载中…</div></div>
-      <div class="ws-panel" id="ws-panel-sso"><div class="ws-loading">加载中…</div></div>
     </div>
 
     <!-- 保留旧容器（隐藏）：兼容历史代码引用 -->
     <div class="module-grid" id="moduleGrid" style="display:none;"></div>
-  </div>
-
-  <!-- V2.0.36 SSO Provider 配置弹窗 -->
-  <div id="wsSsoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;align-items:center;justify-content:center;">
-    <div style="background:#0E1E33;border:1px solid var(--border);border-radius:14px;padding:28px 32px;max-width:460px;width:90%;max-height:85vh;overflow:auto;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-        <h3 id="wsSsoModalTitle" style="font-size:17px;color:var(--text-bright);">配置</h3>
-        <button onclick="wsSsoModalClose()" style="background:none;border:none;color:var(--text-dim);font-size:24px;cursor:pointer;">&times;</button>
-      </div>
-      <p id="wsSsoModalDesc" style="font-size:12px;color:var(--text-dim);margin-bottom:8px;"></p>
-      <div class="ws-modal-form">
-        <label>App ID / Client ID *</label>
-        <input id="wsSsoAppId" placeholder="开放平台发放的 App ID">
-        <label>App Secret / Client Secret</label>
-        <input id="wsSsoAppSecret" type="password" placeholder="留空 = 不修改已有 Secret">
-        <div class="ws-form-hint">Secret 加密存储，保存后不再回显</div>
-        <label id="wsSsoBaseUrlLabel" style="display:none;">Base URL（OIDC Issuer 地址）</label>
-        <input id="wsSsoBaseUrl" style="display:none;" placeholder="https://example.com/.well-known/openid-configuration">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-          <input type="checkbox" id="wsSsoEnabled" style="width:auto;"> 启用该登录方式
-        </label>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-          <button class="pr-btn" onclick="wsSsoModalClose()">取消</button>
-          <button class="pr-btn primary" id="wsSsoSaveBtn">保存</button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- 反馈入口悬浮按钮 -->
@@ -1378,7 +1345,6 @@
       overview: null,      // /api/company-admin/me 缓存（超管）
       products: null,      // /api/company-admin/products 缓存（超管）
       users: null,
-      ssoConfigs: null,
       approvals: null,
       myApprovals: [],     // （V2.0.38 已停用，保留字段防历史引用报错）
       loadedTabs: new Set(),
@@ -1540,8 +1506,9 @@
     }
 
     // ── 复制入口链接（D4=B · 公司超管 scope · 纯前端）──
-    // 复制子平台首页地址（不带 token）。员工打开 → 子平台登录页 → 公司 SSO/主站账密 →
+    // 复制子平台首页地址（不带 token）。员工打开 → 子平台登录页 → 子平台自有登录方式/主站账密 →
     // 子平台内审批（V2.0.38 审批下放后，token 专属链接会绕过审批拦截，故弃用 365 天 token 链接）。
+    // V2.0.78.23：主站不再统一提供 SSO，登录方式由各子产品自行配置。
     async function doCopyLink(pcode, pname) {
       try {
         // 从 /api/sub/list 已加载的数据里找 baseUrl（渲染时已存到行 data-*）
@@ -1566,7 +1533,7 @@
           origin = baseUrl.split('/').slice(0, 3).join('/') + '/';
         }
         await navigator.clipboard.writeText(origin).then(() => {
-          alert(`✅ 「${pname}」入口链接已复制\n\n${origin}\n\n可发到公司群。员工打开后使用公司 SSO 或主站账密登录；\n无权限的人员可在子平台内向公司超管申请开通。`);
+          alert(`✅ 「${pname}」入口链接已复制\n\n${origin}\n\n可发到公司群。员工打开后使用该产品的登录方式或主站账密登录；\n无权限的人员可在子产品内向公司超管申请开通。`);
         }).catch(() => {
           prompt(`请手动复制「${pname}」入口链接：`, origin);
         });
@@ -1652,7 +1619,8 @@
       document.querySelectorAll('.ws-panel').forEach(p => p.classList.toggle('active', p.id === 'ws-panel-' + tab));
       if (!WS.loadedTabs.has(tab)) {
         WS.loadedTabs.add(tab);
-        const loader = { users: loadUsersTab, grants: loadGrantsTab, sso: loadSsoTab }[tab];
+        // V2.0.78.23：主站 SSO 配置 Tab 已下线（改为各子产品自行配置 SSO，与主站解耦）
+        const loader = { users: loadUsersTab, grants: loadGrantsTab }[tab];
         if (loader) loader();
       }
     }
@@ -1719,114 +1687,6 @@
         panel.innerHTML = `<div class="ws-empty">加载失败：${esc(e.message)}</div>`;
       }
     }
-
-    // ── Tab 3：SSO 配置 ──
-    const SSO_PROVIDERS = [
-      { code: 'FEISHU', name: '飞书', icon: '🐦', desc: '员工飞书扫码一键登录所有已开通产品' },
-      { code: 'DINGTALK', name: '钉钉', icon: '💬', desc: '员工钉钉扫码一键登录所有已开通产品' },
-      { code: 'WECOM', name: '企业微信', icon: '🏢', desc: '员工企业微信扫码一键登录所有已开通产品' },
-      { code: 'OIDC', name: '通用 OIDC', icon: '🔑', desc: '标准 OpenID Connect 协议（Okta / Keycloak / Azure AD 等）' }
-    ];
-    async function loadSsoTab() {
-      const panel = document.getElementById('ws-panel-sso');
-      try {
-        const [configs, products] = await Promise.all([
-          wsApi('GET', '/api/company-admin/sso-config'),
-          wsApi('GET', '/api/company-admin/products')
-        ]);
-        WS.ssoConfigs = configs || [];
-        const byCode = {};
-        WS.ssoConfigs.forEach(c => byCode[(c.provider || c.sso_type || '').toUpperCase()] = c);
-        panel.innerHTML = `
-          <div style="margin-bottom:14px;color:var(--text-dim);font-size:13px;">
-            配置后，员工可通过贵司飞书 / 钉钉 / 企微扫码直接登录所有已开通产品；公司超管本人则继续用平台账密登录处理审批。
-          </div>
-          <div class="ws-sso-grid">
-            ${SSO_PROVIDERS.map(p => {
-              const c = byCode[p.code];
-              const enabled = c && (c.enabled === true || c.enabled === 'true' || c.status === 'ACTIVE');
-              return `
-                <div class="ws-sso-card">
-                  <div class="sso-head">
-                    <span class="sso-name">${p.icon} ${p.name}</span>
-                    <span class="ws-tag ${enabled ? 'APPROVED' : 'VIEWER'}">${enabled ? '已启用' : (c ? '未启用' : '未配置')}</span>
-                  </div>
-                  <div class="sso-desc">${p.desc}</div>
-                  <div style="display:flex;gap:8px;">
-                    <button class="ws-mini-btn" data-sso-cfg="${p.code}" data-sso-name="${p.name}">${c ? '编辑' : '配置'}</button>
-                    ${c && enabled ? `<button class="ws-mini-btn" data-sso-link="${p.code}" data-sso-linkname="${p.name}">生成登录链接</button>` : ''}
-                  </div>
-                </div>`;
-            }).join('')}
-          </div>`;
-        panel.querySelectorAll('[data-sso-cfg]').forEach(btn => {
-          btn.addEventListener('click', () => openSsoModal(btn.dataset.ssoCfg, btn.dataset.ssoName, byCode[btn.dataset.ssoCfg]));
-        });
-        panel.querySelectorAll('[data-sso-link]').forEach(btn => {
-          btn.addEventListener('click', async () => {
-            try {
-              const data = await wsApi('POST', `/api/company-admin/sso-config/${btn.dataset.ssoLink.toLowerCase()}/login-link`, {});
-              if (data && data.link) {
-                await navigator.clipboard.writeText(data.link).then(() => showToast('SSO 登录链接已复制', 'success'))
-                  .catch(() => prompt('请手动复制 SSO 登录链接：', data.link));
-              }
-            } catch (e) { showToast('生成失败：' + e.message, 'error'); }
-          });
-        });
-      } catch (e) {
-        panel.innerHTML = `<div class="ws-empty">加载失败：${esc(e.message)}</div>`;
-      }
-    }
-
-    // SSO Provider 配置弹窗
-    let wsSsoModalCtx = null;
-    function openSsoModal(providerCode, providerName, existing) {
-      wsSsoModalCtx = { providerCode, existing };
-      document.getElementById('wsSsoModalTitle').textContent = `配置 ${providerName} SSO`;
-      document.getElementById('wsSsoModalDesc').textContent =
-        // V2.0.78.5：OAuth 回调 URL 走 API_ORIGIN（meta 读），不再 location.hostname+':9091' 直拼
-        providerCode === 'OIDC' ? '填写 IdP 颁发的 Client 信息与 Issuer 地址；回调地址请在 IdP 侧登记：' + API_ORIGIN + '/api/sso/oidc/callback'
-        : '请在' + providerName + '开放平台创建应用后填写；回调/重定向 URL 填：' + API_ORIGIN + '/api/sso/' + providerCode.toLowerCase() + '/callback';
-      document.getElementById('wsSsoAppId').value = existing ? (existing.app_id || existing.appId || '') : '';
-      document.getElementById('wsSsoAppSecret').value = '';
-      document.getElementById('wsSsoBaseUrl').value = existing ? (existing.base_url || existing.baseUrl || '') : '';
-      const isOidc = providerCode === 'OIDC';
-      document.getElementById('wsSsoBaseUrlLabel').style.display = isOidc ? 'block' : 'none';
-      document.getElementById('wsSsoBaseUrl').style.display = isOidc ? 'block' : 'none';
-      const enabled = existing && (existing.enabled === true || existing.enabled === 'true' || existing.status === 'ACTIVE');
-      document.getElementById('wsSsoEnabled').checked = !!enabled;
-      document.getElementById('wsSsoModal').style.display = 'flex';
-    }
-    function wsSsoModalClose() {
-      document.getElementById('wsSsoModal').style.display = 'none';
-      wsSsoModalCtx = null;
-    }
-    document.getElementById('wsSsoSaveBtn').addEventListener('click', async () => {
-      if (!wsSsoModalCtx) return;
-      const { providerCode, existing } = wsSsoModalCtx;
-      const appId = document.getElementById('wsSsoAppId').value.trim();
-      const secret = document.getElementById('wsSsoAppSecret').value.trim();
-      if (!appId && !existing) { showToast('请填写 App ID', 'error'); return; }
-      const body = {
-        appId: appId || (existing ? (existing.app_id || existing.appId) : ''),
-        enabled: document.getElementById('wsSsoEnabled').checked
-      };
-      if (secret) body.appSecret = secret;
-      if (providerCode === 'OIDC') body.baseUrl = document.getElementById('wsSsoBaseUrl').value.trim();
-      const btn = document.getElementById('wsSsoSaveBtn');
-      btn.disabled = true; btn.textContent = '保存中…';
-      try {
-        await wsApi('POST', '/api/company-admin/sso-config/' + providerCode.toLowerCase(), body);
-        showToast('已保存', 'success');
-        wsSsoModalClose();
-        WS.loadedTabs.delete('sso');
-        loadSsoTab();
-      } catch (e) {
-        showToast('保存失败：' + e.message, 'error');
-      } finally {
-        btn.disabled = false; btn.textContent = '保存';
-      }
-    });
 
     // ── V2.0.38：开通审批 Tab 已下线（全部审批归各子平台自管）──
     // 历史接口 /api/sub/pending|approve|reject 后端保留（审计兼容），前端无入口
@@ -1901,7 +1761,7 @@
             ${reason}
           </div>
           <div style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:20px;">
-            您当前登录的账号没有该产品的访问权限。请联系公司超管为您开通，或用公司 SSO 在子平台内提交开通申请。
+            您当前登录的账号没有该产品的访问权限。请联系公司超管为您开通，或在该子产品内提交开通申请。
           </div>
           <div style="display:flex;gap:8px;justify-content:flex-end;">
             <button id="adm-close" style="padding:8px 16px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;font-size:14px;color:#374151;">关闭</button>

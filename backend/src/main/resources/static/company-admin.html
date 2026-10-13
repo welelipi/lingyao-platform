@@ -74,7 +74,6 @@
       <button class="ca-tab active" data-tab="overview" data-page-node-id="8gaNnXSRUDt6dm8Z08hLyG">概览</button>
       <button class="ca-tab" data-tab="users" data-page-node-id="R4ePYYPgkCC8KXPWj8cuLS">用户管理</button>
       <button class="ca-tab" data-tab="products" data-page-node-id="a6BlGPEHsaCuHgaByWayL4">产品授权</button>
-      <button class="ca-tab" data-tab="sso-config" data-page-node-id="SsoCfgTabBtn">SSO 配置</button>
       <button class="ca-tab" data-tab="approvals" data-page-node-id="ApvlTabBtn">集中审批</button>
       <button class="ca-tab" data-tab="audit">审计日志</button>
     </div>
@@ -140,19 +139,11 @@
       <div class="products-grid" id="productsGrid" data-page-node-id="OnEUJHKuJ0aoa4TSY08ILR"></div>
     </div>
 
-    <!-- Tab 4: SSO 配置（V2.0.19 W6 阶段 2 前端） -->
-    <div class="ca-tab-content" id="tab-sso-config" data-page-node-id="SsoCfgTabContent">
-      <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;" data-page-node-id="SsoCfgTip">
-        本公司 SSO 单点登录配置：配置一次飞书/钉钉/企业微信，员工扫码即可登录所有已开通产品。配置后可生成公司专属链接发到公司群。
-      </p>
-      <div class="ca-card" data-page-node-id="SsoCfgListCard">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;" data-page-node-id="SsoCfgHead">
-          <h3 style="font-size:16px;" data-page-node-id="SsoCfgTitle">SSO 登录方式配置</h3>
-          <button class="btn-ghost-sm" data-action="refresh-sso" data-page-node-id="SsoCfgRefreshBtn">🔄 刷新</button>
-        </div>
-        <div id="ssoConfigGrid" data-page-node-id="SsoCfgGrid" class="products-grid"></div>
-      </div>
-    </div>
+    <!-- Tab 4: SSO 配置（V2.0.78.23 主人 10-13 拍板下线）
+         SSO 改为各子产品自行配置、与主站解耦：主站集中配置会把各产品的回调地址/
+         登录凭据堆在一处，多套 SSO 混排容易错乱且难以个性化。
+         前端 Tab 已移除；后端 /api/company-admin/sso-config 与 company_sso_config 表保留，
+         待子产品各自落地 SSO 时按需复用或另行设计。 -->
 
     <!-- Tab 5: 集中审批（V2.0.19 W6 阶段 2 前端） -->
     <div class="ca-tab-content" id="tab-approvals" data-page-node-id="ApvlTabContent">
@@ -314,75 +305,6 @@
     </div>
   </div>
 
-  <!-- 模态：生成专属链接（V2.0.19 W6 阶段 2 前端） -->
-  <div class="modal" id="ssoLinkModal" data-page-node-id="SsoLinkModal">
-    <div class="modal-backdrop" onclick="closeModal('ssoLink')" data-page-node-id="SsoLinkBackdrop"></div>
-    <div class="modal-content modal-large" data-page-node-id="SsoLinkContent">
-      <button class="modal-close" onclick="closeModal('ssoLink')" data-page-node-id="SsoLinkClose">&times;</button>
-      <div class="modal-header" data-page-node-id="SsoLinkHeader">
-        <h3 id="ssoLinkTitle" data-page-node-id="SsoLinkTitleEl">生成 SSO 专属链接</h3>
-        <p id="ssoLinkSubtitle" data-page-node-id="SsoLinkSubtitle">链接长期有效，可发到公司群供员工使用</p>
-      </div>
-      <div id="ssoLinkResultView" data-page-node-id="SsoLinkResultView" style="padding:8px 0;">
-        <div style="background:rgba(95,153,255,0.08);border:1px solid var(--accent);border-radius:8px;padding:16px;margin-bottom:16px;" data-page-node-id="SsoLinkWarnBox">
-          <p style="font-size:13px;margin-bottom:12px;color:var(--text-dim);" data-page-node-id="SsoLinkWarnText">
-            💡 <strong data-page-node-id="SsoLinkWarnStrong">长期链接</strong>：此链接长期有效，可发到公司群供员工日常使用。若链接泄露，请联系平台管理员重置公司授权。
-          </p>
-          <div data-page-node-id="SsoLinkUrlRow">
-            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;" data-page-node-id="SsoLinkUrlLabel">专属链接</label>
-            <div style="display:flex;gap:8px;align-items:center;" data-page-node-id="SsoLinkUrlInputRow">
-              <input type="text" id="ssoLinkUrl" readonly style="flex:1;font-family:monospace;font-size:12px;" data-page-node-id="SsoLinkUrlInput">
-              <button type="button" class="btn-primary-sm" data-action="copy-sso-link" data-page-node-id="SsoLinkCopyBtn">📋 复制</button>
-            </div>
-          </div>
-          <div style="margin-top:12px;display:flex;gap:16px;font-size:12px;color:var(--text-dim);" data-page-node-id="SsoLinkMetaRow">
-            <span data-page-node-id="SsoLinkTtl">TTL：<strong style="color:var(--text);">-</strong></span>
-            <span data-page-node-id="SsoLinkExpiry">过期时间：<strong style="color:var(--text);">-</strong></span>
-          </div>
-        </div>
-        <div class="form-actions" data-page-node-id="SsoLinkActions">
-          <button type="button" class="btn-ghost-sm" data-action="regenerate-sso-link" data-page-node-id="SsoLinkRegenerateBtn">🔄 重新生成</button>
-          <button type="button" class="btn-primary-sm" onclick="closeModal('ssoLink')" data-page-node-id="SsoLinkDoneBtn">完成</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 模态：SSO Provider 配置（V2.0.34 新增） -->
-  <div class="modal" id="ssoProvModal">
-    <div class="modal-backdrop" onclick="closeModal('ssoProv')"></div>
-    <div class="modal-content modal-large" id="ssoProvContent">
-      <button class="modal-close" onclick="closeModal('ssoProv')">&times;</button>
-      <div class="modal-header">
-        <h3 id="ssoProvTitle">配置 SSO</h3>
-        <p id="ssoProvHint" style="font-size:12px;color:var(--text-dim);"></p>
-      </div>
-      <div style="padding:8px 0;">
-        <div class="form-field" style="margin-bottom:12px;">
-          <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">App ID / Client ID</label>
-          <input type="text" id="ssoProvAppId" style="width:100%;" placeholder="三方平台的应用唯一标识">
-        </div>
-        <div class="form-field" style="margin-bottom:12px;">
-          <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">App Secret / Client Secret</label>
-          <input type="password" id="ssoProvSecret" style="width:100%;" placeholder="请输入 App Secret">
-        </div>
-        <div class="form-field" style="margin-bottom:12px;">
-          <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">Base URL（仅 OIDC 需要）</label>
-          <input type="text" id="ssoProvBaseUrl" style="width:100%;" placeholder="https://idp.example.com">
-        </div>
-        <div class="form-field" style="margin-bottom:16px;">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" id="ssoProvEnabled" checked>
-            启用该登录方式（员工扫码登录入口）
-          </label>
-        </div>
-        <div class="form-actions" style="display:flex;gap:10px;justify-content:flex-end;">
-          <button type="button" class="btn-ghost-sm" onclick="closeModal('ssoProv')">取消</button>
-          <button type="button" class="btn-primary-sm" onclick="doSaveSsoProvider()">💾 保存配置</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- 模态：敏感操作 OTP 二次验证（V2.0.77.15，复用自 admin.html） -->
   <div class="modal" id="sensitiveOtpModal">
@@ -953,210 +875,6 @@
       } catch (_) {}
     }
 
-    // ── SSO 配置 Tab（V2.0.34 重构：Provider 配置 + 专属链接）────────
-    let ssoConfigCache = [];      // 已保存的 Provider 配置列表（后端 /sso-config）
-    let ssoProductsCache = [];    // 本公司已开通产品列表（后端 /products）
-    const SSO_PROVIDERS = [
-      // V2.0.78.5：OAuth 回调 URL 走 API_ORIGIN（meta 读），不再 location.hostname+':9091' 直拼
-      { code: 'FEISHU', name: '飞书', icon: '🔵', fields: ['app_id', 'app_secret'], hint: '飞书开放平台 → 企业自建应用 → 凭证与基础信息。回调地址需登记为：' + API_ORIGIN + '/api/sso/feishu/callback' },
-      { code: 'DINGTALK', name: '钉钉', icon: '⚫', fields: ['app_id', 'app_secret'], hint: '钉钉开放平台 → 应用信息。回调地址需登记为：' + API_ORIGIN + '/api/sso/dingtalk/callback' },
-      { code: 'WECOM', name: '企业微信', icon: '🟢', fields: ['app_id', 'app_secret'], hint: '企业微信管理端 → 应用管理。回调地址需登记为：' + API_ORIGIN + '/api/sso/wecom/callback' },
-      { code: 'GENERIC_OIDC', name: 'OIDC / 其他', icon: '⚪', fields: ['app_id', 'app_secret', 'base_url'], hint: '任意标准 OIDC 提供商。base_url 填 issuer 地址（如 https://idp.example.com）' },
-    ];
-
-    async function loadSsoConfig() {
-      try {
-        const [configs, products] = await Promise.all([
-          api('GET', '/api/company-admin/sso-config'),
-          api('GET', '/api/company-admin/products'),
-        ]);
-        ssoConfigCache = configs || [];
-        ssoProductsCache = products || [];
-        renderSsoConfig();
-      } catch (e) {
-        const grid = document.getElementById('ssoConfigGrid');
-        if (grid) grid.innerHTML = '<div class="empty-state">SSO 配置加载失败：' + escapeHtml(e.message) + '</div>';
-      }
-    }
-
-    function ssoProviderSaved(code) {
-      return ssoConfigCache.find(c => (c.provider || '').toUpperCase() === code && c.enabled !== false);
-    }
-
-    function renderSsoConfig() {
-      const grid = document.getElementById('ssoConfigGrid');
-      if (!grid) return;
-
-      // 已开通产品概览
-      const productChips = ssoProductsCache.length
-        ? ssoProductsCache.map(p => '<span class="status-tag ACTIVE" style="margin-right:6px;">' + escapeHtml(p.name || p.code || '') + '</span>').join('')
-        : '<span style="color:var(--text-dim);font-size:12px;">本公司暂未开通子产品</span>';
-
-      grid.innerHTML = `
-        <div style="margin-bottom:16px;">
-          <div style="font-size:13px;color:var(--text-dim);margin-bottom:8px;">本公司已开通产品（配置一次 SSO，全部产品共享登录）：</div>
-          ${productChips}
-        </div>
-        <div class="products-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
-        ${SSO_PROVIDERS.map(sp => {
-          // 后端返回 snake_case：app_id / has_secret / base_url / enabled
-          const anySaved = ssoConfigCache.find(c => (c.provider || '').toUpperCase() === sp.code);
-          const saved = anySaved && anySaved.enabled !== false ? anySaved : null;
-          return `
-          <div class="product-card">
-            <div class="product-head">
-              <div style="display:flex;gap:12px;align-items:center;">
-                <div class="product-icon">${sp.icon}</div>
-                <div>
-                  <div class="product-name">${sp.name}</div>
-                  <div class="product-code">${anySaved ? (anySaved.enabled === false ? '已停用' : '✅ 已配置') : '未配置'}</div>
-                </div>
-              </div>
-              <span class="status-tag ${saved ? 'ACTIVE' : anySaved ? 'SUSPENDED' : 'NOT_CONFIGURED'}">${saved ? '已启用' : anySaved ? '已停用' : '未配置'}</span>
-            </div>
-            <div style="font-size:12px;color:var(--text-dim);margin:8px 0;">
-              ${anySaved ? 'App ID：' + escapeHtml(anySaved.app_id || '-') + (anySaved.has_secret ? ' · Secret 已加密保存' : '') : '尚未保存凭证'}
-            </div>
-            <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
-              <button class="btn-ghost-sm" data-action="config-sso-provider" data-pcode="${sp.code}" data-pname="${sp.name}">⚙️ 配置</button>
-              ${anySaved ? '<button class="btn-warn-sm" data-action="delete-sso-provider" data-pcode="' + sp.code + '" data-pname="' + sp.name + '">🗑️</button>' : ''}
-              ${saved ? '<button class="btn-primary-sm" data-action="gen-sso-entry" data-pcode="' + sp.code + '" data-pname="' + sp.name + '">🔗 生成专属链接</button>' : ''}
-            </div>
-          </div>`;
-        }).join('')}
-        </div>`;
-
-      grid.querySelectorAll('[data-action="config-sso-provider"]').forEach(btn => {
-        btn.addEventListener('click', () => openSsoProviderModal(btn.dataset.pcode, btn.dataset.pname));
-      });
-      grid.querySelectorAll('[data-action="gen-sso-entry"]').forEach(btn => {
-        btn.addEventListener('click', () => openSsoLinkModal(btn.dataset.pcode, btn.dataset.pname));
-      });
-      // V2.0.77.15：删除 SSO Provider 配置（敏感操作 → 弹 OTP）
-      grid.querySelectorAll('[data-action="delete-sso-provider"]').forEach(btn => {
-        btn.addEventListener('click', () => doDeleteSsoProvider(btn.dataset.pcode, btn.dataset.pname));
-      });
-    }
-
-    // ── 删除 SSO Provider 配置（V2.0.77.15 · 敏感操作 OTP）──
-    async function doDeleteSsoProvider(pcode, pname) {
-      const sp = SSO_PROVIDERS.find(s => s.code === pcode);
-      const displayName = sp ? sp.name : pcode;
-      if (!confirm(`确认删除「${displayName}」的 SSO 配置？\n删除后该 Provider 的登录入口将立即失效，已生成的专属链接也无法使用。`)) return;
-      let otpCode = null;
-      try { otpCode = await promptSensitiveOtp('删除「' + displayName + '」SSO 配置'); }
-      catch (_) { return; }
-      try {
-        await api('DELETE', '/api/company-admin/sso-config/' + pcode, { emailOtpCode: otpCode });
-        showToast(displayName + ' SSO 配置已删除', 'success');
-        await loadSsoConfig();
-      } catch (_) { /* api() 已 toast */ }
-    }
-
-    // ── Provider 配置弹窗 ──
-    function openSsoProviderModal(pcode, pname) {
-      const sp = SSO_PROVIDERS.find(s => s.code === pcode);
-      const saved = ssoConfigCache.find(c => (c.provider || '').toUpperCase() === pcode) || {};
-      document.getElementById('ssoProvTitle').textContent = `配置 ${pname} SSO`;
-      document.getElementById('ssoProvHint').textContent = sp.hint || '';
-      document.getElementById('ssoProvAppId').value = saved.app_id || '';
-      document.getElementById('ssoProvSecret').value = '';   // 密文不回显
-      document.getElementById('ssoProvSecret').placeholder = saved.has_secret ? '已加密保存（留空 = 不修改）' : '请输入 App Secret';
-      document.getElementById('ssoProvBaseUrl').value = saved.base_url || '';
-      document.getElementById('ssoProvBaseUrl').style.display = pcode === 'GENERIC_OIDC' ? '' : 'none';
-      document.getElementById('ssoProvEnabled').checked = saved.id ? saved.enabled !== false : true;
-      document.getElementById('ssoProvContent').dataset.pcode = pcode;
-      openModal('ssoProv');
-    }
-
-    async function doSaveSsoProvider() {
-      const box = document.getElementById('ssoProvContent');
-      const pcode = box.dataset.pcode;
-      const sp = SSO_PROVIDERS.find(s => s.code === pcode);
-      const body = {
-        app_id: document.getElementById('ssoProvAppId').value.trim(),
-        enabled: document.getElementById('ssoProvEnabled').checked,
-      };
-      const secret = document.getElementById('ssoProvSecret').value;
-      if (secret) body.app_secret = secret;
-      if (pcode === 'GENERIC_OIDC') body.base_url = document.getElementById('ssoProvBaseUrl').value.trim();
-      if (!body.app_id) { showToast('请填写 App ID', 'error'); return; }
-      if (!body.app_secret && !document.getElementById('ssoProvSecret').placeholder.includes('已加密')) {
-        showToast('请填写 App Secret', 'error'); return;
-      }
-      // 清理空值（避免覆盖已有密文）
-      if (!body.app_secret) delete body.app_secret;
-      // V2.0.77.15：敏感操作 OTP 二次验证（改 SSO 配置 → 影响全员登录）
-      let otpCode = null;
-      try { otpCode = await promptSensitiveOtp('修改' + (sp ? sp.name : pcode) + ' SSO 配置'); }
-      catch (_) { return; /* 用户取消 */ }
-      try {
-        await api('POST', '/api/company-admin/sso-config/' + pcode, { ...body, emailOtpCode: otpCode });
-        showToast(sp.name + ' SSO 配置已保存', 'success');
-        closeModal('ssoProv');
-        await loadSsoConfig();
-      } catch (_) { /* api() 已 toast */ }
-    }
-
-    function openSsoLinkModal(pcode, pname) {
-      document.getElementById('ssoLinkTitle').textContent = `生成 ${pname}（${pcode}）的 SSO 专属链接`;
-      document.getElementById('ssoLinkUrl').value = '';
-      document.querySelector('#ssoLinkMetaRow [data-page-node-id="SsoLinkTtl"] strong').textContent = '-';
-      document.querySelector('#ssoLinkMetaRow [data-page-node-id="SsoLinkExpiry"] strong').textContent = '-';
-      // 存储 pcode 到 dataset 供复制/重新生成使用
-      document.getElementById('ssoLinkContent').dataset.currentPcode = pcode;
-      openModal('ssoLink');
-      // 自动生成
-      doGenerateSsoLink(pcode);
-    }
-
-    async function doGenerateSsoLink(pcode) {
-      try {
-        const res = await api('POST', `/api/admin/sub-product/${pcode}/generate-link`, {});
-        document.getElementById('ssoLinkUrl').value = res.link;
-        document.querySelector('#ssoLinkMetaRow [data-page-node-id="SsoLinkTtl"] strong').textContent =
-          res.token_ttl_seconds >= 86400 ? `${Math.round(res.token_ttl_seconds / 86400)} 天` : `${res.token_ttl_seconds} 秒`;
-        document.querySelector('#ssoLinkMetaRow [data-page-node-id="SsoLinkExpiry"] strong').textContent = fmtDate(res.expires_at);
-        showToast('链接已生成（长期有效，可发到公司群）', 'success');
-      } catch (e) {
-        showToast('生成链接失败：' + e.message, 'error');
-      }
-    }
-
-    // 重新生成
-    document.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-action="regenerate-sso-link"]');
-      if (btn) {
-        const pcode = document.getElementById('ssoLinkContent').dataset.currentPcode;
-        if (pcode) doGenerateSsoLink(pcode);
-      }
-    });
-
-    // 复制按钮
-    document.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-action="copy-sso-link"]');
-      if (btn) {
-        const urlEl = document.getElementById('ssoLinkUrl');
-        if (!urlEl.value) {
-          showToast('链接未生成', 'error');
-          return;
-        }
-        navigator.clipboard.writeText(urlEl.value).then(() => {
-          showToast('已复制到剪贴板', 'success');
-        }).catch(() => {
-          urlEl.select();
-          document.execCommand('copy');
-          showToast('已复制', 'success');
-        });
-      }
-    });
-
-    // 刷新 SSO 配置
-    document.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-action="refresh-sso"]');
-      if (btn) loadSsoConfig();
-    });
-
     // ── 集中审批 Tab（V2.0.19 W6 阶段 2 前端）────────────
     let approvalsCache = [];
 
@@ -1229,7 +947,7 @@
       if (btn) loadApprovals();
     });
 
-    // ── Tab 切换（增强：切到 SSO 配置/集中审批时按需加载）────────────
+    // ── Tab 切换（V2.0.78.23：SSO 配置 Tab 已下线，集中审批/审计按需加载）────
     document.querySelectorAll('.ca-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.ca-tab').forEach(t => t.classList.remove('active'));
@@ -1238,9 +956,7 @@
         document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
 
         // 首次进入新 Tab 时加载
-        if (tab.dataset.tab === 'sso-config' && ssoConfigCache.length === 0) {
-          loadSsoConfig();
-        } else if (tab.dataset.tab === 'approvals' && approvalsCache.length === 0) {
+        if (tab.dataset.tab === 'approvals' && approvalsCache.length === 0) {
           loadApprovals();
         } else if (tab.dataset.tab === 'audit' && !auditLoaded) {
           loadAuditLogs(0);
