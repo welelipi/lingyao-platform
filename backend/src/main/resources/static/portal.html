@@ -1476,15 +1476,14 @@
       const isTenantAdmin = !!(user && user.isTenantAdmin);
       const canManage = isPlatformAdmin || isTenantAdmin;
 
-      // V2.0.78.10（V2.0.78.20 重做）：未开通产品直接隐藏（主人 10-10 拍板「直接隐藏掉」）。
-      // 平台超管例外：需要看到全产品做运营（开通/复制链接），未开通行保留运营提示。
-      // 7810 版当年只部署未入 git，7815~7819 重新打包时静默回退——本次修正并立即 commit。
-      const visibleModules = isPlatformAdmin
-        ? modules
-        : modules.filter(m => {
-            const code = (m.productCode || '').toLowerCase();
-            return grantedCodes.has(code) || grantedCodes.has((m.productCode || '').toUpperCase());
-          });
+      // V2.0.78.10（V2.0.78.21 修正）：未开通产品一律隐藏，无角色例外。
+      // 主人 10-13 实测拍板：平台超管登录也只见已开通的（GEO + 智引），三个未开通的
+      // 不再展示。此前 7820 我给超管留了「运营视角例外」——与主人诉求相反，本次去掉。
+      // 运营开通/复制链接需求走「管理后台」入口，不在用户侧产品列表占位。
+      const visibleModules = modules.filter(m => {
+        const code = (m.productCode || '').toLowerCase();
+        return grantedCodes.has(code) || grantedCodes.has((m.productCode || '').toUpperCase());
+      });
       if (!visibleModules.length) {
         listEl.innerHTML = '<div class="ws-empty">暂无已开通产品；请联系公司超管开通</div>';
         return;
@@ -1502,14 +1501,12 @@
           // V2.0.77.21 D-3：GEO 行追加套餐徽标（仅已开通）
           const geomPlanBadge = (isReady && code === 'geo') ? planBadge : '';
           statusHtml = (isReady ? '<span class="pr-status">✓ 已开通</span>' : '<span class="pr-status" style="border-color:rgba(95,94,90,.5);color:var(--text-dim);background:rgba(95,94,90,.12);">⏳ 待部署</span>') + geomPlanBadge;
-          // V2.0.77.20：GEO 行追加「演示环境」按钮（主人 09-11 拍板形态：已开通/进入/复制链接旁）
-          // 点击 = 正常 SSO 进 GEO 后自动切入演示空间（只读，金赛真实业务数据已脱敏）
-          const demoBtnHtml = code === 'geo'
-            ? `<button class="pr-btn" data-action="enter-demo" data-code="${m.productCode}" title="进入棱镜演示空间（只读 · 脱敏数据）">🎬 演示环境</button>`
-            : '';
+          // V2.0.78.21：移除棱镜「演示环境」按钮（主人 10-13 拍板去掉）。
+          // 原 V2.0.77.20 形态：已开通/进入/复制链接旁的「🎬 演示环境」（redirect_to=demo）。
+          // ⚠️ 必须赋值给外层 let actionsHtml，不能写 const —— 写 const 会遮蔽同名外层变量，
+          //    导致下面 return 模板里的 ${actionsHtml} 插值为 undefined（按钮整列消失）。
           actionsHtml = `
             ${isReady ? `<button class="pr-btn primary" data-action="enter" data-code="${m.productCode}">进入</button>` : ''}
-            ${demoBtnHtml}
             ${canManage && isReady ? `<button class="pr-btn" data-action="copy-link" data-pcode="${m.productCode}" data-pname="${(m.productName||'').replace(/"/g,'&quot;')}">🔗 复制入口链接</button>` : ''}
           `;
         } else {
@@ -1536,10 +1533,6 @@
       // 事件绑定
       listEl.querySelectorAll('[data-action="enter"]').forEach(btn => {
         btn.addEventListener('click', () => enterModule(btn.dataset.code));
-      });
-      // V2.0.77.20：演示环境按钮 → enterModule 带 demo 意图（redirect_to=demo）
-      listEl.querySelectorAll('[data-action="enter-demo"]').forEach(btn => {
-        btn.addEventListener('click', () => enterModule(btn.dataset.code, { redirectToDemo: true }));
       });
       listEl.querySelectorAll('[data-action="copy-link"]').forEach(btn => {
         btn.addEventListener('click', () => doCopyLink(btn.dataset.pcode, btn.dataset.pname));
@@ -1841,12 +1834,9 @@
     // ── 模块跳转 ─────────────────────────
     // 通过后端 /api/sub/{code}/enter 获取带 JWT 的跳转 URL
     // SSO 直登铁律：主网站鉴权后没权限 → 主网站弹窗告知，不跳转子网站
-    async function enterModule(moduleCode, opts = {}) {
+    async function enterModule(moduleCode) {
       try {
-        // V2.0.77.20：演示环境入口——redirect_to=demo 参数随 SSO 链路透传，
-        // GEO 侧 LingyaoSsoCallback 登录成功后识别该参数自动切入演示空间（token 栈机制）
-        let enterPath = `/api/sub/${moduleCode}/enter`;
-        if (opts.redirectToDemo) enterPath += '?redirect_to=demo';
+        const enterPath = `/api/sub/${moduleCode}/enter`;
         const res = await fetch(`${API_BASE}${enterPath}`, {
           headers: { 'Authorization': `Bearer ${getToken()}` }
         });
@@ -1876,13 +1866,7 @@
         const data = body && body.data ? body.data : {};
         // 模式 1: 子任务已部署 → 直接跳转
         if (data.mode === 'DIRECT_REDIRECT' && data.redirectUrl) {
-          // V2.0.77.20：演示意图时主站前端补参数（后端 redirectUrl 格式为 url?query#fragment，
-          // redirect_to 落在 ? 段，GEO 侧 LingyaoSsoCallback 从 hash 内 query 读取）
-          let url = data.redirectUrl;
-          if (opts.redirectToDemo) {
-            url += (url.includes('?') ? '&' : '?') + 'redirect_to=demo';
-          }
-          window.location.href = url;
+          window.location.href = data.redirectUrl;
           return;
         }
         // 模式 2: 路由层降级 → 跳 entryPath
