@@ -166,3 +166,8 @@ echo "  - 账号: admin / Staging_Admin_2026_Pg!"
 echo "  - jar: ${REMOTE_DIR}/${JAR_NAME}"
 echo "  - diag: $DIAG"
 echo "=========================================="
+
+# ---- 环境隔离闸门（r7 SEC-002 根治：不通过则本次部署判定为失败）----
+# shellcheck source=scripts/_env-isolation-gate.sh
+source "$SCRIPT_DIR/_env-isolation-gate.sh"
+env_isolation_gate "$CVM" "$SSH_KEY" "STAGING 部署"

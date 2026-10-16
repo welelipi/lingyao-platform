@@ -9,7 +9,7 @@
        dev 默认值 = http://localhost:9091 直连后端
        prod 部署由 infra/nginx-sub-filter-template.conf 把 content 替换成 ""（同源反代走 /api） -->
   <meta name="api-base" content="http://localhost:9091">
-  <script>console.log('%c portal.html V2.0.78.5 · API_BASE 环境变量化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <script>console.log('%c portal.html V2.0.78.24 · API_BASE 环境变量化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
   <link rel="stylesheet" href="/css/style.css?v=2.0.78.24">
   <style>
     /* ── Portal 专属样式（复用凌瑶 CSS 变量） ─────── */
@@ -1362,7 +1362,7 @@
       });
       let json = null;
       try { json = await res.json(); } catch (_) {}
-      if (res.status === 401) { doLogout(); throw new Error('登录已过期'); }
+      if (res.status === 401) { logout(); throw new Error('登录已过期'); }
       if (!res.ok || (json && json.code !== undefined && json.code !== 0)) {
         throw new Error((json && json.message) || ('HTTP ' + res.status));
       }
@@ -1711,7 +1711,7 @@
           let msg = body && body.message ? body.message : '进入失败';
           if (code === 401) {
             showToast('登录已过期，请重新登录', 'error');
-            doLogout();
+            logout();
             return;
           }
           if (code === 403) {
@@ -1771,7 +1771,7 @@
       `;
       document.body.appendChild(overlay);
       document.getElementById('adm-close').onclick = () => overlay.remove();
-      document.getElementById('adm-logout').onclick = () => { overlay.remove(); doLogout(); };
+      document.getElementById('adm-logout').onclick = () => { overlay.remove(); logout(); };
     }
 
     function showToast(msg, type = 'info') {

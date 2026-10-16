@@ -114,3 +114,9 @@ chenlu-myself/
 
 # ===== 推送前临时备份（2026-09-13 试探性 push 用，不进 git）=====
 _backups-2026-09-13-pre-push-*.tgz
+
+# ===== 本地归档备份（不入版本库） =====
+_archive-*/
+outputs/
+AIinfo/
+VERSION

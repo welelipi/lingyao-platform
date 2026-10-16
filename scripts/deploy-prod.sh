@@ -172,3 +172,10 @@ echo "  - 账号: admin / admin123"
 echo "  - jar: ${REMOTE_DIR}/${JAR_NAME}"
 echo "  - diag: $DIAG"
 echo "=========================================="
+
+# ---- 环境隔离闸门（r7 SEC-002 根治：不通过则本次部署判定为失败）----
+# 晋升生产是最后一道闸：此处失败说明配置层已偏离，绝不能「先上线再补」——
+# 跨环境串签一旦上线，staging token 即可伪造 prod 管理员身份。
+# shellcheck source=scripts/_env-isolation-gate.sh
+source "$SCRIPT_DIR/_env-isolation-gate.sh"
+env_isolation_gate "$CVM" "$SSH_KEY" "PROD 部署"
