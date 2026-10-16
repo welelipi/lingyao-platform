@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凌瑶智数 · 产品门户</title>
-  <meta name="app-version" content="V2.0.78.24">
+  <meta name="app-version" content="V2.0.78.26">
   <!-- V2.0.78.5：API_BASE 环境变量化（替代三元硬编码）
        dev 默认值 = http://localhost:9091 直连后端
        prod 部署由 infra/nginx-sub-filter-template.conf 把 content 替换成 ""（同源反代走 /api） -->
   <meta name="api-base" content="http://localhost:9091">
-  <script>console.log('%c portal.html V2.0.78.24 · API_BASE 环境变量化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
-  <link rel="stylesheet" href="/css/style.css?v=2.0.78.24">
+  <script>console.log('%c portal.html V2.0.78.26 · API_BASE 环境变量化 ', 'background:#16325C;color:#fff;padding:2px 6px;border-radius:3px;');</script>
+  <link rel="stylesheet" href="/css/style.css?v=2.0.78.26">
   <style>
     /* ── Portal 专属样式（复用凌瑶 CSS 变量） ─────── */
     .portal-container {
@@ -1062,6 +1062,11 @@
     const USER_KEY = 'lingyao_user';
     // V2.0.3: 老 key fallback 列表（ly_token / geo_token 是对外版历史 key，老用户 localStorage 兼容）
     const TOKEN_KEYS_LEGACY = ['ly_token', 'geo_token'];
+    // V2.0.78.25：JWT 密钥指纹（后端 /api/auth/jwt-fingerprint 返回的不可逆摘要）
+    // 用途：密钥轮换会让本机存量 token 全部失效。若等到某次请求 401 才被踢回登录页，
+    //      用户看到的就是「登录成功但产品列表空白 + KPI 全是 —」。
+    //      改为页面加载时先比对指纹：不一致说明密钥已换代 → 立即清本地状态并跳登录页。
+    const JWT_FP_KEY = 'lingyao_jwt_fp';
     // V2.0.78.5：API_BASE 从 <meta name="api-base"> 读，替代三元硬编码
     // dev：head 里 content="http://localhost:9091"（直连后端）
     // prod：由 infra/nginx-sub-filter-template.conf 把 content 替换成 "" → 走同源 /api 相对路径
@@ -1091,6 +1096,16 @@
     }
     function setToken(token) {
       localStorage.setItem(TOKEN_KEY, token);
+      // V2.0.78.25：签发新 token 时同步记录当前密钥指纹。
+      // 登录与刷新 token 两条路径都经过这里，故只需一处即可覆盖。
+      // 不阻塞：指纹拉取失败不影响本次登录，留待下次页面加载时补齐。
+      fetch(API_BASE + '/api/auth/jwt-fingerprint', { method: 'GET' })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => {
+          const fp = j && j.data && j.data.fingerprint;
+          if (fp && fp !== 'unavailable') localStorage.setItem(JWT_FP_KEY, fp);
+        })
+        .catch(() => {});
     }
     function getUser() {
       const s = localStorage.getItem(USER_KEY);
@@ -1102,7 +1117,40 @@
     function logout() {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      // V2.0.78.25：指纹一并清掉，否则下次登录前会被误判为「密钥未变」而沿用旧标记
+      localStorage.removeItem(JWT_FP_KEY);
+      TOKEN_KEYS_LEGACY.forEach(k => localStorage.removeItem(k));
       location.reload();
+    }
+
+    // ── V2.0.78.25：密钥轮换感知 ─────────────────────
+    // 后端签名密钥一旦轮换，本机存量 token 必然验签失败。
+    // 这里在页面加载时主动比对指纹，而不是等某个请求返回 401 才被动补救。
+    async function syncJwtFingerprint() {
+      try {
+        const r = await fetch(API_BASE + '/api/auth/jwt-fingerprint', {
+          method: 'GET', headers: { 'Accept': 'application/json' }
+        });
+        if (!r.ok) return true;
+        const j = await r.json();
+        const fp = j && j.data && j.data.fingerprint;
+        if (!fp || fp === 'unavailable') return true;   // 端点异常不阻断登录流程
+        const localFp = localStorage.getItem(JWT_FP_KEY);
+        const hasToken = !!(localStorage.getItem(TOKEN_KEY)
+          || TOKEN_KEYS_LEGACY.some(k => localStorage.getItem(k)));
+
+        if (hasToken && localFp && localFp !== fp) {
+          // 密钥已轮换 → 存量 token 必然失效 → 立即清干净并回登录页
+          console.warn('[JWT] 检测到签名密钥已轮换，本地登录态失效，主动登出');
+          logout();
+          return false;
+        }
+        localStorage.setItem(JWT_FP_KEY, fp);
+        return true;
+      } catch (e) {
+        // 网络异常（如后端不可达）不应清登录态 —— 否则断网即登出
+        return true;
+      }
     }
 
     // ── 问候语 ─────────────────────────
@@ -2051,7 +2099,11 @@
     });
 
     // ── 启动判断 ─────────────────────────
-    (function init() {
+    // V2.0.78.25：改为异步 —— 先校验 JWT 密钥指纹，确认本地 token 未因密钥轮换而失效，
+    //   再决定渲染门户还是登录页。否则会先闪出「产品列表空白 + KPI 全是 —」的坏界面，
+    //   再由 401 兜底踢出，用户观感就是「登录了却坏了」。
+    (async function init() {
+      await syncJwtFingerprint();
       const token = getToken();
       const user = getUser();
       if (token && user) {

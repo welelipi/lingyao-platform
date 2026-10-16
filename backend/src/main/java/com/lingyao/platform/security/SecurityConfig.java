@@ -67,6 +67,11 @@ public class SecurityConfig {
                         "/api/public/**",
                         "/api/auth/login",
                         "/api/auth/captcha",          // V2.0.66：图形验证码出题（登录前置，公开）
+                        // V2.0.78.26：JWT 密钥指纹（公开）。
+                        // 必须免鉴权 —— 它的用途正是「token 已因密钥轮换而失效时仍能读到指纹」，
+                        // 若要求鉴权则该场景下必然 401，机制形同虚设。
+                        // 只回 SHA-256 前 16 hex 摘要，不泄露密钥本身。
+                        "/api/auth/jwt-fingerprint",
                         "/api/auth/device-otp/send",  // V2.0.69 D：新设备登录邮箱码发送（登录前置，公开）
                         "/api/auth/logout",           // V2.0.20 P1 阶段 A：logout 幂等，允许未登录调用（前端清 token）
                         "/api/auth/refresh",          // V2.0.21 P1.4 阶段 B：refresh 本身用 refresh_token 鉴权（不需 access_token）

@@ -37,6 +37,10 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    // V2.0.78.25：当前生效的 JWT 密钥（供 /jwt-fingerprint 计算不可逆指纹）
+    @org.springframework.beans.factory.annotation.Value("${lingyao.jwt.secret}")
+    private String secretValue;
+
     // V2.0.71 PRD-1.3：统一 IP 口径
     @Autowired
     private ClientIpResolver clientIpResolver;
@@ -46,6 +50,40 @@ public class AuthController {
      */
     private String clientIp(HttpServletRequest httpReq) {
         return clientIpResolver.resolve(httpReq);
+    }
+
+    /**
+     * V2.0.78.25：密钥指纹公开端点（免鉴权）
+     *
+     * 背景（r7 实锤缺陷）：JWT 密钥轮换后，浏览器 localStorage 里存量 token
+     * 全部无法验签 → 所有接口 401 → 用户卡在「产品列表空白 + KPI 不展示」。
+     * 而修复后的前端 logout() 虽能自愈，但**无法主动触发** —— 用户必须先点一次
+     * 页面、等到某次请求 401，才会被踢回登录页。体验上等同于「登录后坏了」。
+     *
+     * 机制：后端暴露当前密钥的**不可逆指纹**（不是密钥本身）。
+     * 前端在 localStorage 缓存签发时拿到的指纹；每次加载页面先比对：
+     *   一致 → token 可信，正常用
+     *   不一致 → 说明密钥已轮换，存量 token 必然失效 → 立即清本地状态并跳登录页
+     *
+     * 安全考量：
+     *   - 只回指纹（SHA-256 前 16 hex），不回密钥，无法用于撞库
+     *   - 指纹不含明文密钥，泄露无实质危害（等同于公开"密钥已换代"这一事实）
+     *   - 端点本身免鉴权是必要的 —— token 已失效时无法通过鉴权拿到该信息
+     */
+    @GetMapping("/jwt-fingerprint")
+    public ApiResponse<Map<String, Object>> jwtFingerprint() {
+        java.security.MessageDigest md = null;
+        try {
+            md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] d = md.digest(secretValue.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 8 && i < d.length; i++) {
+                sb.append(String.format("%02x", d[i]));
+            }
+            return ApiResponse.ok(Map.of("fingerprint", sb.toString(), "epochMillis", System.currentTimeMillis()));
+        } catch (Exception e) {
+            return ApiResponse.ok(Map.of("fingerprint", "unavailable"));
+        }
     }
 
     /** V2.0.66：获取图形验证码（公开端点，登录页加载/点击刷新时调用） */
