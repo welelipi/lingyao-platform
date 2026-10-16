@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -78,8 +79,12 @@ public class SecurityConfig {
                         "/api/auth/forgot-password",  // V2.0.21 P1.5 阶段 B：忘记密码（公开）
                         "/api/auth/reset-password",   // V2.0.21 P1.5 阶段 B：重置密码（公开，token 鉴权）
                         "/api/auth/register",
-                        "/api/registrations",         // 公开报名提交
-                        "/api/registrations/stats",   // 公开统计（仅数量）
+                        // V2.0.78.27 安全（L-01）：/api/registrations 移出「无方法限定的路径白名单」。
+                        // 根因：本白名单是「路径」匹配、不带 HTTP 方法限定，因此
+                        // 同一个 "/api/registrations" 字符串同时覆盖了 POST 提交与 GET 列表
+                        // （RegistrationController 里 list 就挂在 @GetMapping 根路径上），
+                        // 实测零 header / 零 cookie 即可拉到全站报名姓名/手机/邮箱。
+                        // 改为下方「精确方法匹配」白名单，只放行真正公开的两条。
                         "/api/invitations/token/*",   // 公开：校验邀请 token
                         "/api/invitations/redeem",    // 公开：通过邀请注册
                         "/api/feedback",              // 公开：反馈提交（前端兜底本地存储）
@@ -102,6 +107,22 @@ public class SecurityConfig {
                         "/assets/**",
                         "/error"
                     ).permitAll();
+                // V2.0.78.27 安全（L-01）：报名接口的「精确方法匹配」公开白名单
+                //  · POST /api/registrations       → 公开报名提交（游客/未登录）
+                //  · GET  /api/registrations/stats → 公开统计（只回各状态数量，无 PII）
+                // 其余 /api/registrations/** （GET 列表、GET /{id}、PUT /{id}/status）
+                // 不再命中 permitAll，落到下方 /api/** authenticated，需要登录 + 超管守卫。
+                //
+                // 为什么不用 "/api/registrations/**" 之类的通配：那会重新把列表/详情放开。
+                // 为什么不用 MvcRequestMatcher：路径会被 servlet mapping 前后缀改写，
+                // 容易与实际暴露的 URL 不一致；字面量 + HttpMethod 是最保守的写法。
+                //
+                // OPTIONS 预检：CorsFilter 在 Security 链之前短路 OPTIONS（HttpMethod.OPTIONS
+                // 时不落到这些 matcher，浏览器预检由 WebConfig.globalCorsFilter 直接应答），
+                // 故无需为预检单开 permitAll。
+                chain = chain
+                    .requestMatchers(HttpMethod.POST, "/api/registrations").permitAll()
+                    .requestMatchers(HttpMethod.GET,  "/api/registrations/stats").permitAll();
                 if (dev) {
                     // PRD-2.7：dev 保留 _diag 匿名自检（E2E 依赖 /api/_diag/version）与 h2-console
                     chain = chain

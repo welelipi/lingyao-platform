@@ -1,5 +1,6 @@
 package com.lingyao.platform.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
@@ -28,6 +29,19 @@ public class SysUser {
     @Column(unique = true, nullable = false, length = 64)
     private String username;
 
+    /**
+     * V2.0.78.27 安全（L-04）：口令哈希绝不进 API 响应。
+     *
+     * 原先本字段没有 @JsonIgnore，AdminController#listUsers 直接返回 Page&lt;SysUser&gt;
+     * 原样序列化 → BCrypt 哈希（含 salt 与 cost）随响应下发给前端。
+     * 加 @JsonIgnore 后 Jackson 对该字段既不序列化也不反序列化。
+     *
+     * 反序列化侧无副作用（已核查）：
+     * - 全项目无任何 Controller 以 SysUser 作为 @RequestBody（改密/建号走 DTO + setPasswordHash）；
+     * - 前端（website/ 与 static/）无任何 passwordHash 消费点；
+     * - 内部逻辑统一走 getPasswordHash()/setPasswordHash() Java 方法，不经 JSON。
+     */
+    @JsonIgnore
     @Column(name = "password_hash", nullable = false, length = 128)
     private String passwordHash;
 

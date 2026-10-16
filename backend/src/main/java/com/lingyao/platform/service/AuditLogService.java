@@ -104,13 +104,44 @@ public class AuditLogService {
         }
     }
 
+    /**
+     * 按当前登录人所属公司查询审计日志。
+     *
+     * V2.0.78.27 安全（L-02）：fail-open → fail-closed。
+     *
+     * 原实现：
+     *   if (cu == null || cu.getCompanyId() == null) {
+     *       return repo.findAllByOrderByCreatedAtDesc(pageable);   // ← 退化全表，零过滤
+     *   }
+     *
+     * 危害放大点：cu == null / companyId == null 并不是「只有平台超管才会命中」的
+     * 罕见态 —— 未绑定公司的普通员工 token 就落在这一分支，结果是被静默放大成
+     * 「读全表」（含 actorUsername / companyId / ipAddress）。实测普通员工 token
+     * 读到 109 条跨公司记录。
+     *
+     * 现在改为 fail-closed：
+     * - cu == null                → 空页（没有登录上下文就没有可见范围，绝不退化为全表）
+     * - companyId == null         → 仅平台超管可见全表；其余一律空页
+     * - companyId != null         → 原有按公司过滤行为不变
+     *
+     * 注：超管判定字段是 CurrentUser#isPlatformAdmin（Lombok 为 boolean platformAdmin
+     * 生成），不是 isSuper()/getRole()。
+     */
     public Page<CompanyAuditLog> listForCurrentCompany(int page, int size) {
         Pageable pageable = PageRequest.of(
             Math.max(0, page),
             Math.min(Math.max(1, size), 100)
         );
         CurrentUser cu = CurrentUser.get();
-        if (cu == null || cu.getCompanyId() == null) {
+        // fail-closed：无登录上下文 → 无可见范围
+        if (cu == null) {
+            return Page.empty(pageable);
+        }
+        if (cu.getCompanyId() == null) {
+            // 无公司归属：只有平台超管才有权看全表，普通员工不得退化为全表
+            if (!cu.isPlatformAdmin()) {
+                return Page.empty(pageable);
+            }
             return repo.findAllByOrderByCreatedAtDesc(pageable);
         }
         return repo.findByCompanyIdOrderByCreatedAtDesc(cu.getCompanyId(), pageable);

@@ -384,11 +384,19 @@ public class AdminController {
 
     /**
      * Bug-21：审计日志查询
+     *
+     * V2.0.78.27 安全（L-02）：补 requirePlatformAdmin() 守卫。
+     * 本方法原先是 /api/admin 下唯一漏调守卫的读端点（同族 :405 listSecurityEvents 有调），
+     * 导致任意已登录普通员工可读全租户审计日志（含 actorUsername/companyId/ipAddress）。
+     * 公司超管看本公司审计日志请走 /api/company-admin/audit-logs（CompanyAdminController，
+     * 有 requireTenantAdmin 守卫且按 companyId 过滤），此处只服务平台超管。
      */
     @GetMapping("/audit-logs")
     public ApiResponse<Page<CompanyAuditLog>> listAuditLogs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        ApiResponse<?> deny = requirePlatformAdmin();
+        if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         Pageable pageable = PageableValidator.safeOf(page, size);
         return ApiResponse.ok(auditLogService.listForCurrentCompany(page, size));
     }
@@ -471,9 +479,21 @@ public class AdminController {
 
     /**
      * Bug-03：推送通道健康监控
+     *
+     * V2.0.78.27 安全（L-03）：两处修复
+     * 1) 补 requirePlatformAdmin() 守卫 —— 本方法原先是 /api/admin 下漏调守卫的读端点之一
+     *    （同族 :405 listSecurityEvents 有调），任意已登录用户即可调用。
+     * 2) channels 改为「白名单视图」，不再直接吐 NotificationChannel 实体：
+     *    实体里的 webhookUrl（飞书/企微 webhook 自带 key）与 secret（微信 AppSecret）
+     *    一旦填入真值即等于凭据外泄。当前库中仍是 REPLACE_ME/null 所以尚未爆发，
+     *    但「填了真值就被任意登录用户取走」本身就是缺陷，不能等出事再修。
+     *    webhook 只回 webhookConfigured 布尔位，不回 URL 原文。
      */
     @GetMapping("/push/health")
     public ApiResponse<?> pushHealth() {
+        ApiResponse<?> guard = requirePlatformAdmin();
+        if (guard != null) return guard;
+
         long active = channelRepo.findByStatusOrderBySortOrderAsc(
                 NotificationChannel.Status.ACTIVE).size();
         long total = channelRepo.count();
@@ -486,7 +506,27 @@ public class AdminController {
         res.put("suggestion", allInactive
                 ? "请前往 [通知通道管理] 创建一个 WECHAT_WORK 通道并激活"
                 : null);
-        res.put("channels", channelRepo.findAll());
+        // 白名单视图：仅诊断需要字段。绝不输出 webhookUrl 原文与 secret。
+        List<Map<String, Object>> channelViews = new java.util.ArrayList<>();
+        for (NotificationChannel ch : channelRepo.findAll()) {
+            Map<String, Object> v = new LinkedHashMap<>();
+            v.put("id", ch.getId());
+            v.put("channelType", ch.getChannelType());
+            v.put("name", ch.getName());
+            v.put("status", ch.getStatus());
+            v.put("sortOrder", ch.getSortOrder());
+            v.put("remark", ch.getRemark());
+            v.put("updatedAt", ch.getUpdatedAt());
+            // 只回「是否已配置」，不回 URL/密钥本身
+            v.put("webhookConfigured",
+                    ch.getWebhookUrl() != null && !ch.getWebhookUrl().isBlank()
+                            && !ch.getWebhookUrl().startsWith("REPLACE_ME"));
+            v.put("secretConfigured",
+                    ch.getSecret() != null && !ch.getSecret().isBlank()
+                            && !ch.getSecret().startsWith("REPLACE_ME"));
+            channelViews.add(v);
+        }
+        res.put("channels", channelViews);
         if (allInactive) {
             auditLogService.record("PUSH_HEALTH_ALERT", "PUSH", "-", "推送通道全部停用");
         }
