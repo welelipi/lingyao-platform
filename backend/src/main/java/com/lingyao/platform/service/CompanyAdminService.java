@@ -302,11 +302,14 @@ public class CompanyAdminService {
         }
 
         // 校验未超过 maxUsers
-        long currentGranted = grantRepo.findAll().stream()
-            .filter(g -> g.getCompanyId().equals(companyId)
-                      && g.getProductId().equals(productId)
-                      && g.getStatus() == ProductUserGrant.Status.ACTIVE)
-            .count();
+        // V2.0.78.24（r7 PRD-1.1 · 研发 DEV-02 + 性能 PERF-01 双探针共识）：
+        // 原为 grantRepo.findAll() 全表扫描 + 内存过滤（V2.0.78.22 只改了 listCompanyProducts
+        // 的读路径，此写路径漏改 → 同文件两处「某公司某产品 ACTIVE 授权数」形成**同语义双口径**，
+        // 上限校验可能与展示口径不一致导致超额授权/误拒）。改为精确查询，与 listCompanyProducts
+        // 走同一个 repository 方法，消除双口径。
+        long currentGranted = grantRepo
+                .findByCompanyIdAndProductIdAndStatus(companyId, productId, ProductUserGrant.Status.ACTIVE)
+                .size();
         int maxUsers = cp.getMaxUsers() != null ? cp.getMaxUsers() : 50;
         if (currentGranted >= maxUsers) {
             throw new IllegalArgumentException("已达产品授权上限 " + maxUsers + " 人");

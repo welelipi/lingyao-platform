@@ -1,5 +1,64 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.78.24 (2026-10-16 13:50) — 质量环 r7 Batch 1 落地（主人 13:25「按照你的建议往下走」）
+
+> 来源：`project-quality-loop` v0.3.4 · run `2026-10-16-r7-main-site` · 阶段①②产物
+> 五探针评分：架构 7.6 / 研发 7.4 / 性能 8.6 / 安全 8.7 / 合规 6.6 · PRD 合并质量 9.2
+
+**① PRD-1.1 授权写路径口径统一（P0 · 研发 DEV-02 + 性能 PERF-01 双探针共识）**
+- `CompanyAdminService.grantProductToUser`（L305 原位置）上限校验由 `grantRepo.findAll()` 全表扫描 + 内存过滤 → `findByCompanyIdAndProductIdAndStatus(companyId, productId, ACTIVE)`
+- 根因：V2.0.78.22 只改了读路径 `listCompanyProducts`（L258），写路径漏改 → 同文件两处「某公司某产品 ACTIVE 授权数」形成**同语义双口径**，上限校验可能与展示口径不一致（超额授权或误拒）
+- 性能侧核实：`(company_id, product_id, status)` 复合索引**不存在**但查询**确实走索引**（靠唯一约束 `uk_pug_company_product_user` 最左前缀，生产 EXPLAIN 0.031~0.387ms）→ **不补索引**，本项本质是口径一致性而非性能
+
+**② PRD-1.2 邮件内部代号清除（P0 · 合规 CMP-15 · 破 .29 铁律）**
+- `EmailOtpService.sendOtpMail` 场景文案「敏感操作验证（**改 GEOM**/合同/删公司/改角色/**改 SSO** 等）」→ 改为对外正式名「修改**棱镜 GEO** 配置 / … / **单点登录**配置」
+- 该字符串同时进**正文与邮件主题**，公司超管收件箱直接可见内部代号。其余 5 个邮件发送方经复核均合规
+
+**③ PRD-1.4 前端三副本同步（P0 · 研发 DEV-01）**
+- 真源 `backend/src/main/resources/static/` 反向覆盖 `website/portal.html`、`website/static/portal.html`（各差 285 行、含 83 处已下线 SSO 活代码）、`website/company-admin.html`（差 298 行，与 .23 前版本字节相同）
+- 同步后三份 portal.html sha1 统一为 `d2a0635…`；website 侧 sso 出现次数 83 → 10（与真源一致，残留全为注释）
+- **风险背景**：当前生产不受影响（deploy 走 scp jar，mvn 只打包 `resources/static`），但 adapter 标准动作为「改 website/ 后 cp 到 resources/static/」→ 下次照做会让已下线的 SSO Tab 复活到生产
+
+**④ PRD-1.3 版本号 5 真源收敛 + CHANGELOG 补 6 条（P0 · 架构 VERSION-DRIFT，r6 遗留）**
+- 真源 `application.yml app.version` .23 → **.24**；11 个 HTML 的 `meta app-version` 与全部 `?v=` 缓存参数（含 `chart.umd.min.js?v=`）统一 → `2.0.78.24`；website/ 14 份副本同步
+- `?v=` 与 `meta` **必须同改**（RG-4 警示：只改 meta 不改 `?v=` 会重演 V2.0.78.7 全站样式错乱事故）
+- pom.xml `1.0.0` 与根 `VERSION` `V1.2.0` 经实测无实质贡献（`pom.xml:123` 有 finalName，改 version 不影响 jar 名），**降 P2 不动**（避免为凑数做无效改动）
+- 补记 .18~.23 六个 commit 的 CHANGELOG 条目（此前零条目，破 `docs/version-scheme.md` 铁律 V4）
+
+**本轮不改**：隐私政策/用户协议（CMP-01/02，需法务文本，AI 不得编造法律文件）、个人信息导出删除（CMP-08）、trial 清库承诺（CMP-09）、双环境 JWT 密钥拆分（SEC-002，跨环境运维需主人明示）、`jarPath` 命令注入（SEC-001）、SSO 密钥回落（SEC-003）、trial 健康度评分恒不触发（RV-N1，四探针未覆盖，产品经理独立发现）→ 全部登记 next-run 台账
+
+## V2.0.78.23 (2026-10-16) — 下线主站 SSO 配置入口（SSO 改为各子产品自行配置）
+
+- 主人 10-13 拍板：删除主站「SSO 配置」项，各子产品分别配置自己的 SSO，与主站解耦（回调地址/登录配置过多易错乱，多套 SSO 难个性化）
+- 前端下线：`portal.html` + `company-admin.html` 同步删除 Tab 按钮 / 面板 DOM / CSS / JS 渲染 / 保存逻辑（**两处入口**同时删，吸取 8 月只删一处复发教训）
+- **后端能力与表结构保留**；安全探针核实 6 个 `/api/company-admin/sso-config` 端点不在任何白名单 + 每个方法首行 `requireTenantAdmin()`，三层实测（Security 401 / CSRF 403 / Controller code=401），未形成未授权攻击面
+
+## V2.0.78.22 (2026-10-16) — 产品授权表只列已开通产品（与产品列表同口径）
+
+- `CompanyAdminService.listCompanyProducts`：已授权人数由 `grantRepo.findAll()` 全表扫描改为 `findByCompanyIdAndProductIdAndStatus(companyId, productId, ACTIVE)`
+- `ProductUserGrantRepository` 新增 `findByCompanyIdAndProductId` / `findByCompanyIdAndProductIdAndStatus`
+- 口径与产品列表统一为「仅 `CompanyProduct.Status.ACTIVE`」；不按产品硬编码过滤（避免环境差异）
+
+## V2.0.78.21 (2026-10-16) — 隐藏未开通产品 + 移除棱镜演示环境入口
+
+- 产品列表仅展示已开通产品，未开通一律隐藏（主人明确要求）
+- 删除棱镜「演示环境」入口
+- 修复 `const actionsHtml` 遮蔽外层变量导致按钮渲染 `undefined`
+
+## V2.0.78.20 (2026-10-16) — 重做隐藏未开通产品（7810 改动丢失修复）
+
+- 修复 7810 提交中「隐藏未开通产品」的改动丢失
+
+## V2.0.78.19 (2026-10-16) — reset-password.html API 前缀修复（子路径部署打到生产后端）
+
+- 修正 `/api` 前缀 + nginx rewrite + 生产 portal URL；子路径部署（staging `/staging/`）不再打到生产后端
+
+## V2.0.78.18 (2026-10-16) — 忘记密码机制补齐
+
+- 重复邮箱导致单结果查询异常 → 新增 `findAllByEmail` 择一（枚举防护：响应文案恒定，歧义命中写审计）
+- 真实发信链路 + 前端重置页
+
+
 ## V2.0.78.8 (2026-09-25 08:50) — 首页联系区精简（主人 08:43 拍板：双环境发布）
 
 - ① 删除「公司地址」「微信咨询」两张联系卡（含 QR 占位图），保留「销售热线」「商务邮箱」（backend/static/index.html + website/index.html + website/static/index.html 三处）

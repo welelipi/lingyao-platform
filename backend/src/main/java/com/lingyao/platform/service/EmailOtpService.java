@@ -250,7 +250,11 @@ public class EmailOtpService {
             case PURPOSE_DEVICE_LOGIN -> "新设备登录验证";
             case PURPOSE_CHANGE_PASSWORD -> "修改密码验证";
             case PURPOSE_ADMIN_CREATE_USER -> "创建账号验证";
-            case PURPOSE_SENSITIVE_OPERATION -> "敏感操作验证（改 GEOM/合同/删公司/改角色/改 SSO 等）";
+            // V2.0.78.24（r7 PRD-1.2 · 合规 CMP-15 · 破主人 .29 铁律「邮件内容严禁内部代号」）：
+            // 原为「敏感操作验证（改 GEOM/合同/删公司/改角色/改 SSO 等）」—— 内部代号 GEOM/SSO
+            // 同时进正文与邮件主题，公司超管收件箱直接可见。对外正式名取自 index.html 产品线
+            // 「棱镜 GEO」。SSO 改为「单点登录」等中文表述。
+            case PURPOSE_SENSITIVE_OPERATION -> "敏感操作验证（修改棱镜 GEO 配置/合同/删除公司/修改角色/单点登录配置 等）";
             default -> "身份验证";
         };
         String html = String.format("""
