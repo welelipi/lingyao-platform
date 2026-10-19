@@ -1,0 +1,43 @@
+[Unit]
+# 🔴 V1.1.77：本文件此前与线上严重脱节 —— 仓库版写的是
+#   `-Xms512m -Xmx1536m ... --server.port=9091 --spring.profiles.active=private
+#    --spring.config.location=...`（旧部署方式），
+#   而线上真实值是下面这份（2026-10-19 从 /etc/systemd/system/ 取回核对）。
+#   脱节的危害：谁按仓库文件重装，堆会直接翻 3 倍（1536m vs 512m），
+#   在 3.6GB 小内存机上足以把 GEOM 挤到 OOM —— 这正是 10-16 三次 OOM 的土壤。
+#   本次以**线上真实配置**为唯一基准重写，两环境文件从此对齐。
+Description=Lingyao Backend PROD (port 9091)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/lingyao
+EnvironmentFile=/home/ubuntu/lingyao/lingyao.env
+Environment=SPRING_PROFILES_ACTIVE=private
+Environment=SPRING_CONFIG_ADDITIONAL_LOCATION=/home/ubuntu/lingyao/application-private.yml
+Environment=SERVER_ADDRESS=127.0.0.1
+
+# ── V1.1.77 JVM 参数修复（三产品 UAT 实测驱动）─────────────────────────
+# 保留（不改）：
+#   -Xms256m -Xmx512m  jstat 实测老年代仅 34.74%、FGC=0（3.9 天）→ 堆健康，
+#                      **调大只会挤压同机的 GEOM**（GEOM 才是 OOM 受害者）。
+#   -XX:+ExitOnOutOfMemoryError  在 Restart=always + RestartSec=5 下是**正确选择**：
+#                      堆爆即杀、5 秒自愈；改为降级继续服务才会变成吃内存的僵尸进程。
+# 新增：
+#   -XX:MaxMetaspaceSize=128m  Metaspace 实测 **99.15% 已用且原本无上闸**，
+#                      元空间无界增长会在 3.6GB 机上触发无法预测的 global OOM。
+#                      128m 远高于当前实际占用（约 90m），只补上界不改行为。
+# 移除：
+#   -XX:+CrashOnOutOfMemoryError  OOM 时生成 core dump（磁盘已用 28G），
+#                      且与 ExitOnOutOfMemoryError 同时开启属冗余——进程已被杀，
+#                      dump 只是把一次 OOM 变成一次磁盘风险。
+ExecStart=/usr/bin/java -Xms256m -Xmx512m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError -jar /home/ubuntu/lingyao/lingyao-platform.jar
+
+Restart=always
+RestartSec=5
+# V1.1.77：原默认 StartLimitBurst=5，连续 OOM 5 次后 systemd 永久标记 failed，
+# 必须人工介入才能恢复。提高到 10，给自动自愈更多机会。
+StartLimitBurst=10
+
+[Install]
+WantedBy=multi-user.target

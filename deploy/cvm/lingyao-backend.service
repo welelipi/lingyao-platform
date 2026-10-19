@@ -1,5 +1,27 @@
 [Unit]
-Description=Lingyao Intelligence Platform Backend (Spring Boot)
+# 🚫 V1.1.77 已作废（2026-10-19 三产品 UAT 期间发现与线上严重脱节）
+#
+# 本文件描述的是**早已废弃**的部署方式：
+#   · 跑在 /opt/lingyao、jar 名 lingyao-platform.jar
+#   · 用 --spring.profiles.active / --spring.config.location 命令行参数
+#   · User=root、Type=simple、日志重定向到 /opt/lingyao/logs/
+#
+# 线上**实际**跑的是（2026-10-19 核对）：
+#   · WorkingDirectory=/home/ubuntu/lingyao、User=ubuntu
+#   · 环境变量方式（SPRING_PROFILES_ACTIVE / SPRING_CONFIG_ADDITIONAL_LOCATION）
+#   · EnvironmentFile=/home/ubuntu/lingyao/lingyao.env
+#   · 独立 unit：lingyao-backend-prod.service(9091) / lingyao-backend-staging.service(9092)
+#   详见 deploy/cvm/lingyao-backend-prod.service 与 lingyao-backend-staging.service
+#
+# ⚠️ 为什么保留而不删（铁律：连带改动先申请）：
+#   本文件可能是历史部署文档的一部分，也可能被某些未纳入仓库的运维脚本引用。
+#   删除属不可逆且可能波及其他人的操作，须主人明示后再删。
+#   在此之前**明确标注为作废**，防止有人照它重装。
+#
+# 🔴 特别提醒：本文件的 `-Xmx1536m` 是线上真实值（512m）的 **3 倍**。
+#   机器总内存仅 3.6GB 且同机跑着 GEOM（历史上 3 次 OOM 的受害者）——
+#   照本文件重装足以把 GEOM 挤爆。这正是「仓库配置与线上脱节」的真实代价。
+Description=(DEPRECATED / 作废) Lingyao Intelligence Platform Backend (Spring Boot)
 After=network.target
 
 [Service]

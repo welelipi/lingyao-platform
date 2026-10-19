@@ -53,7 +53,8 @@ spring:
 
 # ---------- 业务配置（所有 profile 共享）----------
 app:
-  version: 2.0.78.27
+  # V2.0.78.28：三产品 UAT 整改 —— 分页 size 上限（P1-1/P1-2）+ systemd/JVM 护栏固化
+  version: 2.0.78.28
   release: ${APP_RELEASE:stable}
   build-time: ${APP_BUILD_TIME:}
   git-commit: ${APP_GIT_COMMIT:dev}

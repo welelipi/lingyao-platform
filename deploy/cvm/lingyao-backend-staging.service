@@ -1,0 +1,27 @@
+[Unit]
+# 🔴 V1.1.77：与 prod 同批治理。此前仓库无 staging 的 unit 文件
+#   （只有一个过时的 lingyao-backend.service 写 Xmx1536m），
+#   而线上 staging 有独立的 /etc/systemd/system/lingyao-backend-staging.service。
+#   本文件以 2026-10-19 从线上取回的真实配置为基准。
+Description=Lingyao Backend STAGING (port 9092)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/lingyao
+EnvironmentFile=/home/ubuntu/lingyao/lingyao.env
+Environment=SPRING_PROFILES_ACTIVE=staging
+Environment=SPRING_CONFIG_ADDITIONAL_LOCATION=/home/ubuntu/lingyao/application-staging.yml
+Environment=SERVER_ADDRESS=127.0.0.1
+
+# JVM 参数与 prod 同批治理，理由见 lingyao-backend-prod.service 的逐条注释。
+# staging 堆更小（384m）因为预发布流量低；ExitOnOutOfMemoryError + RestartSec=5
+# 的自愈组合在两环境保持一致，便于故障时同一处置。
+ExecStart=/usr/bin/java -Xms192m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError -jar /opt/lingyao/staging/lingyao-platform.jar --server.port=9092 --server.servlet.context-path=/staging
+
+Restart=always
+RestartSec=5
+StartLimitBurst=10
+
+[Install]
+WantedBy=multi-user.target

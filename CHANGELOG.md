@@ -1,5 +1,43 @@
 # 凌瑶智数 · 变更日志
 
+## V2.0.78.28 (2026-10-19) — 三产品 UAT 整改：分页 size 上限 + systemd/JVM 护栏固化
+
+> 主人指令：「就这次审查，所有的该修改的，你建议按照你的建议，该修改的都修改。」
+> 来源：同日「凌瑶主站 + GEOM + AIinfo 三产品综合 UAT」（主人单次跨窗口授权）
+> 本版只做**代码与配置资产**修复，**不含任何生产变更**（jar 晋升与 systemd 生效须主人明示）
+
+**① PRD-P1-1/2 分页 size 无上限（P1 · 两处，改用现成校验器，零新代码）**
+- `AdminController.listAllGrants` 与 `SsoConfigService.listAuditLogs` 裸用 `PageRequest.of(page, size)`，size 完全由调用方决定 → 可传 `size=1000000` 把整表授权记录 / SSO 登录审计日志一次性拉进内存
+- 🔑 项目**早就有** `PageableValidator`（注释明写「Bug-14 修复，size 1~100」），只是这两处没用。改为复用 → 零新代码、零新概念
+- 全量复核确认：主站共 5 处 `PageRequest.of`，**只有这 2 处真无上限**，另 3 处（`CompanyAdminController` / `AuthAuditService`×4）已有 `Math.min(..., 100)`
+- 顺带修正 `listAuditLogs` 返回的 `page`/`size`：原样回传入参，与钳位后的实际分页不符（前端会拿到自己请求的 size），现改取 `pageable` 实际值
+
+**② PRD-P0-Metaspace JVM 元空间无上闸（P0 · 三产品 UAT 实测）**
+- 实测 `jstat -gcutil`：**Metaspace 99.15% 已用且未设 `MaxMetaspaceSize`**（无上闸）→ 元空间无界增长会在 3.6GB 小内存机上触发**无法预测的 global OOM**
+- 🔴 **同时纠正一个错误结论**：此前「主站 Xmx512m 已用 95%」是把 **RSS（486MB）当成 Java 堆**。实测**老年代仅 34.74%、FGC=0（已 3.9 天）** → 堆很健康
+  ⇒ **明确不调大 Xmx**：老年代只用三成，加堆只会挤压同机的 GEOM（GEOM 才是 3 次 OOM 的受害者）
+- `-XX:+ExitOnOutOfMemoryError` **保留**：在 `Restart=always + RestartSec=5` 下是**正确选择**（堆爆即杀、5 秒自愈）。改成降级继续服务才会变成吃内存的僵尸进程
+- `-XX:+CrashOnOutOfMemoryError` **移除**：与 Exit 同时开启属冗余（进程已被杀），且 OOM 时生成 core dump 撑爆磁盘（盘已用 28G）
+- `StartLimitBurst` 5 → **10**：原默认连续 OOM 5 次即被 systemd 永久标记 failed，需人工介入
+
+**③ PRD-P0-unit 仓库配置与线上严重脱节（P0 · 比探针报告更严重）**
+- 🔴 `deploy/cvm/lingyao-backend.service` 写的是 `-Xms512m -Xmx1536m`、`User=root`、`/opt/lingyao`、`--spring.config.location=` —— 而线上真实是 `-Xms256m -Xmx512m`、`User=ubuntu`、`/home/ubuntu/lingyao`、环境变量方式
+- **危害量化**：仓库版的 `Xmx1536m` 是线上真实值的 **3 倍**。机器总内存仅 3.6GB 且同机跑 GEOM（3 次 OOM 受害者）——**谁照仓库文件重装，足以把 GEOM 挤爆**。这就是「配置资产脱节」的真实代价
+- 处置：以**线上真实配置**为唯一基准新建 `lingyao-backend-prod.service` / `lingyao-backend-staging.service`（含全部 V2.0.78.28 JVM 修复）；旧文件**标注作废但保留**（铁律：连带改动先申请，删除不可逆且可能被未纳入仓库的运维脚本引用）
+- 🔑 顺带发现：**主站线上也有 drop-in**（`override.conf`），同样只在主机、仓库零副本 → 已固化。其中 staging 的 `EnvironmentFile=`（空值清空）那行是**跨环境串配置的关键一行**，已在注释里标明绝不能省
+- 新增 `deploy/cvm/verify-jvm-config.sh` 自检（JVM 参数 + 跨环境 env 隔离），**已在真实主机实测**：正确检出线上 3 项待应用、env 隔离正常
+
+**验证**
+- 新增 `PaginationSizeCapRegressionTest` **4 用例**；含**全仓源码扫描**（禁止任何无 size 上限的裸 `PageRequest.of`）—— 这是防未来回归的关键，探针只能发现已存在的缺陷
+- **变异 1/1 全杀**：还原两处修复 → 2 条断言红（含全仓扫描精确报出文件行号）
+- 安全套件回归 **32 passed**（`DataLeakRegressionTest` 13 + `SecurityConfigWhitelistRegressionTest` 15 + 本新增 4）
+- 版本号 `?v=` 与 `meta` **同步 19 处 / 11 文件**（RG-4 铁律：只改 meta 不改 `?v=` 会重演 V2.0.78.7 全站样式错乱事故）
+
+**未做（须主人明示）**
+- jar 晋升到生产 / 预发布（属生产晋升）
+- systemd drop-in 与 JVM 参数在主机生效（需 `daemon-reload` + 重启服务）
+
+
 ## V2.0.78.24 (2026-10-16 13:50) — 质量环 r7 Batch 1 落地（主人 13:25「按照你的建议往下走」）
 
 > 来源：`project-quality-loop` v0.3.4 · run `2026-10-16-r7-main-site` · 阶段①②产物

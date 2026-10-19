@@ -268,7 +268,7 @@ public class AdminController {
         ApiResponse<?> deny = requirePlatformAdmin();
         if (deny != null) return ApiResponse.fail(deny.getCode(), deny.getMessage());
         return ApiResponse.ok(grantRepo.findAll(
-                org.springframework.data.domain.PageRequest.of(page, size,
+                com.lingyao.platform.config.PageableValidator.safeOf(page, size,
                         org.springframework.data.domain.Sort.by("id").descending())));
     }
 

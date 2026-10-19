@@ -234,12 +234,15 @@ public class SsoConfigService {
      * 查询 SSO 登录审计日志（按公司）
      */
     public Map<String, Object> listAuditLogs(Long companyId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
+        // V1.1.77 安全：原为裸 PageRequest.of(page, size)，size 无上限。
+        // 项目已有 PageableValidator（size 1~100）却未在此使用 —— 调用方可
+        // 传 size=1000000 拉全表审计日志进内存。改用现成校验器，零新代码。
+        Pageable pageable = com.lingyao.platform.config.PageableValidator.safeOf(page, size);
         Page<SsoLoginAudit> p = auditRepo.findByCompanyIdOrderByCreatedAtDesc(companyId, pageable);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("total", p.getTotalElements());
-        result.put("page", page);
-        result.put("size", size);
+        result.put("page", pageable.getPageNumber());
+        result.put("size", pageable.getPageSize());
         List<Map<String, Object>> items = new ArrayList<>();
         for (SsoLoginAudit log : p.getContent()) {
             Map<String, Object> m = new LinkedHashMap<>();
